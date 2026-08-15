@@ -314,7 +314,7 @@ describe('PostService', () => {
 
         const request = createPostRequest();
         mockTelegramPlatform.publish.mockImplementation(
-          () => new Promise<PlatformResult>(() => { }),
+          () => new Promise<PlatformResult>(() => {}),
         );
         jest.spyOn(appConfigService, 'requestTimeoutSecs', 'get').mockReturnValue(1);
 
@@ -335,7 +335,7 @@ describe('PostService', () => {
       it('should fail when request timeout exceeds maximum allowed value', async () => {
         const request = createPostRequest();
         mockTelegramPlatform.publish.mockImplementation(
-          () => new Promise<PlatformResult>(() => { }),
+          () => new Promise<PlatformResult>(() => {}),
         );
         jest.spyOn(appConfigService, 'requestTimeoutSecs', 'get').mockReturnValue(1000);
 

@@ -124,26 +124,26 @@ export class LibraryConfigService extends AppConfigService {
       for (const [accountName, accountConfig] of Object.entries(dto.accounts)) {
         const accountDto = plainToClass(AccountConfigValidationDto, accountConfig);
         const accountErrors = validateSync(accountDto);
-        
+
         if (accountErrors.length > 0) {
-           const constraints = accountErrors
+          const constraints = accountErrors
             .map(err => {
               const msg = err.constraints ? Object.values(err.constraints).join(', ') : '';
               return `${err.property}: ${msg}`;
             })
             .join('; ');
-            accountErrorMessages.push(`account "${accountName}": ${constraints}`);
+          accountErrorMessages.push(`account "${accountName}": ${constraints}`);
         }
       }
     } else if (!errorMessages.some(e => e.includes('accounts'))) {
-       // Only add this error if accounts is missing/invalid type was not already caught (but IsObject catches types)
-       // Wait, if accounts is missing, 'validateSync' will catch it if I didn't make it optional?
-       // I didn't make it optional in LibraryConfigDto, so it is required.
+      // Only add this error if accounts is missing/invalid type was not already caught (but IsObject catches types)
+      // Wait, if accounts is missing, 'validateSync' will catch it if I didn't make it optional?
+      // I didn't make it optional in LibraryConfigDto, so it is required.
     }
 
     const allErrors = [...errorMessages, ...accountErrorMessages];
     if (allErrors.length > 0) {
-       throw new Error(`Library config validation error: ${allErrors.join('; ')}`);
+      throw new Error(`Library config validation error: ${allErrors.join('; ')}`);
     }
 
     return dto;

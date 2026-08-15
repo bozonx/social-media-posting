@@ -135,7 +135,9 @@ describe('IdempotencyService', () => {
     });
 
     it('should use default TTL when config does not define idempotencyTtlMinutes', async () => {
-      jest.spyOn(appConfigService, 'idempotencyTtlMinutes', 'get').mockReturnValue(undefined as any);
+      jest
+        .spyOn(appConfigService, 'idempotencyTtlMinutes', 'get')
+        .mockReturnValue(undefined as any);
 
       await service.setProcessing('default-key');
 

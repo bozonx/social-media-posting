@@ -5,7 +5,6 @@ import { APP_FILTER, APP_INTERCEPTOR, APP_GUARD } from '@nestjs/core';
 import { LoggerModule } from 'nestjs-pino';
 import { HealthModule } from './modules/health/health.module.js';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter.js';
-import { ShutdownService } from './common/services/shutdown.service.js';
 import { ShutdownModule } from './common/services/shutdown.module.js';
 import { ShutdownInterceptor } from './common/interceptors/shutdown.interceptor.js';
 import { BearerAuthGuard } from './common/guards/bearer-auth.guard.js';
@@ -43,15 +42,15 @@ import { AppConfigModule } from './modules/app-config/app-config.module.js';
             },
             transport: isDev
               ? {
-                target: 'pino-pretty',
-                options: {
-                  colorize: true,
-                  singleLine: false,
-                  translateTime: "UTC:yyyy-mm-dd'T'HH:MM:ss.l'Z'",
-                  ignore: 'pid,hostname',
-                  messageFormat: '[{context}] {msg}',
-                },
-              }
+                  target: 'pino-pretty',
+                  options: {
+                    colorize: true,
+                    singleLine: false,
+                    translateTime: "UTC:yyyy-mm-dd'T'HH:MM:ss.l'Z'",
+                    ignore: 'pid,hostname',
+                    messageFormat: '[{context}] {msg}',
+                  },
+                }
               : undefined,
             serializers: {
               req: req => ({
@@ -121,4 +120,4 @@ import { AppConfigModule } from './modules/app-config/app-config.module.js';
   ],
   exports: [ShutdownModule],
 })
-export class AppModule { }
+export class AppModule {}

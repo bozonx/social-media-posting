@@ -12,4 +12,4 @@ import { ShutdownModule } from '../../common/services/shutdown.module.js';
   controllers: [PostController],
   providers: [PostService, PreviewService, IdempotencyService],
 })
-export class PostModule { }
+export class PostModule {}

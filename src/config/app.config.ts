@@ -1,5 +1,14 @@
 import { registerAs } from '@nestjs/config';
-import { IsInt, IsString, IsIn, Min, Max, IsOptional, IsArray, validateSync } from 'class-validator';
+import {
+  IsInt,
+  IsString,
+  IsIn,
+  Min,
+  Max,
+  IsOptional,
+  IsArray,
+  validateSync,
+} from 'class-validator';
 import { plainToClass } from 'class-transformer';
 
 /**
@@ -51,11 +60,17 @@ export class AppConfig {
   @IsArray()
   @IsString({ each: true })
   public authBearerTokens?: string[];
+
+  @IsInt()
+  @Min(0)
+  public shutdownDrainSeconds!: number;
 }
 
 export default registerAs('app', (): AppConfig => {
   const authBearerTokens = process.env.AUTH_BEARER_TOKENS
-    ? process.env.AUTH_BEARER_TOKENS.split(',').map(token => token.trim()).filter(token => token.length > 0)
+    ? process.env.AUTH_BEARER_TOKENS.split(',')
+        .map(token => token.trim())
+        .filter(token => token.length > 0)
     : undefined;
 
   const config = plainToClass(AppConfig, {
@@ -65,6 +80,7 @@ export default registerAs('app', (): AppConfig => {
     nodeEnv: process.env.NODE_ENV ?? 'production',
     logLevel: process.env.LOG_LEVEL ?? 'warn',
     authBearerTokens,
+    shutdownDrainSeconds: parseInt(process.env.SHUTDOWN_DRAIN_SECONDS ?? '5', 10),
   });
 
   const errors = validateSync(config, {

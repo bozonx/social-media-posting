@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Standardized fleet scripts, environment handling, service identity, draining health checks,
+  non-root multi-stage Docker build, Compose limits, flat ESLint and Renovate configuration.
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),

@@ -1,9 +1,9 @@
-import { BadRequestException, Logger } from '@nestjs/common';
-import { AppConfigService } from '../app-config/app-config.service.js';
-import { PlatformRegistry } from '../platforms/base/platform-registry.service.js';
-import { AuthValidatorRegistry } from '../platforms/base/auth-validator-registry.service.js';
-import { IPlatform } from '../platforms/base/platform.interface.js';
-import { PostRequestDto } from './dto/index.js';
+import { BadRequestException, type Logger } from '@nestjs/common';
+import { type AppConfigService } from '../app-config/app-config.service.js';
+import { type PlatformRegistry } from '../platforms/base/platform-registry.service.js';
+import { type AuthValidatorRegistry } from '../platforms/base/auth-validator-registry.service.js';
+import { type IPlatform } from '../platforms/base/platform.interface.js';
+import { type PostRequestDto } from './dto/index.js';
 import type { AccountConfig } from '../app-config/interfaces/app-config.interface.js';
 
 /**
@@ -25,7 +25,7 @@ export abstract class BasePostService {
     protected readonly appConfig: AppConfigService,
     protected readonly platformRegistry: PlatformRegistry,
     protected readonly authValidatorRegistry: AuthValidatorRegistry,
-  ) { }
+  ) {}
 
   /**
    * Get platform instance by name
@@ -99,8 +99,6 @@ export abstract class BasePostService {
   protected validateAuth(platformName: string, auth: Record<string, any>): void {
     this.authValidatorRegistry.validate(platformName, auth);
   }
-
-
 
   /**
    * Full validation chain for request

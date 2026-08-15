@@ -95,7 +95,7 @@ export class PostService extends BasePostService {
       }
 
       const result: any = await this.executeWithRequestTimeout(
-        (combinedSignal) =>
+        combinedSignal =>
           this.retryWithJitter(
             () => platform.publish(request, accountConfig, combinedSignal),
             this.appConfig.retryAttempts,

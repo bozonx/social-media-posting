@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { setTimeout as sleep } from 'node:timers/promises';
 import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 import { ValidationPipe } from '@nestjs/common';
@@ -8,6 +9,8 @@ import { AppModule } from './app.module.js';
 import type { AppConfig } from './config/app.config.js';
 import { GRACEFUL_SHUTDOWN_TIMEOUT_MS } from './app.constants.js';
 import { ShutdownService } from './common/services/shutdown.service.js';
+import { buildApiPrefix } from './common/http/api-prefix.js';
+import { SERVICE_NAME, SERVICE_VERSION } from './config/service-info.js';
 
 /**
  * Bootstrap the NestJS application with Fastify adapter
@@ -47,17 +50,15 @@ async function bootstrap() {
 
   // Configure global API prefix from configuration
   // If BASE_PATH is set, prefix will be BASE_PATH/api/v1, otherwise just api/v1
-  const globalPrefix = appConfig.basePath ? `${appConfig.basePath}/api/v1` : 'api/v1';
+  const globalPrefix = buildApiPrefix(appConfig.basePath);
   app.setGlobalPrefix(globalPrefix);
-
-  // Enable graceful shutdown hooks
-  app.enableShutdownHooks();
 
   // Setup explicit signal handlers for graceful shutdown BEFORE starting the server
   // This prevents race condition where signal arrives before handlers are registered
   const handleShutdown = async (signal: string) => {
     const shutdownStartTime = Date.now();
     const inFlightCount = shutdownService.getInFlightRequestsCount();
+    shutdownService.startDraining();
 
     logger.log(
       `Received ${signal}, starting graceful shutdown... (in-flight requests: ${inFlightCount})`,
@@ -73,32 +74,26 @@ async function bootstrap() {
         `Graceful shutdown timeout (${GRACEFUL_SHUTDOWN_TIMEOUT_MS}ms) exceeded after ${duration}ms, forcing shutdown`,
         'Bootstrap',
       );
-      logger.warn(
-        `In-flight requests remaining: ${remainingRequests}`,
-        'Bootstrap',
-      );
+      logger.warn(`In-flight requests remaining: ${remainingRequests}`, 'Bootstrap');
       process.exit(0);
     }, GRACEFUL_SHUTDOWN_TIMEOUT_MS);
 
     try {
+      if (appConfig.shutdownDrainSeconds > 0) {
+        await sleep(appConfig.shutdownDrainSeconds * 1000);
+      }
       // Close the application gracefully
       await app.close();
       clearTimeout(forceShutdownTimer);
 
       const duration = Date.now() - shutdownStartTime;
-      logger.log(
-        `Application closed gracefully in ${duration}ms`,
-        'Bootstrap',
-      );
+      logger.log(`Application closed gracefully in ${duration}ms`, 'Bootstrap');
       process.exit(0);
     } catch (error) {
       clearTimeout(forceShutdownTimer);
 
       const duration = Date.now() - shutdownStartTime;
-      logger.error(
-        `Error during shutdown after ${duration}ms: ${error}`,
-        'Bootstrap',
-      );
+      logger.error(`Error during shutdown after ${duration}ms: ${error}`, 'Bootstrap');
       // Use exit code 0 even on error to avoid unnecessary alerts
       // The error has been logged and graceful shutdown was attempted
       process.exit(0);
@@ -111,15 +106,12 @@ async function bootstrap() {
   await app.listen(appConfig.port, appConfig.host);
 
   logger.log(
-    `🚀 NestJS service is running on: http://${appConfig.host}:${appConfig.port}/${globalPrefix}`,
+    `${SERVICE_NAME} ${SERVICE_VERSION} listening on http://${appConfig.host}:${appConfig.port}/${globalPrefix}`,
     'Bootstrap',
   );
   logger.log(`📊 Environment: ${appConfig.nodeEnv}`, 'Bootstrap');
   logger.log(`📝 Log level: ${appConfig.logLevel}`, 'Bootstrap');
-  logger.log(
-    `⏱️  Graceful shutdown timeout: ${GRACEFUL_SHUTDOWN_TIMEOUT_MS}ms`,
-    'Bootstrap',
-  );
+  logger.log(`⏱️  Graceful shutdown timeout: ${GRACEFUL_SHUTDOWN_TIMEOUT_MS}ms`, 'Bootstrap');
 }
 
 void bootstrap();

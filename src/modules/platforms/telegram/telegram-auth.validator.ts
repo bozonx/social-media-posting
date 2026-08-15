@@ -31,8 +31,6 @@ export class TelegramAuthValidator implements IAuthValidator {
       errors.push("Field 'apiKey' has invalid format (expected: 123456789:ABC-DEF...)");
     }
 
-
-
     return errors;
   }
 

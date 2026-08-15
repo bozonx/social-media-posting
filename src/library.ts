@@ -11,10 +11,14 @@ import { AuthValidatorRegistry } from './modules/platforms/base/auth-validator-r
 import { IdempotencyService } from './modules/post/idempotency.service.js';
 import { ShutdownService } from './common/services/shutdown.service.js';
 import { LibraryConfigService } from './config/library.config.js';
-import type { PostRequestDto, PostResponseDto, ErrorResponseDto } from './modules/post/dto/index.js';
+import type {
+  PostRequestDto,
+  PostResponseDto,
+  ErrorResponseDto,
+} from './modules/post/dto/index.js';
 import type { PreviewResponseDto, PreviewErrorResponseDto } from './modules/post/dto/index.js';
 import type { AccountConfig } from './modules/app-config/interfaces/app-config.interface.js';
-import { ILogger, ConsoleLogger } from './common/interfaces/logger.interface.js';
+import { type ILogger, ConsoleLogger } from './common/interfaces/logger.interface.js';
 import { TelegramPlatform } from './modules/platforms/telegram/telegram.platform.js';
 import { TelegramAuthValidator } from './modules/platforms/telegram/telegram-auth.validator.js';
 import { TelegramTypeDetector } from './modules/platforms/telegram/telegram-type-detector.service.js';
@@ -68,7 +72,10 @@ export interface PostingClient {
    * @param abortSignal - Optional signal to abort the operation
    * @returns Success response with post details or error response
    */
-  post(request: PostRequestDto, abortSignal?: AbortSignal): Promise<PostResponseDto | ErrorResponseDto>;
+  post(
+    request: PostRequestDto,
+    abortSignal?: AbortSignal,
+  ): Promise<PostResponseDto | ErrorResponseDto>;
 
   /**
    * Preview a post without actually publishing it
@@ -168,7 +175,10 @@ export function createPostingClient(config: LibraryConfig): PostingClient {
 
   // Return client interface
   return {
-    async post(request: PostRequestDto, abortSignal?: AbortSignal): Promise<PostResponseDto | ErrorResponseDto> {
+    async post(
+      request: PostRequestDto,
+      abortSignal?: AbortSignal,
+    ): Promise<PostResponseDto | ErrorResponseDto> {
       return postService.publish(request, abortSignal);
     },
 
@@ -183,4 +193,3 @@ export function createPostingClient(config: LibraryConfig): PostingClient {
     },
   };
 }
-

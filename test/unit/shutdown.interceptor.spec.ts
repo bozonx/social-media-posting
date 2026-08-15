@@ -1,8 +1,12 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
-import { ServiceUnavailableException, ExecutionContext, CallHandler } from '@nestjs/common';
+import {
+  ServiceUnavailableException,
+  type ExecutionContext,
+  type CallHandler,
+} from '@nestjs/common';
 import { of, throwError } from 'rxjs';
 import { ShutdownInterceptor } from '@/common/interceptors/shutdown.interceptor.js';
-import { ShutdownService } from '@/common/services/shutdown.service.js';
+import { type ShutdownService } from '@/common/services/shutdown.service.js';
 
 describe('ShutdownInterceptor', () => {
   let interceptor: ShutdownInterceptor;

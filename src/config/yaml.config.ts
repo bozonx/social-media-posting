@@ -1,4 +1,3 @@
-
 import { registerAs } from '@nestjs/config';
 import { readFileSync } from 'fs';
 import * as yaml from 'js-yaml';
@@ -18,29 +17,29 @@ export const YAML_CONFIG_NAMESPACE = 'yaml_config';
  * @throws Error if a referenced environment variable is not defined
  */
 const substituteEnvVariables = (obj: any): any => {
-    if (typeof obj === 'string') {
-        return obj.replace(/\$\{([^}]+)\}/g, (_, varName) => {
-            const value = process.env[varName];
-            if (value === undefined) {
-                throw new Error(`Environment variable ${varName} is not defined`);
-            }
-            return value;
-        });
-    }
+  if (typeof obj === 'string') {
+    return obj.replace(/\$\{([^}]+)\}/g, (_, varName) => {
+      const value = process.env[varName];
+      if (value === undefined) {
+        throw new Error(`Environment variable ${varName} is not defined`);
+      }
+      return value;
+    });
+  }
 
-    if (Array.isArray(obj)) {
-        return obj.map(item => substituteEnvVariables(item));
-    }
+  if (Array.isArray(obj)) {
+    return obj.map(item => substituteEnvVariables(item));
+  }
 
-    if (obj !== null && typeof obj === 'object') {
-        const result: any = {};
-        for (const [key, value] of Object.entries(obj)) {
-            result[key] = substituteEnvVariables(value);
-        }
-        return result;
+  if (obj !== null && typeof obj === 'object') {
+    const result: any = {};
+    for (const [key, value] of Object.entries(obj)) {
+      result[key] = substituteEnvVariables(value);
     }
+    return result;
+  }
 
-    return obj;
+  return obj;
 };
 
 /**
@@ -52,29 +51,29 @@ const substituteEnvVariables = (obj: any): any => {
  * @throws Error if the configuration file cannot be loaded, parsed, or validated
  */
 export default registerAs(YAML_CONFIG_NAMESPACE, () => {
-    const configPath = process.env.CONFIG_PATH || join(process.cwd(), 'config.yaml');
+  const configPath = process.env.CONFIG_PATH || join(process.cwd(), 'config.yaml');
 
+  try {
+    let rawConfig: any = {};
     try {
-        let rawConfig: any = {};
-        try {
-            const fileContent = readFileSync(configPath, 'utf8');
-            rawConfig = yaml.load(fileContent) || {};
-        } catch (error: any) {
-            if (error.code !== 'ENOENT') {
-                throw error;
-            }
-            // If file doesn't exist, we use empty config to rely on defaults
-            rawConfig = {};
-        }
-
-        const configWithEnv = substituteEnvVariables(rawConfig);
-
-        // Validate configuration structure and values
-        // plainToClass will apply default values from YamlConfigDto instance
-        const validatedConfig = validateYamlConfig(configWithEnv);
-
-        return validatedConfig;
+      const fileContent = readFileSync(configPath, 'utf8');
+      rawConfig = yaml.load(fileContent) || {};
     } catch (error: any) {
-        throw new Error(`Failed to load config from ${configPath}: ${error.message}`);
+      if (error.code !== 'ENOENT') {
+        throw error;
+      }
+      // If file doesn't exist, we use empty config to rely on defaults
+      rawConfig = {};
     }
+
+    const configWithEnv = substituteEnvVariables(rawConfig);
+
+    // Validate configuration structure and values
+    // plainToClass will apply default values from YamlConfigDto instance
+    const validatedConfig = validateYamlConfig(configWithEnv);
+
+    return validatedConfig;
+  } catch (error: any) {
+    throw new Error(`Failed to load config from ${configPath}: ${error.message}`);
+  }
 });

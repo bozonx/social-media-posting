@@ -1,6 +1,10 @@
-import { MediaInput, MediaInputObject, MediaType } from '../types/media-input.type.js';
+import {
+  type MediaInput,
+  type MediaInputObject,
+  type MediaType,
+} from '../types/media-input.type.js';
 import { BadRequestException } from '@nestjs/common';
-import { InputFile } from 'grammy';
+import { type InputFile } from 'grammy';
 
 /**
  * Helper class for working with MediaInput

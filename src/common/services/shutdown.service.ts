@@ -16,12 +16,15 @@ export class ShutdownService implements OnApplicationShutdown, OnModuleDestroy {
 
   constructor() {}
 
-
   /**
    * Check if the application is shutting down
    */
   get shuttingDown(): boolean {
     return this.isShuttingDown;
+  }
+
+  public startDraining(): void {
+    this.isShuttingDown = true;
   }
 
   /**
@@ -98,20 +101,26 @@ export class ShutdownService implements OnApplicationShutdown, OnModuleDestroy {
       const startTime = Date.now();
 
       // Wait for requests to complete with timeout
-      await Promise.race([
-        new Promise<void>(resolve => {
-          this.shutdownResolve = resolve;
-        }),
-        new Promise<void>(resolve => {
-          setTimeout(() => {
-            this.logger.warn(
-              `Shutdown timeout reached. Remaining in-flight requests: ${this.inFlightRequests}`,
-              'ShutdownService',
-            );
-            resolve();
-          }, GRACEFUL_SHUTDOWN_TIMEOUT_MS);
-        }),
-      ]);
+      let timeout: ReturnType<typeof setTimeout> | undefined;
+      try {
+        await Promise.race([
+          new Promise<void>(resolve => {
+            this.shutdownResolve = resolve;
+          }),
+          new Promise<void>(resolve => {
+            timeout = setTimeout(() => {
+              this.logger.warn(
+                `Shutdown timeout reached. Remaining in-flight requests: ${this.inFlightRequests}`,
+                'ShutdownService',
+              );
+              resolve();
+            }, GRACEFUL_SHUTDOWN_TIMEOUT_MS);
+            timeout.unref();
+          }),
+        ]);
+      } finally {
+        if (timeout) clearTimeout(timeout);
+      }
 
       const duration = Date.now() - startTime;
       this.logger.log(

@@ -143,15 +143,9 @@ describe('IsMediaInputArrayConstraint', () => {
     });
 
     it('should return false if any item is invalid', () => {
-      expect(
-        validator.validate([{ src: 'https://example.com/1.jpg' }, ''], mockArgs),
-      ).toBe(false);
-      expect(
-        validator.validate([{ src: 'https://example.com/1.jpg' }, {}], mockArgs),
-      ).toBe(false);
-      expect(
-        validator.validate([{ src: 'https://example.com/1.jpg' }, 123], mockArgs),
-      ).toBe(false);
+      expect(validator.validate([{ src: 'https://example.com/1.jpg' }, ''], mockArgs)).toBe(false);
+      expect(validator.validate([{ src: 'https://example.com/1.jpg' }, {}], mockArgs)).toBe(false);
+      expect(validator.validate([{ src: 'https://example.com/1.jpg' }, 123], mockArgs)).toBe(false);
     });
 
     it('should return false for array with string items', () => {

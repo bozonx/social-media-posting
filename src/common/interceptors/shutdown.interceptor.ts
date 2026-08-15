@@ -18,6 +18,11 @@ export class ShutdownInterceptor implements NestInterceptor {
   constructor(private readonly shutdownService: ShutdownService) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+    const isHealth =
+      (context as Partial<ExecutionContext>).getClass?.().name === 'HealthController';
+    if (isHealth) {
+      return next.handle();
+    }
     if (this.shutdownService.shuttingDown) {
       throw new ServiceUnavailableException('Server is shutting down');
     }

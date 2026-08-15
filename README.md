@@ -35,7 +35,7 @@ pnpm install
 ### 2. Configure
 
 ```bash
-cp .env.production.example .env.production
+cp .env.example .env
 ```
 
 Edit `config.yaml` with your Telegram credentials:
@@ -52,8 +52,8 @@ accounts:
 ### 3. Run
 
 ```bash
-pnpm start:dev        # Development
-pnpm build && pnpm start:prod  # Production
+pnpm dev                    # Development
+pnpm build && pnpm start    # Production
 ```
 
 API available at `http://localhost:8080/api/v1`
@@ -941,8 +941,8 @@ if (result.success) {
 
 ### Requirements
 
-- Node.js 22+
-- pnpm 10+
+- Node.js 24 (see `.nvmrc`)
+- pnpm 11.22.0
 
 ### Quick Start (Development)
 
@@ -951,10 +951,10 @@ if (result.success) {
 pnpm install
 
 # 2) Environment (dev)
-cp .env.development.example .env.development
+cp .env.example .env
 
 # 3) Run in development mode (watch)
-pnpm start:dev
+pnpm dev
 ```
 
 - Default URL (dev): `http://localhost:8080/api/v1`

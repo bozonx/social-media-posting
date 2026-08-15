@@ -102,7 +102,6 @@ export class PostRequestDto {
   @IsChannelId()
   channelId?: string | number;
 
-
   /** Inline authentication credentials (alternative to account) */
   @IsOptional()
   @IsObject()

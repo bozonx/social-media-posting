@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from '@jest/globals';
-import { createPostingClient, ILogger, BodyFormat } from '../../src/index.js';
+import { createPostingClient, type ILogger, BodyFormat } from '../../src/index.js';
 
 describe('Library Mode Integration', () => {
   describe('End-to-end workflow', () => {
@@ -12,10 +12,10 @@ describe('Library Mode Integration', () => {
       // Custom logger to capture logs
       const logs: string[] = [];
       const customLogger: ILogger = {
-        debug: (msg) => logs.push(`DEBUG: ${msg}`),
-        log: (msg) => logs.push(`INFO: ${msg}`),
-        warn: (msg) => logs.push(`WARN: ${msg}`),
-        error: (msg) => logs.push(`ERROR: ${msg}`),
+        debug: msg => logs.push(`DEBUG: ${msg}`),
+        log: msg => logs.push(`INFO: ${msg}`),
+        warn: msg => logs.push(`WARN: ${msg}`),
+        error: msg => logs.push(`ERROR: ${msg}`),
       };
 
       // Create client with custom configuration and logger
@@ -75,7 +75,7 @@ describe('Library Mode Integration', () => {
       await client.destroy();
 
       // Verify no errors were logged
-      const errorLogs = logs.filter((log) => log.startsWith('ERROR:'));
+      const errorLogs = logs.filter(log => log.startsWith('ERROR:'));
       expect(errorLogs).toHaveLength(0);
     });
 

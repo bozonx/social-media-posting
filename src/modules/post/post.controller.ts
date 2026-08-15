@@ -62,7 +62,7 @@ export class PostController {
 
     raw.on('aborted', onAbort);
     raw.on('close', onAbort);
-    
+
     // Also listen to socket events as a fallback
     if (raw.socket) {
       raw.socket.on('close', onAbort);

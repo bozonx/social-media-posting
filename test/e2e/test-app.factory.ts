@@ -4,6 +4,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 import { AppModule } from '@/app.module.js';
 import { AppConfigService } from '@/modules/app-config/app-config.service.js';
+import { buildApiPrefix } from '@/common/http/api-prefix.js';
 
 export async function createTestApp(): Promise<NestFastifyApplication> {
   const mockAppConfigService = {
@@ -36,8 +37,7 @@ export async function createTestApp(): Promise<NestFastifyApplication> {
   );
 
   // Ensure defaults the same as in main.ts
-  const basePath = (process.env.BASE_PATH || '').replace(/^\/+|\/+$/g, '');
-  const globalPrefix = basePath ? `${basePath}/api/v1` : 'api/v1';
+  const globalPrefix = buildApiPrefix(process.env.BASE_PATH);
   app.setGlobalPrefix(globalPrefix);
 
   await app.init();

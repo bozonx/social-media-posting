@@ -10,7 +10,10 @@ export { PreviewService } from './modules/post/preview.service.js';
 // DTOs
 export { PostRequestDto } from './modules/post/dto/post-request.dto.js';
 export type { PostResponseDto, ErrorResponseDto } from './modules/post/dto/post-response.dto.js';
-export type { PreviewResponseDto, PreviewErrorResponseDto } from './modules/post/dto/preview-response.dto.js';
+export type {
+  PreviewResponseDto,
+  PreviewErrorResponseDto,
+} from './modules/post/dto/preview-response.dto.js';
 
 // Enums
 export { PostType } from './common/enums/post-type.enum.js';

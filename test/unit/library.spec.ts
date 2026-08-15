@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
-import { createPostingClient, ILogger, ConsoleLogger } from '../../src/index.js';
+import { createPostingClient, type ILogger, ConsoleLogger } from '../../src/index.js';
 
 describe('Library Mode', () => {
   describe('createPostingClient', () => {
@@ -28,10 +28,10 @@ describe('Library Mode', () => {
     it('should create posting client with custom logger', async () => {
       const logs: string[] = [];
       const mockLogger: ILogger = {
-        debug: (msg) => logs.push(`debug: ${msg}`),
-        log: (msg) => logs.push(`log: ${msg}`),
-        warn: (msg) => logs.push(`warn: ${msg}`),
-        error: (msg) => logs.push(`error: ${msg}`),
+        debug: msg => logs.push(`debug: ${msg}`),
+        log: msg => logs.push(`log: ${msg}`),
+        warn: msg => logs.push(`warn: ${msg}`),
+        error: msg => logs.push(`error: ${msg}`),
       };
 
       const client = createPostingClient({
