@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Split CI validation from tag-only multi-architecture image releases and aligned the fleet-wide
+  Renovate policy.
 - Standardized fleet scripts, environment handling, service identity, draining health checks,
   non-root multi-stage Docker build, Compose limits, flat ESLint and Renovate configuration.
 
