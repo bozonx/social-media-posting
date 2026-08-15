@@ -6,6 +6,11 @@
 # Manifests
 !package.json
 !pnpm-lock.yaml
+!pnpm-workspace.yaml
 
-# Compiled output copied into the image
-!dist
+# Build configuration and source
+!tsconfig.json
+!tsconfig.build.json
+!tsconfig.lib.json
+!nest-cli.json
+!src

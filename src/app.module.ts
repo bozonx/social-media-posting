@@ -12,7 +12,7 @@ import { BearerAuthGuard } from './common/guards/bearer-auth.guard.js';
 import appConfig from './config/app.config.js';
 import type { AppConfig } from './config/app.config.js';
 import yamlConfig from './config/yaml.config.js';
-import pkg from '../package.json' with { type: 'json' };
+import { SERVICE_NAME } from './config/service-info.js';
 import { PostModule } from './modules/post/post.module.js';
 import { AppConfigModule } from './modules/app-config/app-config.module.js';
 
@@ -24,7 +24,7 @@ import { AppConfigModule } from './modules/app-config/app-config.module.js';
     ConfigModule.forRoot({
       isGlobal: true,
       load: [appConfig, yamlConfig],
-      envFilePath: [`.env.${process.env.NODE_ENV || 'development'}`, '.env'],
+      envFilePath: ['.env'],
       cache: true,
     }),
     LoggerModule.forRootAsync({
@@ -38,7 +38,7 @@ import { AppConfigModule } from './modules/app-config/app-config.module.js';
             level: appConfig.logLevel,
             timestamp: () => `,"@timestamp":"${new Date().toISOString()}"`,
             base: {
-              service: (pkg as any).name ?? 'app',
+              service: SERVICE_NAME,
               environment: appConfig.nodeEnv,
             },
             transport: isDev
