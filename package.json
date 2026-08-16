@@ -23,7 +23,8 @@
     "docker:up": "docker compose -f apps/server/docker/docker-compose.yml up -d",
     "docker:down": "docker compose -f apps/server/docker/docker-compose.yml down",
     "docker:logs": "docker compose -f apps/server/docker/docker-compose.yml logs -f",
-    "typecheck:packages": "pnpm -r typecheck"
+    "typecheck:packages": "pnpm -r typecheck",
+    "rebuild": "pnpm clean && pnpm build"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.21.3",

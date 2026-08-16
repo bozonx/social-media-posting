@@ -3,12 +3,18 @@
   "compilerOptions": {
     "baseUrl": "../..",
     "noEmit": true,
-    "lib": ["ES2023"],
-    "types": ["node"],
-    "emitDecoratorMetadata": true,
-    "experimentalDecorators": true,
+    "lib": [
+      "ES2023",
+      "DOM"
+    ],
+    "types": [
+      "node"
+    ],
     "declaration": false,
     "declarationMap": false
   },
-  "include": ["src/**/*", "test/**/*"]
+  "include": [
+    "src/**/*",
+    "test/**/*"
+  ]
 }

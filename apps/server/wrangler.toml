@@ -1,0 +1,18 @@
+# Cloudflare Workers deployment of the HTTP shell.
+#
+# The same source as the Docker image; only the entry point and the way
+# configuration arrives differ. What a Worker can and cannot publish is
+# documented in docs/RUNTIMES.md — read it before pointing a video upload here.
+name = "social-posting-server"
+main = "dist/entry/worker.js"
+compatibility_date = "2026-01-01"
+
+[observability]
+enabled = true
+
+# Configuration is JSON in a secret, because a Worker has no filesystem:
+#   wrangler secret put CONFIG_JSON
+#   wrangler secret put AUTH_BEARER_TOKENS
+[vars]
+LOG_LEVEL = "warn"
+SERVICE_NAME = "social-posting-server"

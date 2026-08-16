@@ -1,139 +1,65 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import type { NestFastifyApplication } from '@nestjs/platform-fastify';
+import { describe, expect, it, vi } from 'vitest';
 import { PostType } from '@bozonx/social-posting';
-import type {
-  IPlatform,
-  PlatformPublishResponse,
-  PostRequest,
-  PublishOptions,
-} from '@bozonx/social-posting';
-import { createTestApp } from './test-app.factory.js';
+import { createTestApp } from '../helpers/create-test-app.js';
+import { fakePlatform } from '../helpers/fake-platform.js';
 
-/** A platform that never finishes on its own, so the abort path is observable. */
-class SlowPlatform implements IPlatform {
-  readonly name = 'slow-platform';
-  readonly capabilities = { name: 'slow-platform', supportedTypes: [PostType.POST] };
+const request = {
+  platform: 'telegram',
+  body: 'slow post',
+  type: PostType.POST,
+  auth: { apiKey: 't', chatId: 'c' },
+};
 
-  public wasAborted = false;
+describe('client disconnect', () => {
+  it('aborts the platform call when the caller hangs up', async () => {
+    const { platform, platformModule } = fakePlatform();
+    let observed: AbortSignal | undefined;
 
-  async publish(
-    _request: PostRequest,
-    _config: unknown,
-    options?: PublishOptions,
-  ): Promise<PlatformPublishResponse> {
-    const signal = options?.signal;
-    return new Promise((resolve, reject) => {
-      if (signal?.aborted) {
-        this.wasAborted = true;
-        reject(new Error('Aborted immediately'));
-        return;
-      }
+    platform.publish.mockImplementation(
+      async (_req, _account, options) =>
+        new Promise((_resolve, reject) => {
+          observed = options?.signal;
+          options?.signal?.addEventListener('abort', () => {
+            reject(new Error('Aborted by signal'));
+          });
+        }),
+    );
 
-      const onAbort = () => {
-        this.wasAborted = true;
-        reject(new Error('Aborted by signal'));
-      };
+    const { app } = createTestApp({ platforms: [platformModule] });
+    const controller = new AbortController();
 
-      signal?.addEventListener('abort', onAbort);
+    const inFlight = Promise.resolve(
+      app.request('/api/v1/post', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(request),
+        signal: controller.signal,
+      }),
+    );
 
-      setTimeout(() => {
-        signal?.removeEventListener('abort', onAbort);
-        resolve({ status: 'published', postId: '123', url: 'http://example.com' });
-      }, 5000);
-    });
-  }
+    await vi.waitFor(() => expect(observed).toBeDefined());
+    expect(observed?.aborted).toBe(false);
 
-  async preview(): Promise<never> {
-    throw new Error('not used');
-  }
-}
+    controller.abort();
 
-describe('Client Disconnect Handling (e2e)', () => {
-  let app: NestFastifyApplication;
-  let slowPlatform: SlowPlatform;
-
-  beforeEach(async () => {
-    slowPlatform = new SlowPlatform();
-    app = await createTestApp({
-      platforms: [slowPlatform],
-      accounts: { test: { platform: 'slow-platform', auth: {} } },
-      globalPrefix: 'api/v1',
-    });
+    // The request's own signal is what the library receives, so hanging up
+    // stops the platform call instead of finishing a publish nobody will read.
+    await vi.waitFor(() => expect(observed?.aborted).toBe(true));
+    await inFlight.catch(() => undefined);
   });
 
-  afterEach(async () => {
-    if (app) {
-      await app.close();
-    }
-  });
+  it('gives the platform a live signal on a normal request', async () => {
+    const { platform, platformModule } = fakePlatform();
+    const { app } = createTestApp({ platforms: [platformModule] });
 
-  it('should abort platform request when client disconnects', async () => {
-    // Start server on all interfaces
-    await app.listen(0, '0.0.0.0');
-    const address = app.getHttpServer().address();
-    const port = typeof address === 'string' ? 0 : address?.port;
-
-    const { request: httpRequest } = await import('http');
-
-    const postData = JSON.stringify({
-      platform: 'slow-platform',
-      account: 'test',
-      body: 'test post',
-      type: 'post',
-    });
-
-    let responseReceived = false;
-    let responseBody = '';
-
-    const req = httpRequest({
-      hostname: '127.0.0.1',
-      port: port,
-      path: '/api/v1/post',
+    await app.request('/api/v1/post', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(postData),
-      },
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(request),
     });
 
-    req.on('response', res => {
-      res.on('data', chunk => {
-        responseBody += chunk.toString();
-      });
-      res.on('end', () => {
-        responseReceived = true;
-      });
-    });
-
-    req.on('error', () => {
-      // Expected error on destroy
-    });
-
-    req.write(postData);
-    req.end();
-
-    // Wait for server to start processing
-    await new Promise(r => setTimeout(r, 1000));
-
-    req.destroy();
-
-    // Wait for server to detect close and abort
-    await new Promise(r => setTimeout(r, 1000));
-
-    // The test passes if either:
-    // 1. SlowPlatform was called and aborted (wasAborted = true)
-    // 2. PostController detected early abort and PostService threw "Request aborted by client"
-    // Both scenarios prove that client disconnection is properly handled
-
-    if (slowPlatform.wasAborted) {
-      // Scenario 1: Platform was invoked and then aborted mid-flight
-      expect(slowPlatform.wasAborted).toBe(true);
-    } else if (responseReceived && responseBody.includes('Request aborted by client')) {
-      // Scenario 2: Early abort before platform invocation
-      expect(responseBody).toContain('Request aborted by client');
-    } else {
-      // If neither scenario occurred, the test should fail
-      expect(slowPlatform.wasAborted).toBe(true); // This will fail and show the issue
-    }
+    const options = platform.publish.mock.calls[0][2] as { signal?: AbortSignal };
+    expect(options.signal).toBeInstanceOf(AbortSignal);
+    expect(options.signal?.aborted).toBe(false);
   });
 });

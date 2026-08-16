@@ -9,13 +9,15 @@ COPY packages/core/package.json packages/core/
 COPY packages/platform-telegram/package.json packages/platform-telegram/
 COPY apps/server/package.json apps/server/
 COPY examples/embedded/package.json examples/embedded/
+COPY examples/custom-platform/package.json examples/custom-platform/
 RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store pnpm install --frozen-lockfile
 
 FROM deps AS build
 COPY tsconfig.base.json tsconfig.json ./
 COPY packages ./packages
 COPY apps ./apps
-RUN pnpm build && pnpm --filter "./apps/server" --prod deploy /deploy
+RUN pnpm --filter "./packages/*" --filter "./apps/server" build \
+  && pnpm --filter "@bozonx/social-posting-server" --prod deploy /deploy
 
 FROM node:${NODE_MAJOR}-bookworm-slim AS runtime
 WORKDIR /app
@@ -32,6 +34,6 @@ COPY --from=build --chown=node:node /deploy/package.json ./package.json
 USER node
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD node -e "const b=(process.env.BASE_PATH||'').replace(/^\/+|\/+$/g,'');const p='/'+(b?b+'/':'')+'api/v1/health';require('http').get('http://127.0.0.1:'+(process.env.LISTEN_PORT||8080)+p,r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
+  CMD node -e "const b=(process.env.BASE_PATH||'').replace(/^\/+|\/+$/g,'');const p='/'+(b?b+'/':'')+'api/v1/health';fetch('http://127.0.0.1:'+(process.env.LISTEN_PORT||8080)+p).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 ENTRYPOINT ["node", "--enable-source-maps"]
-CMD ["dist/main.js"]
+CMD ["dist/entry/node.js"]

@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+### 2.0.0 — Phase 7: the HTTP shell on Hono
+
+The shell now deploys to Node and to Cloudflare Workers from one source.
+
+- **NestJS, Fastify, Pino, class-validator and rxjs are gone from `apps/server`**, replaced by
+  Hono and zod. Hono is built on web-standard `Request`/`Response`, so the same code runs on Node,
+  Workers, Deno and Bun — which Express (Node-only, callback `req`/`res`) and bare `node:http`
+  cannot do.
+- **Two entry points, one app.** `entry/node.ts` reads `config.yaml` and drains on SIGTERM;
+  `entry/worker.ts` reads `CONFIG_JSON`, because a Worker has no filesystem. Everything between
+  them is shared.
+- **The shell is strictly stateless.** It parses JSON, calls the library and returns the result —
+  including `retryable`, `retryAfterMs` and a serialized `resumeHandle`, so a non-Node caller has
+  exactly the same capabilities, and responsibilities, as an in-process consumer.
+- **New route `POST /status`** for polling a publication the platform is still processing.
+- **`POST /post` accepts a `resume` handle** from a previous failed attempt.
+- **Structured logging without Pino.** A small JSON `console` logger, because `console` is the only
+  logging primitive every target runtime shares.
+- **Two build artefacts in CI:** the Docker image and a `wrangler` deployment.
+- **New:** `docs/RUNTIMES.md` states the real Workers boundary structurally — the table is derived
+  from each platform's `supportsUrlPassthrough` / `requiresByteUpload` so it cannot drift from the
+  code, and it links to Cloudflare's limits rather than copying numbers that go stale.
+
 ### 2.0.0 — Phase 6: media pipeline
 
 Supports networks that need real byte uploads, without ever materializing a file.

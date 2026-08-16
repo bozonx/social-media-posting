@@ -1,24 +1,31 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import type { NestFastifyApplication } from '@nestjs/platform-fastify';
-import { createTestApp } from './test-app.factory.js';
+import { describe, expect, it } from 'vitest';
+import { createTestApp } from '../helpers/create-test-app.js';
+import { fakePlatform } from '../helpers/fake-platform.js';
 
-describe('BASE_PATH (e2e)', () => {
-  let app: NestFastifyApplication;
-  const originalBasePath = process.env.BASE_PATH;
+describe('BASE_PATH', () => {
+  it('serves under api/v1 by default', async () => {
+    const { app } = createTestApp({ platforms: [fakePlatform().platformModule] });
 
-  beforeAll(async () => {
-    process.env.BASE_PATH = '/social/';
-    app = await createTestApp();
+    expect((await app.request('/api/v1/health')).status).toBe(200);
+    expect((await app.request('/health')).status).toBe(404);
   });
 
-  afterAll(async () => {
-    await app.close();
-    if (originalBasePath === undefined) delete process.env.BASE_PATH;
-    else process.env.BASE_PATH = originalBasePath;
+  it('prefixes every route when BASE_PATH is set', async () => {
+    const { app } = createTestApp({
+      platforms: [fakePlatform().platformModule],
+      env: { BASE_PATH: 'social' },
+    });
+
+    expect((await app.request('/social/api/v1/health')).status).toBe(200);
+    expect((await app.request('/api/v1/health')).status).toBe(404);
   });
 
-  it('serves health below the normalized base path', async () => {
-    const response = await app.inject({ method: 'GET', url: '/social/api/v1/health' });
-    expect(response.statusCode).toBe(200);
+  it.each(['/social/', 'social/', '//social//'])('normalises BASE_PATH %s', async basePath => {
+    const { app } = createTestApp({
+      platforms: [fakePlatform().platformModule],
+      env: { BASE_PATH: basePath },
+    });
+
+    expect((await app.request('/social/api/v1/health')).status).toBe(200);
   });
 });

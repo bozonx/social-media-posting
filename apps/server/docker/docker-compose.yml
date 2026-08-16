@@ -1,13 +1,13 @@
 services:
   microservice:
-    image: ghcr.io/bozonx/social-media-posting-microservice:${TAG:-latest}
+    image: ghcr.io/bozonx/social-posting-server:${TAG:-latest}
     build:
       context: ../../..
       dockerfile: apps/server/docker/Dockerfile
       args:
         APP_VERSION: ${APP_VERSION:-dev}
-    container_name: social-media-posting-microservice
-    hostname: social-media-posting-microservice
+    container_name: social-posting-server
+    hostname: social-posting-server
     restart: unless-stopped
     init: true
     stop_grace_period: 30s
@@ -35,7 +35,7 @@ services:
           'CMD',
           'node',
           '-e',
-          "const b=(process.env.BASE_PATH||'').replace(/^\\/+|\\/+$/g,'');const p='/'+(b?b+'/':'')+'api/v1/health';require('http').get('http://127.0.0.1:8080'+p,r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))",
+          "const b=(process.env.BASE_PATH||'').replace(/^\\/+|\\/+$/g,'');const p='/'+(b?b+'/':'')+'api/v1/health';fetch('http://127.0.0.1:8080'+p).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
         ]
       interval: 30s
       timeout: 5s

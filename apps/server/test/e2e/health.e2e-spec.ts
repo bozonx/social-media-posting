@@ -1,37 +1,51 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import type { NestFastifyApplication } from '@nestjs/platform-fastify';
-import { createTestApp } from './test-app.factory.js';
+import { describe, expect, it } from 'vitest';
+import { createTestApp } from '../helpers/create-test-app.js';
+import { fakePlatform } from '../helpers/fake-platform.js';
 
-describe('Health (e2e)', () => {
-  let app: NestFastifyApplication;
+describe('GET /api/v1/health', () => {
+  it('reports ok while serving', async () => {
+    const { app } = createTestApp({ platforms: [fakePlatform().platformModule] });
 
-  beforeEach(async () => {
-    // Create fresh app instance for each test for better isolation
-    app = await createTestApp();
+    const response = await app.request('/api/v1/health');
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      status: 'ok',
+      service: 'social-posting-server',
+      version: 'dev',
+    });
   });
 
-  afterEach(async () => {
-    // Clean up app instance after each test
-    if (app) {
-      await app.close();
-    }
+  it('reports 503 while draining, so a load balancer stops sending traffic', async () => {
+    const { app, drain } = createTestApp({ platforms: [fakePlatform().platformModule] });
+
+    drain.startDraining();
+    const response = await app.request('/api/v1/health');
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toMatchObject({ status: 'shutting_down' });
   });
 
-  describe('GET /api/v1/health', () => {
-    it('returns simple ok status', async () => {
-      const response = await app.inject({
-        method: 'GET',
-        url: '/api/v1/health',
-      });
+  it('needs no bearer token even when one is configured', async () => {
+    const { app } = createTestApp({
+      platforms: [fakePlatform().platformModule],
+      env: { AUTH_BEARER_TOKENS: 'secret' },
+    });
 
-      expect(response.statusCode).toBe(200);
-      const body = JSON.parse(response.body);
-      expect(body).toEqual({
-        status: 'ok',
-        service: 'social-media-posting-microservice',
-        version: 'dev',
-        uptimeSec: expect.any(Number),
-      });
+    const response = await app.request('/api/v1/health');
+
+    expect(response.status).toBe(200);
+  });
+
+  it('takes the service name and version from the environment', async () => {
+    const { app } = createTestApp({
+      platforms: [fakePlatform().platformModule],
+      env: { SERVICE_NAME: 'posting', SERVICE_VERSION: '2.0.0' },
+    });
+
+    await expect((await app.request('/api/v1/health')).json()).resolves.toMatchObject({
+      service: 'posting',
+      version: '2.0.0',
     });
   });
 });
