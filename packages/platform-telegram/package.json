@@ -13,6 +13,7 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
+      "workerd": "./dist/index.js",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     }
@@ -26,7 +27,8 @@
     "build": "tsc -p tsconfig.build.json",
     "clean": "rm -rf dist *.tsbuildinfo",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prepack": "pnpm run build"
   },
   "dependencies": {},
   "peerDependencies": {
@@ -39,5 +41,19 @@
   "license": "MIT",
   "engines": {
     "node": ">=24.0.0"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bozonx/social-media-posting.git",
+    "directory": "packages/platform-telegram"
+  },
+  "bugs": {
+    "url": "https://github.com/bozonx/social-media-posting/issues"
+  },
+  "homepage": "https://github.com/bozonx/social-media-posting/tree/main/packages/platform-telegram#readme",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "sideEffects": false
 }

@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+### 2.0.0 — Phase 8: packaging and release
+
+- **Renamed.** `social-media-posting-microservice` becomes `@bozonx/social-posting` and
+  `@bozonx/social-posting-telegram`. The word "microservice" in the name turns away exactly the
+  audience this is for.
+- **Straightened build output.** Entry points are `dist/index.js`, not `dist/src/index.js`.
+- **Manifests completed:** `repository`, `bugs`, `homepage`, `publishConfig.access` with
+  provenance, `sideEffects: false`, and a `prepack` that builds.
+- **A `workerd` export condition** sits next to `import`, so a package's Workers compatibility is
+  machine-readable rather than a claim in a README.
+- **One Node version.** `.nvmrc`, every `engines.node`, the Dockerfile and CI all say 24.
+- **CI does the whole gate:** zero-dependency policy, build, lint, typecheck, unit tests,
+  per-package typecheck, e2e, the `workerd` run, `publint` and `attw`, the Docker image, and a
+  `wrangler deploy --dry-run` that keeps "it runs on Workers" honest.
+- **Release on a version tag** publishes both packages with npm provenance, after re-running the
+  full gate, and pushes the multi-arch image.
+- **New:** `scripts/check-zero-deps.mjs` fails the build when a published package grows a runtime
+  dependency, with a documented exception list. A rule nobody checks is not a rule.
+
 ### 2.0.0 — Phase 7: the HTTP shell on Hono
 
 The shell now deploys to Node and to Cloudflare Workers from one source.

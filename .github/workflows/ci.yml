@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   verify:
-    name: Check, e2e, workerd, and image
+    name: Check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -33,22 +33,37 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # A rule nobody checks is not a rule: a published package with a runtime
+      # dependency fails here rather than in a consumer's bundle.
+      - name: Zero-dependency policy
+        run: pnpm check:deps
+
       - name: Build every package
         run: pnpm build
 
-      - name: Check
+      - name: Typecheck, lint, format, unit tests
         run: pnpm check
 
-      - name: Typecheck each package in isolation
+      - name: Typecheck each package under its own stricter config
         run: pnpm typecheck:packages
 
-      - name: Run e2e tests
+      - name: End-to-end tests
         run: pnpm test:e2e
 
-      # The lint rule catches a typo; this catches a transitive dependency on a
-      # Node built-in. Both are required for the packages to stay web-standard.
-      - name: Run core tests under workerd
+      # Lint catches a Node built-in typed by hand; this catches one arriving
+      # through a transitive dependency.
+      - name: Core suite under workerd
         run: pnpm test:workerd
+
+      # Broken ESM/type resolution is invisible here and obvious to consumers.
+      - name: publint and are-the-types-wrong
+        run: pnpm check:publish
+
+  image:
+    name: Docker image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
       - name: Read build metadata
         id: metadata
@@ -71,3 +86,28 @@ jobs:
             APP_VERSION=${{ steps.metadata.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  workers:
+    name: Workers build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+
+      # The same shell, built for the other deployment target. A dry run keeps
+      # "it also runs on Workers" honest without needing credentials.
+      - name: wrangler deploy --dry-run
+        working-directory: apps/server
+        run: pnpm exec wrangler deploy --dry-run --outdir /tmp/worker-build
