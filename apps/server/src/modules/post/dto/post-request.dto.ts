@@ -125,7 +125,10 @@ export class PostRequestDto implements PostRequest {
   @MaxLength(300, { each: true })
   tags?: string[];
 
-  /** Scheduled publication time (ISO 8601 format, max 50 characters) */
+  /**
+   * Scheduled publication time (ISO 8601 format, max 50 characters).
+   * Rejected by platforms that cannot schedule natively, rather than ignored.
+   */
   @IsOptional()
   @IsString()
   @MaxLength(50)
@@ -137,7 +140,10 @@ export class PostRequestDto implements PostRequest {
   @MaxLength(50)
   postLanguage?: string;
 
-  /** Publication mode: publish immediately or save as draft */
+  /**
+   * Publication mode: publish immediately or save as draft.
+   * Rejected by platforms without drafts, rather than ignored.
+   */
   @IsOptional()
   @IsEnum(['publish', 'draft'])
   mode?: 'publish' | 'draft';

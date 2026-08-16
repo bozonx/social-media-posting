@@ -42,7 +42,7 @@ export const pastebinCapabilities: PlatformCapabilities = {
   requiresByteUpload: false,
   supportsNativeScheduling: false,
   supportsDraft: false,
-  supportsTags: false,
+  ignoredFields: ['tags', 'description', 'postLanguage'],
   rateLimits: { postsPerDay: 100 },
 };
 

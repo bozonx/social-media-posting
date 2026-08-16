@@ -69,6 +69,23 @@ export type { PostingConfigInput, LogLevel } from './config/posting-config.js';
 export { MediaInputHelper } from './media/media-input.helper.js';
 export { detectPrimaryMediaField } from './media/media-priority.js';
 export { validateMediaUrl, validateMediaUrls } from './media/media-url.js';
+export { validateAgainstCapabilities } from './validation/capability-validator.js';
+export type {
+  CapabilityValidation,
+  CapabilityValidationOptions,
+} from './validation/capability-validator.js';
+export { previewFromCapabilities, renderBody } from './validation/capability-preview.js';
+export { detectPostType } from './validation/detect-post-type.js';
+export {
+  convertBody,
+  countBodyLength,
+  truncateBody,
+  escapeHtml,
+  escapeMarkdownV2,
+  htmlToPlainText,
+  markdownToHtml,
+  markdownToPlainText,
+} from './rendering/body.js';
 export {
   validatePostRequest,
   assertValidPostRequest,

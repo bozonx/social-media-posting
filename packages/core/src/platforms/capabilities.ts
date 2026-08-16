@@ -46,6 +46,8 @@ export interface BodyLengthRule {
 export interface PlatformCapabilities {
   /** Platform name, matching {@link IPlatform.name}. */
   name: string;
+  /** Human-readable name, used in messages shown to the caller. */
+  displayName?: string;
 
   /** Post types this platform can publish. */
   supportedTypes: PostType[];
@@ -83,8 +85,14 @@ export interface PlatformCapabilities {
   supportsSpoiler?: boolean;
   /** Whether a cover image may accompany other media. */
   supportsCoverWithMedia?: boolean;
-  /** Whether posts can carry tags/hashtags as a distinct field. */
-  supportsTags?: boolean;
+  /**
+   * Request fields this platform accepts but does nothing with.
+   *
+   * Listing them is what turns a silently dropped field into a preview warning.
+   * A field the platform actively refuses belongs in `postTypes.forbiddenFields`
+   * instead, so the caller gets an error rather than a warning.
+   */
+  ignoredFields?: string[];
 
   /** Rate limits the platform documents, for the host to plan against. */
   rateLimits?: {

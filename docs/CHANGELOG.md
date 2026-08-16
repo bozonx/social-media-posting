@@ -2,6 +2,33 @@
 
 ## Unreleased
 
+### 2.0.0 — Phase 4: capability model and generic validation
+
+Validating a new network is now a data structure, not another 150 lines of checks.
+
+- **`validateAgainstCapabilities()`** implements, once, every check a network needs: supported
+  types, per-type required and forbidden fields, media counts, media URLs, body length, body
+  format, and the fields the platform would drop. Platforms add only what a descriptor cannot
+  express, through `IPlatform.validateExtra()`.
+- **`previewFromCapabilities()`** is the default preview. `IPlatform.preview` became optional and
+  should be implemented only where the network offers a real dry-run. Telegram no longer has one:
+  its preview and its publish now run the same checks by construction.
+- **Generic type detection.** `detectPostType()` covers the common rules; `IPlatform.detectType`
+  overrides it. `TelegramTypeDetector` is now such an override rather than the only implementation.
+- **Body rendering layer.** `convertBody()` between plain text, an HTML subset and Markdown,
+  `countBodyLength()` with per-platform URL weighting (X counts every URL as 23), `truncateBody()`
+  on a word boundary, plus `escapeHtml()` and `escapeMarkdownV2()`.
+- **Dead fields closed.** `scheduledAt` and `mode: 'draft'` are now **rejected** by platforms that
+  cannot honour them, instead of being reported as "ignored". A contract that silently drops a
+  field is worse than one that refuses it. The same applies to `hasSpoiler` on platforms without
+  spoilers.
+- **Telegram's limits are declared, not hardcoded.** `MAX_MEDIA_GROUP_SIZE` and the 4096-character
+  body limit live in its capability descriptor. **Behaviour change:** a body over 4096 characters
+  is now refused locally rather than sent and refused by Telegram.
+- **`channelId` validation split.** The HTTP layer keeps a structural check (non-empty string or
+  integer); what counts as a usable channel is checked by the platform's own hook.
+- **New:** `client.getCapabilities(platform)` returns all of the above as data.
+
 ### 2.0.0 — Phase 3: the public extension API
 
 A network can now be implemented, registered and published to without touching the core.

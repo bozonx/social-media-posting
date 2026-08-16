@@ -12,6 +12,7 @@ export const MAX_MEDIA_GROUP_SIZE = 10;
  */
 export const telegramCapabilities: PlatformCapabilities = {
   name: 'telegram',
+  displayName: 'Telegram',
 
   supportedTypes: [
     PostType.AUTO,
@@ -56,7 +57,9 @@ export const telegramCapabilities: PlatformCapabilities = {
   supportsDraft: false,
   supportsSpoiler: true,
   supportsCoverWithMedia: false,
-  supportsTags: false,
+
+  // Accepted by the request shape, but the Bot API has nowhere to put them.
+  ignoredFields: ['title', 'description', 'postLanguage', 'tags'],
 };
 
 /** Largest caption Telegram accepts on a media message. */

@@ -58,7 +58,7 @@ function createService(configOverrides: Record<string, unknown> = {}) {
       ],
     },
     publish: vi.fn<IPlatform['publish']>(),
-    preview: vi.fn<IPlatform['preview']>(),
+    preview: vi.fn<NonNullable<IPlatform['preview']>>(),
   };
 
   const platformRegistry = new PlatformRegistry();

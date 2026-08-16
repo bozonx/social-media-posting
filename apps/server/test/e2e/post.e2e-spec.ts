@@ -21,7 +21,7 @@ describe('PostController (e2e)', () => {
       ],
     },
     publish: vi.fn<IPlatform['publish']>(),
-    preview: vi.fn<IPlatform['preview']>(),
+    preview: vi.fn<NonNullable<IPlatform['preview']>>(),
   };
 
   beforeAll(async () => {

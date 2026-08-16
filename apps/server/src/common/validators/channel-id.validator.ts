@@ -7,11 +7,11 @@ import {
 } from 'class-validator';
 
 /**
- * Validator constraint for channelId field
- * Validates that channelId is either a string or a number
- * Allows formats like:
- * - String: "@mychannel", "-100123456789", "123456789"
- * - Number: 123456789, -100123456789
+ * Structural check for `channelId`: a non-empty string or an integer.
+ *
+ * What a given network considers a *valid* channel identifier is that
+ * platform's business, and is checked by its `validateExtra()` hook against its
+ * capability descriptor. This layer only rejects shapes no platform could use.
  */
 @ValidatorConstraint({ name: 'isChannelId', async: false })
 export class IsChannelIdConstraint implements ValidatorConstraintInterface {
@@ -41,8 +41,7 @@ export class IsChannelIdConstraint implements ValidatorConstraintInterface {
 }
 
 /**
- * Decorator factory for channelId validation
- * Use on DTO properties that accept channelId
+ * Decorator applying the structural `channelId` check to a DTO property.
  * @param validationOptions - Optional validation options
  * @returns Property decorator
  */

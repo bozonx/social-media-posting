@@ -2,7 +2,7 @@ import {
   MediaInputHelper,
   PostType,
   ValidationError,
-  validateMediaUrl,
+  validateAgainstCapabilities,
 } from '@bozonx/social-posting';
 import type {
   AccountConfig,
@@ -11,14 +11,14 @@ import type {
   MediaInput,
   PlatformPublishResponse,
   PostRequest,
-  PreviewResult,
   PublishOptions,
+  CapabilityValidationOptions,
 } from '@bozonx/social-posting';
 import { TelegramTypeDetector } from './telegram-type-detector.js';
 import { toTelegramInput } from './telegram-media.js';
 import { toPlatformError } from './telegram-error.js';
 import { TelegramApi } from './telegram-api.js';
-import { MAX_MEDIA_GROUP_SIZE, telegramCapabilities } from './capabilities.js';
+import { MAX_CAPTION_LENGTH, MAX_MEDIA_GROUP_SIZE, telegramCapabilities } from './capabilities.js';
 
 /**
  * Collaborators the Telegram platform needs. Passed explicitly — the package
@@ -62,7 +62,15 @@ export class TelegramPlatform implements IPlatform {
     // progress to resume from and no deferred result to check on.
     _options?: PublishOptions,
   ): Promise<PlatformPublishResponse> {
-    const { errors, warnings, actualType } = this.validateRequest(request);
+    const {
+      errors,
+      warnings,
+      detectedType: actualType,
+    } = validateAgainstCapabilities(
+      request,
+      this.capabilities,
+      this.validationHooks(accountConfig),
+    );
 
     if (errors.length > 0) {
       throw new ValidationError(errors);
@@ -77,7 +85,7 @@ export class TelegramPlatform implements IPlatform {
 
     const api = new TelegramApi(accountConfig.auth.apiKey, accountConfig.apiTimeoutSeconds);
     const signal = _options?.signal;
-    const chatId = this.resolveChatId(request, accountConfig);
+    const chatId = requireChatId(request, accountConfig);
 
     const { processedBody, parseMode, disableNotification, options } = this.prepareMessageData(
       request,
@@ -198,71 +206,65 @@ export class TelegramPlatform implements IPlatform {
     };
   }
 
-  async preview(
-    request: PostRequest,
-    accountConfig: TelegramAccountConfig,
-  ): Promise<PreviewResult> {
-    const { errors, warnings, actualType } = this.validateRequest(request);
-
-    if (errors.length > 0) {
-      return {
-        success: false,
-        data: {
-          valid: false,
-          errors,
-          warnings,
-        },
-      };
-    }
-
-    const { processedBody, targetFormat } = this.prepareMessageData(request, accountConfig);
-
-    return {
-      success: true,
-      data: {
-        valid: true,
-        detectedType: actualType,
-        convertedBody: processedBody,
-        targetFormat: targetFormat as string,
-        convertedBodyLength: processedBody?.length,
-        warnings,
-      },
-    };
-  }
-
-  private validateRequest(request: PostRequest) {
-    const errors: string[] = [];
-    const warnings: string[] = [];
-
-    // Detect Type
-    const actualType = this.typeDetector.detectType(request);
-
-    if (!this.capabilities.supportedTypes.includes(actualType)) {
-      errors.push(`Post type '${actualType}' is not supported for Telegram`);
-    }
-
-    // Required Fields
-    errors.push(...this.getRequiredFieldsErrors(request, actualType));
-
-    // Media URLs
-    errors.push(...this.getMediaUrlErrors(request));
-
-    // Ignored Fields
-    warnings.push(...this.getIgnoredFieldsWarnings(request));
-    warnings.push(...this.getIgnoredMediaWarnings(request, actualType));
-
-    return { errors, warnings, actualType };
+  /**
+   * Telegram's own type priority. The generic rules agree with it today, but
+   * the network is free to change its mind about, say, cover-plus-video.
+   */
+  detectType(request: PostRequest): PostType {
+    return this.typeDetector.detectType(request);
   }
 
   /**
-   * Prepares message data for sending to Telegram.
-   * Maps bodyFormat to parse_mode without converting the body content.
-   * Body is sent as-is to Telegram API.
+   * Telegram-specific checks: a target chat must be resolvable, captions on
+   * media are limited far below the 4096 characters a text message allows, and
+   * an album item identified by `file_id` cannot have its kind guessed.
    *
-   * Standard formats (text, html, md) are mapped to Telegram parse_mode.
-   * Custom values (e.g., MarkdownV2) are passed as-is.
-   * If parse_mode is specified in options, it overrides bodyFormat mapping.
+   * There is deliberately no `preview()`: Telegram offers no dry-run, so the
+   * client previews from the descriptor and these hooks, which is exactly what
+   * `publish()` checks.
    */
+  validateExtra(
+    request: PostRequest,
+    accountConfig: TelegramAccountConfig,
+    type: PostType,
+  ): string[] {
+    const errors: string[] = [];
+
+    if (resolveChatId(request, accountConfig) === undefined) {
+      errors.push(
+        'Field "channelId" is required for Telegram (provide via request.channelId, account config channelId, or legacy auth.chatId)',
+      );
+    }
+
+    if (type !== PostType.POST && request.body && request.body.length > MAX_CAPTION_LENGTH) {
+      errors.push(
+        `Media captions are limited to ${MAX_CAPTION_LENGTH} characters for Telegram, got ${request.body.length}`,
+      );
+    }
+
+    if (type === PostType.ALBUM) {
+      request.media?.forEach((item, index) => {
+        const url = MediaInputHelper.getUrl(item);
+        const fileId = MediaInputHelper.getPlatformRef(item);
+        if (!url && fileId && !MediaInputHelper.getType(item)) {
+          errors.push(
+            `Media item at index ${index} must specify 'type' when using Telegram file_id in albums`,
+          );
+        }
+      });
+    }
+
+    return errors;
+  }
+
+  /** The hooks bundled the way the generic validator wants them. */
+  private validationHooks(accountConfig: TelegramAccountConfig): CapabilityValidationOptions {
+    return {
+      detectType: request => this.detectType(request),
+      validateExtra: (request, type) => this.validateExtra(request, accountConfig, type),
+    };
+  }
+
   private prepareMessageData(request: PostRequest, accountConfig: TelegramAccountConfig) {
     const processedBody = request.body;
 
@@ -295,37 +297,6 @@ export class TelegramPlatform implements IPlatform {
     }
 
     return { processedBody, targetFormat: bodyFormat, parseMode, disableNotification, options };
-  }
-
-  /**
-   * Resolve Telegram chat identifier from request and account configuration.
-   *
-   * Priority:
-   * 1. request.channelId
-   * 2. accountConfig.channelId (from config.yaml)
-   * 3. accountConfig.auth.chatId (legacy, for backward compatibility)
-   */
-  private resolveChatId(
-    request: PostRequest,
-    accountConfig: TelegramAccountConfig,
-  ): string | number {
-    const requestChannelId = request.channelId;
-    const configChannelId = (accountConfig as any).channelId;
-    const legacyChatId = (accountConfig.auth as any)?.chatId;
-
-    const finalId = requestChannelId ?? configChannelId ?? legacyChatId;
-
-    if (finalId === undefined || finalId === null || finalId === '') {
-      throw new ValidationError(
-        'Field "channelId" is required for Telegram (provide via request.channelId, account config channelId, or legacy auth.chatId)',
-      );
-    }
-
-    if (typeof finalId !== 'string' && typeof finalId !== 'number') {
-      throw new ValidationError('Field "channelId" must be a string or number');
-    }
-
-    return finalId;
   }
 
   private async sendMessage(
@@ -493,153 +464,6 @@ export class TelegramPlatform implements IPlatform {
     );
   }
 
-  private getRequiredFieldsErrors(request: PostRequest, type: PostType): string[] {
-    const errors: string[] = [];
-
-    switch (type) {
-      case PostType.POST:
-        if (request.body === undefined || request.body === null || request.body.trim() === '') {
-          errors.push("Field 'body' is required for type 'post'");
-        }
-        if (
-          MediaInputHelper.isDefined(request.cover) ||
-          MediaInputHelper.isDefined(request.video) ||
-          MediaInputHelper.isDefined(request.audio) ||
-          MediaInputHelper.isDefined(request.document) ||
-          MediaInputHelper.isNotEmpty(request.media)
-        ) {
-          errors.push("For type 'post', media fields must not be provided");
-        }
-        break;
-
-      case PostType.IMAGE:
-        if (!MediaInputHelper.isDefined(request.cover)) {
-          errors.push("Field 'cover' is required for type 'image'");
-        }
-        break;
-
-      case PostType.VIDEO:
-        if (!MediaInputHelper.isDefined(request.video)) {
-          errors.push("Field 'video' is required for type 'video'");
-        }
-        break;
-
-      case PostType.AUDIO:
-        if (!MediaInputHelper.isDefined(request.audio)) {
-          errors.push("Field 'audio' is required for type 'audio'");
-        }
-        break;
-
-      case PostType.DOCUMENT:
-        if (!MediaInputHelper.isDefined(request.document)) {
-          errors.push("Field 'document' is required for type 'document'");
-        }
-        break;
-
-      case PostType.ALBUM:
-        if (!MediaInputHelper.isNotEmpty(request.media)) {
-          errors.push("Field 'media' is required for type 'album'");
-        }
-        break;
-    }
-    return errors;
-  }
-
-  private getMediaUrlErrors(request: PostRequest): string[] {
-    const errors: string[] = [];
-    const validateIfUrl = (media: any) => {
-      const url = MediaInputHelper.getUrl(media);
-      if (url) {
-        try {
-          validateMediaUrl(url);
-        } catch (e: any) {
-          errors.push(e.message);
-        }
-      }
-    };
-
-    if (request.cover) validateIfUrl(request.cover);
-    if (request.video) validateIfUrl(request.video);
-    if (request.audio) validateIfUrl(request.audio);
-    if (request.document) validateIfUrl(request.document);
-    if (request.media) {
-      request.media.forEach(validateIfUrl);
-    }
-    return errors;
-  }
-
-  private getIgnoredFieldsWarnings(request: PostRequest): string[] {
-    const warnings: string[] = [];
-    const ignoredFields: string[] = [];
-
-    if (request.title) ignoredFields.push('title');
-    if (request.description) ignoredFields.push('description');
-    if (request.postLanguage) ignoredFields.push('postLanguage');
-    if (request.tags) ignoredFields.push('tags');
-    if (request.mode) ignoredFields.push('mode');
-    if (request.scheduledAt) ignoredFields.push('scheduledAt');
-
-    if (ignoredFields.length > 0) {
-      warnings.push(
-        `Fields ${ignoredFields.join(', ')} are not used by Telegram and will be ignored`,
-      );
-    }
-    return warnings;
-  }
-
-  private getIgnoredMediaWarnings(request: PostRequest, type: PostType): string[] {
-    const warnings: string[] = [];
-    const ignoredFields: string[] = [];
-
-    const checkField = (field: string, value: any, isArray = false) => {
-      if (isArray ? MediaInputHelper.isNotEmpty(value) : MediaInputHelper.isDefined(value)) {
-        ignoredFields.push(field);
-      }
-    };
-
-    switch (type) {
-      case PostType.IMAGE:
-        checkField('media', request.media, true);
-        checkField('video', request.video);
-        checkField('audio', request.audio);
-        checkField('document', request.document);
-        break;
-
-      case PostType.VIDEO:
-        checkField('media', request.media, true);
-        checkField('cover', request.cover);
-        checkField('audio', request.audio);
-        checkField('document', request.document);
-        break;
-
-      case PostType.AUDIO:
-        checkField('media', request.media, true);
-        checkField('cover', request.cover);
-        checkField('video', request.video);
-        checkField('document', request.document);
-        break;
-
-      case PostType.DOCUMENT:
-        checkField('media', request.media, true);
-        checkField('cover', request.cover);
-        checkField('video', request.video);
-        checkField('audio', request.audio);
-        break;
-
-      case PostType.ALBUM:
-        checkField('cover', request.cover);
-        checkField('video', request.video);
-        checkField('audio', request.audio);
-        checkField('document', request.document);
-        break;
-    }
-
-    if (ignoredFields.length > 0) {
-      warnings.push(`Fields ${ignoredFields.join(', ')} will be ignored for type '${type}'`);
-    }
-    return warnings;
-  }
-
   private buildPostUrl(chatId: string | number, messageId: number): string | undefined {
     const chatIdStr = String(chatId);
     if (chatIdStr.startsWith('@')) {
@@ -673,4 +497,45 @@ type TelegramOptions = Record<string, unknown>;
 interface TelegramMessage {
   message_id: number;
   [key: string]: unknown;
+}
+
+/**
+ * Resolve the chat to publish to.
+ *
+ * Priority: `request.channelId`, then the account's `channelId`, then the
+ * legacy `auth.chatId`.
+ *
+ * @returns The chat identifier, or undefined when none is configured.
+ */
+function resolveChatId(
+  request: PostRequest,
+  accountConfig: TelegramAccountConfig,
+): string | number | undefined {
+  const legacyChatId = (accountConfig.auth as Record<string, unknown> | undefined)?.chatId;
+  const finalId = request.channelId ?? accountConfig.channelId ?? legacyChatId;
+
+  if (finalId === undefined || finalId === null || finalId === '') {
+    return undefined;
+  }
+  if (typeof finalId !== 'string' && typeof finalId !== 'number') {
+    return undefined;
+  }
+  return finalId;
+}
+
+/**
+ * The publish path's view of {@link resolveChatId}: validation has already run,
+ * so an absent chat here is a programming error rather than a user one.
+ */
+function requireChatId(
+  request: PostRequest,
+  accountConfig: TelegramAccountConfig,
+): string | number {
+  const chatId = resolveChatId(request, accountConfig);
+  if (chatId === undefined) {
+    throw new ValidationError(
+      'Field "channelId" is required for Telegram (provide via request.channelId, account config channelId, or legacy auth.chatId)',
+    );
+  }
+  return chatId;
 }

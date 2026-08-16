@@ -1,5 +1,6 @@
 import { BasePostService } from './base-post.service.js';
 import { validatePostRequest } from '../validation/validate-post-request.js';
+import { previewFromCapabilities } from '../validation/capability-preview.js';
 import type { PostRequest } from '../types/post-request.js';
 import type { PreviewErrorResponse, PreviewResult } from '../types/preview-response.js';
 
@@ -22,7 +23,20 @@ export class PreviewService extends BasePostService {
 
     try {
       const { platform, accountConfig } = this.validateRequest(request);
-      return await platform.preview(request, accountConfig);
+
+      if (platform.preview) {
+        return await platform.preview(request, accountConfig);
+      }
+
+      // No platform dry-run: the descriptor already says everything the checks
+      // in publish() consult, so previewing from it cannot drift.
+      return previewFromCapabilities(request, platform.capabilities, {
+        detectType: platform.detectType?.bind(platform),
+        validateExtra: platform.validateExtra
+          ? (previewRequest, detectedType) =>
+              platform.validateExtra!(previewRequest, accountConfig, detectedType)
+          : undefined,
+      });
     } catch (error) {
       const message = (error as Error)?.message ?? 'Unknown error';
       this.logger.warn(

@@ -1,3 +1,4 @@
+import type { PostType } from '../types/post-type.js';
 import type { PostRequest } from '../types/post-request.js';
 import type { PreviewResult } from '../types/preview-response.js';
 import type { ResolvedAccountConfig } from '../types/account-config.js';
@@ -93,10 +94,31 @@ export interface IPlatform {
 
   /**
    * Validate a post and report what would happen, without publishing.
+   *
+   * Optional: without it the client previews from {@link capabilities} alone,
+   * which is the same set of checks `publish()` runs. Implement it only when
+   * the network offers a real dry-run of its own.
+   *
    * @param request - Post request data.
    * @param accountConfig - Resolved credentials and per-account settings.
    */
-  preview(request: PostRequest, accountConfig: ResolvedAccountConfig): Promise<PreviewResult>;
+  preview?(request: PostRequest, accountConfig: ResolvedAccountConfig): Promise<PreviewResult>;
+
+  /**
+   * Type detection for a network whose type system does not match the generic
+   * rules. Optional; {@link detectPostType} is used when absent.
+   */
+  detectType?(request: PostRequest): PostType;
+
+  /**
+   * Rules the capability descriptor cannot express.
+   * @returns Error messages; an empty array means the request passes.
+   */
+  validateExtra?(
+    request: PostRequest,
+    accountConfig: ResolvedAccountConfig,
+    detectedType: PostType,
+  ): string[];
 
   /**
    * Check on a post that `publish()` left in `processing`.

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { PostType } from '@bozonx/social-posting';
+import { PostType, previewFromCapabilities } from '@bozonx/social-posting';
 import type { ILogger, PostRequest } from '@bozonx/social-posting';
 
 // The Bot API is the boundary under test, so `fetch` is stubbed and every
@@ -153,13 +153,9 @@ describe('TelegramPlatform', () => {
       });
     });
 
-    it('should allow long text messages and delegate length validation to Telegram', async () => {
-      const longBody = 'a'.repeat(5000);
-      const request: PostRequest = {
-        platform: 'telegram',
-        body: longBody,
-        type: PostType.POST,
-      };
+    it('sends a body right up to the documented limit', async () => {
+      const body = 'a'.repeat(4096);
+      const request: PostRequest = { platform: 'telegram', body, type: PostType.POST };
 
       botApi.reply('sendMessage', { message_id: 12345 });
 
@@ -168,9 +164,22 @@ describe('TelegramPlatform', () => {
       expect(result.postId).toBe('12345');
       expect(botApi.lastPayload('sendMessage')).toEqual({
         chat_id: 'test-chat-id',
-        text: longBody,
+        text: body,
         disable_notification: false,
       });
+    });
+
+    it('rejects an over-long body without a round trip to Telegram', async () => {
+      const request: PostRequest = {
+        platform: 'telegram',
+        body: 'a'.repeat(5000),
+        type: PostType.POST,
+      };
+
+      await expect(platform.publish(request, mockAccountConfig)).rejects.toThrow(
+        /exceeds the 4096 characters/,
+      );
+      expect(botApi.called('sendMessage')).toBe(false);
     });
 
     it('should send body as-is without conversion and map bodyFormat to parse_mode', async () => {
@@ -738,6 +747,14 @@ describe('TelegramPlatform', () => {
   });
 
   describe('preview', () => {
+    // Telegram has no dry-run of its own, so previewing goes through the
+    // generic path, driven by the same descriptor and hooks publish() uses.
+    const preview = (request: PostRequest) =>
+      previewFromCapabilities(request, platform.capabilities, {
+        detectType: r => platform.detectType(r),
+        validateExtra: (r, type) => platform.validateExtra(r, mockAccountConfig, type),
+      });
+
     it('should return invalid preview result when validation fails', async () => {
       const request: PostRequest = {
         platform: 'telegram',
@@ -745,7 +762,7 @@ describe('TelegramPlatform', () => {
         type: PostType.ARTICLE,
       };
 
-      const result = await platform.preview(request, mockAccountConfig as any);
+      const result = preview(request);
 
       expect(result.success).toBe(false);
       if (!result.success) {
@@ -762,7 +779,7 @@ describe('TelegramPlatform', () => {
         type: PostType.POST,
       };
 
-      const result = await platform.preview(request, mockAccountConfig);
+      const result = preview(request);
 
       expect(result.success).toBe(true);
       if (result.success) {
