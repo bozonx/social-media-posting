@@ -1,0 +1,40 @@
+{
+  "$comment": "Responses recorded from the Telegram Bot API. The failure paths are what break in production, so they are fixtures rather than hand-written objects.",
+  "rateLimited": {
+    "status": 429,
+    "body": {
+      "ok": false,
+      "error_code": 429,
+      "description": "Too Many Requests: retry after 30",
+      "parameters": { "retry_after": 30 }
+    }
+  },
+  "unauthorized": {
+    "status": 401,
+    "body": { "ok": false, "error_code": 401, "description": "Unauthorized" }
+  },
+  "botBlocked": {
+    "status": 403,
+    "body": {
+      "ok": false,
+      "error_code": 403,
+      "description": "Forbidden: bot was blocked by the user"
+    }
+  },
+  "chatNotFound": {
+    "status": 400,
+    "body": { "ok": false, "error_code": 400, "description": "Bad Request: chat not found" }
+  },
+  "mediaRejected": {
+    "status": 400,
+    "body": {
+      "ok": false,
+      "error_code": 400,
+      "description": "Bad Request: PHOTO_INVALID_DIMENSIONS"
+    }
+  },
+  "serverError": {
+    "status": 502,
+    "body": { "ok": false, "error_code": 502, "description": "Bad Gateway" }
+  }
+}

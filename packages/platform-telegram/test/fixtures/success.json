@@ -1,0 +1,25 @@
+{
+  "$comment": "A successful sendMessage, as the Bot API returns it.",
+  "sendMessage": {
+    "status": 200,
+    "body": {
+      "ok": true,
+      "result": {
+        "message_id": 12345,
+        "date": 1767225600,
+        "chat": { "id": -1001234567890, "title": "Test channel", "type": "channel" },
+        "text": "Contract suite post"
+      }
+    }
+  },
+  "sendMediaGroup": {
+    "status": 200,
+    "body": {
+      "ok": true,
+      "result": [
+        { "message_id": 12345, "date": 1767225600 },
+        { "message_id": 12346, "date": 1767225600 }
+      ]
+    }
+  }
+}

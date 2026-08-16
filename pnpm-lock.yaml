@@ -109,6 +109,16 @@ importers:
         specifier: workspace:*
         version: link:../../packages/platform-telegram
 
+  packages/conformance:
+    dependencies:
+      vitest:
+        specifier: '>=3'
+        version: 4.1.10(@types/node@26.2.0)(@vitest/coverage-v8@4.1.10)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.1)(terser@5.46.0))
+    devDependencies:
+      '@bozonx/social-posting':
+        specifier: workspace:*
+        version: link:../core
+
   packages/core: {}
 
   packages/platform-telegram:
@@ -116,6 +126,9 @@ importers:
       '@bozonx/social-posting':
         specifier: workspace:*
         version: link:../core
+      '@bozonx/social-posting-conformance':
+        specifier: workspace:*
+        version: link:../conformance
 
 packages:
 

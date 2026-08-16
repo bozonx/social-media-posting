@@ -12,8 +12,8 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"{packages,apps,examples,test}/**/*.ts\"",
     "format:check": "prettier --check \"{packages,apps,examples,test}/**/*.ts\"",
-    "test": "vitest run --project core --project platform-telegram --project server",
-    "test:unit": "vitest run --project core --project platform-telegram --project server",
+    "test": "vitest run --project core --project platforms --project server --project example-embedded --project example-custom-platform",
+    "test:unit": "vitest run --project core --project platforms --project server --project example-embedded --project example-custom-platform",
     "test:e2e": "vitest run --project e2e",
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",
@@ -26,7 +26,8 @@
     "typecheck:packages": "pnpm -r typecheck",
     "rebuild": "pnpm clean && pnpm build",
     "check:deps": "node scripts/check-zero-deps.mjs",
-    "check:publish": "pnpm -r --filter \"./packages/*\" exec publint && pnpm -r --filter \"./packages/*\" exec attw --pack . --profile esm-only"
+    "check:publish": "pnpm -r --filter \"./packages/*\" exec publint && pnpm -r --filter \"./packages/*\" exec attw --pack . --profile esm-only",
+    "platform": "node scripts/scaffold-platform.mjs"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.21.3",

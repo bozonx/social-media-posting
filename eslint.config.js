@@ -91,6 +91,14 @@ export default [
     },
   },
   {
+    // Repository tooling runs on Node by definition, and is never published.
+    files: ['scripts/**/*.mjs'],
+    languageOptions: {
+      globals: { process: 'readonly', console: 'readonly' },
+    },
+    rules: { 'no-undef': 'off' },
+  },
+  {
     files: ['**/test/**/*.ts', '**/*.spec.ts'],
     rules: { '@typescript-eslint/no-explicit-any': 'off', 'no-console': 'off' },
   },

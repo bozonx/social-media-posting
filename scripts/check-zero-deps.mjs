@@ -53,7 +53,9 @@ for (const entry of readdirSync(packagesDir, { withFileTypes: true })) {
     name => !allowed.has(name),
   );
   if (optional.length > 0) {
-    failures.push(`${manifest.name} declares undeclared optional dependencies: ${optional.join(', ')}`);
+    failures.push(
+      `${manifest.name} declares undeclared optional dependencies: ${optional.join(', ')}`,
+    );
   }
 }
 
@@ -62,7 +64,9 @@ if (failures.length > 0) {
   for (const failure of failures) {
     console.error(`  - ${failure}`);
   }
-  console.error('\nAdd an exception to scripts/check-zero-deps.mjs, with its reason, or drop the dependency.');
+  console.error(
+    '\nAdd an exception to scripts/check-zero-deps.mjs, with its reason, or drop the dependency.',
+  );
   process.exit(1);
 }
 

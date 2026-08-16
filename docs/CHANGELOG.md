@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+### 2.0.0 — Phase 9: conformance harness
+
+Adding a network is now "implement the interface and run the suite".
+
+- **New package `@bozonx/social-posting-conformance`** exports `describePlatformContract()`,
+  parameterized by a `PlatformModule`, a transport harness and recorded fixtures. Published rather
+  than kept internal, because a network maintained outside this repository needs it too.
+- **It checks what actually breaks:** every declared post type round-trips; declared limits are
+  enforced locally without a wasted API call; each recorded failure maps to the right `ErrorCode`
+  with the right `retryable`, `retryAfterMs` and `httpStatus`; an aborted signal makes no call and
+  an abort mid-flight stops the publication; publishing mutates no global state and writes to no
+  ambient logger; preview agrees with publish; an interrupted multi-step publication resumes
+  instead of restarting.
+- **Telegram retrofitted onto it**, with real Bot API responses recorded under `test/fixtures/` —
+  a 429 with its `retry_after`, a rejected token, a blocked bot, an unknown chat, a moderation
+  refusal, an outage. Its existing specs stay as platform-specific additions.
+- **Running it caught a real bug:** `TelegramPlatform` issued its Bot API call even when the
+  caller's signal was already aborted.
+- **The suite runs on both runtimes.** `pnpm test:workerd` now covers every published package, not
+  just the core.
+- **New:** `pnpm platform <name>` scaffolds a network package — manifest, capability descriptor,
+  platform skeleton, credential validator and a spec already wired to the suite — that compiles
+  and passes from the first minute.
+- **New:** `CONTRIBUTING-PLATFORMS.md`.
+
 ### 2.0.0 — Phase 8: packaging and release
 
 - **Renamed.** `social-media-posting-microservice` becomes `@bozonx/social-posting` and

@@ -22,11 +22,13 @@ export default defineConfig({
       },
       {
         test: {
-          name: 'platform-telegram',
-          root: './packages/platform-telegram',
+          // Every platform package, so a scaffolded network is in the run from
+          // the moment it exists.
+          name: 'platforms',
+          root: '.',
           environment: 'node',
-          include: ['test/**/*.spec.ts'],
-          setupFiles: ['../../test/setup/no-network.ts'],
+          include: ['packages/platform-*/test/**/*.spec.ts'],
+          setupFiles: ['./test/setup/no-network.ts'],
           testTimeout: 5000,
         },
       },

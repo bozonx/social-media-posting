@@ -1,11 +1,12 @@
 {
-  "name": "@bozonx/social-posting-telegram",
+  "name": "@bozonx/social-posting-conformance",
   "version": "2.0.0",
-  "description": "Telegram platform for @bozonx/social-posting",
+  "description": "Contract test suite every @bozonx/social-posting platform must pass",
   "keywords": [
     "social-media",
     "posting",
-    "telegram"
+    "testing",
+    "contract-tests"
   ],
   "type": "module",
   "main": "./dist/index.js",
@@ -27,34 +28,33 @@
     "build": "tsc -p tsconfig.build.json",
     "clean": "rm -rf dist *.tsbuildinfo",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run",
     "prepack": "pnpm run build"
   },
   "dependencies": {},
   "peerDependencies": {
-    "@bozonx/social-posting": "workspace:^"
+    "@bozonx/social-posting": "workspace:^",
+    "vitest": ">=3"
   },
   "devDependencies": {
-    "@bozonx/social-posting": "workspace:*",
-    "@bozonx/social-posting-conformance": "workspace:*"
-  },
-  "author": "Ivan K",
-  "license": "MIT",
-  "engines": {
-    "node": ">=24.0.0"
+    "@bozonx/social-posting": "workspace:*"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/bozonx/social-media-posting.git",
-    "directory": "packages/platform-telegram"
+    "directory": "packages/conformance"
   },
   "bugs": {
     "url": "https://github.com/bozonx/social-media-posting/issues"
   },
-  "homepage": "https://github.com/bozonx/social-media-posting/tree/main/packages/platform-telegram#readme",
+  "homepage": "https://github.com/bozonx/social-media-posting/tree/main/packages/conformance#readme",
   "publishConfig": {
     "access": "public",
     "provenance": true
   },
-  "sideEffects": false
+  "sideEffects": false,
+  "author": "Ivan K",
+  "license": "MIT",
+  "engines": {
+    "node": ">=24.0.0"
+  }
 }

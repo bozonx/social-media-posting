@@ -1,5 +1,7 @@
 import {
+  ErrorCode,
   MediaInputHelper,
+  PlatformError,
   PostType,
   ValidationError,
   validateAgainstCapabilities,
@@ -62,8 +64,17 @@ export class TelegramPlatform implements IPlatform {
     accountConfig: TelegramAccountConfig,
     // Telegram publishes in a single Bot API call, so there is no partial
     // progress to resume from and no deferred result to check on.
-    _options?: PublishOptions,
+    options?: PublishOptions,
   ): Promise<PlatformPublishResponse> {
+    const signal = options?.signal;
+
+    // Cheapest possible check: a caller that already hung up gets no API call.
+    if (signal?.aborted) {
+      throw new PlatformError('Request aborted before publishing', ErrorCode.NETWORK_ERROR, {
+        retryable: false,
+      });
+    }
+
     const {
       errors,
       warnings,
@@ -90,13 +101,14 @@ export class TelegramPlatform implements IPlatform {
       accountConfig.auth.apiKey as string,
       accountConfig.apiTimeoutSeconds,
     );
-    const signal = _options?.signal;
     const chatId = requireChatId(request, accountConfig);
 
-    const { processedBody, parseMode, disableNotification, options } = this.prepareMessageData(
-      request,
-      accountConfig,
-    );
+    const {
+      processedBody,
+      parseMode,
+      disableNotification,
+      options: platformOptions,
+    } = this.prepareMessageData(request, accountConfig);
 
     this.logger.debug(
       `Sending to Telegram chat ${chatId} (type: ${actualType}, silent: ${disableNotification})`,
@@ -115,7 +127,7 @@ export class TelegramPlatform implements IPlatform {
             processedBody!, // Validated in validateRequest
             parseMode,
             disableNotification,
-            options,
+            platformOptions,
             signal,
           );
           break;
@@ -128,7 +140,7 @@ export class TelegramPlatform implements IPlatform {
             processedBody,
             parseMode,
             disableNotification,
-            options,
+            platformOptions,
             signal,
           );
           break;
@@ -141,7 +153,7 @@ export class TelegramPlatform implements IPlatform {
             processedBody,
             parseMode,
             disableNotification,
-            options,
+            platformOptions,
             signal,
           );
           break;
@@ -154,7 +166,7 @@ export class TelegramPlatform implements IPlatform {
             processedBody,
             parseMode,
             disableNotification,
-            options,
+            platformOptions,
             signal,
           );
           break;
@@ -167,7 +179,7 @@ export class TelegramPlatform implements IPlatform {
             processedBody,
             parseMode,
             disableNotification,
-            options,
+            platformOptions,
             signal,
           );
           break;
