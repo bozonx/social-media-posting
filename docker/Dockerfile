@@ -29,4 +29,4 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD node -e "const b=(process.env.BASE_PATH||'').replace(/^\/+|\/+$/g,'');const p='/'+(b?b+'/':'')+'api/v1/health';require('http').get('http://127.0.0.1:'+(process.env.LISTEN_PORT||8080)+p,r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
 ENTRYPOINT ["node", "--enable-source-maps"]
-CMD ["dist/src/main.js"]
+CMD ["dist/main.js"]
