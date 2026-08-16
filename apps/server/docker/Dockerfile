@@ -16,8 +16,10 @@ FROM deps AS build
 COPY tsconfig.base.json tsconfig.json ./
 COPY packages ./packages
 COPY apps ./apps
+# `--legacy` keeps the workspace symlinked rather than injected: injecting would
+# copy packages into node_modules during development too, breaking edit-and-rerun.
 RUN pnpm --filter "./packages/*" --filter "./apps/server" build \
-  && pnpm --filter "@bozonx/social-posting-server" --prod deploy /deploy
+  && pnpm --filter "@bozonx/social-posting-server" deploy --prod --legacy /deploy
 
 FROM node:${NODE_MAJOR}-bookworm-slim AS runtime
 WORKDIR /app
