@@ -129,6 +129,8 @@ export const pastebin: PlatformModule = {
   create: deps => new PastebinPlatform(deps.logger),
   authValidator: {
     providerName: 'pastebin',
-    validate: auth => (typeof auth.apiKey === 'string' ? [] : ["Field 'apiKey' is required"]),
+    validate: auth => ({
+      errors: typeof auth.apiKey === 'string' ? [] : ["Field 'apiKey' is required"],
+    }),
   },
 };

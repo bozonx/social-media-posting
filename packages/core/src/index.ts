@@ -23,7 +23,11 @@ export type {
   PlatformStatusResponse,
   PublishOptions,
 } from './platforms/platform.interface.js';
-export type { IAuthValidator } from './platforms/auth-validator.interface.js';
+export type {
+  IAuthValidator,
+  AuthValidation,
+  AuthValidationContext,
+} from './platforms/auth-validator.interface.js';
 export type { PlatformModule, PlatformDeps } from './platforms/platform-module.js';
 export type {
   PlatformCapabilities,
@@ -60,6 +64,12 @@ export { ErrorCode } from './errors/error-code.js';
 export { PostingError, ValidationError, AbortedError } from './errors/posting-error.js';
 export { PlatformError } from './errors/platform-error.js';
 export type { PlatformErrorOptions } from './errors/platform-error.js';
+
+// Credentials and OAuth2
+export { StaticCredentialProvider, isAccessTokenExpired } from './auth/credentials.js';
+export type { CredentialProvider, ResolvedCredentials } from './auth/credentials.js';
+export { OAuth2TokenRefresher } from './auth/oauth2.js';
+export type { OAuth2Config } from './auth/oauth2.js';
 
 // Configuration
 export { PostingConfig } from './config/posting-config.js';

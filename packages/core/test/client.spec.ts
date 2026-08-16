@@ -108,7 +108,7 @@ describe('createPostingClient', () => {
   it('runs credential validators registered for a platform', async () => {
     const validator: IAuthValidator = {
       providerName: 'fake',
-      validate: auth => (auth.token ? [] : ['token is required']),
+      validate: auth => ({ errors: auth.token ? [] : ['token is required'] }),
     };
     const client = createPostingClient({
       accounts: { main: { platform: 'fake', auth: {} } },

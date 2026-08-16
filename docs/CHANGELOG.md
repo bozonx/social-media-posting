@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+### 2.0.0 — Phase 5: credentials and OAuth
+
+Unblocks every network that is not Telegram: the ones with expiring tokens.
+
+- **`CredentialProvider`** is where credentials come from and where rotated ones go back to.
+  `getCredentials(accountRef)` is consulted per publish; `onCredentialsRefreshed(accountRef, next)`
+  hands rotated tokens straight back. The library still stores and encrypts nothing — the host owns
+  that, because only the host has durable storage.
+- **`StaticCredentialProvider`** covers the trivial case of credentials that live in configuration.
+- **`OAuth2TokenRefresher`** performs the `refresh_token` grant with two things each network would
+  otherwise get subtly wrong on its own: a clock-skew margin (a token expiring "now" has usually
+  expired), and single-flight refresh per account (with rotating refresh tokens, a second
+  concurrent refresh presents a token the first already invalidated). `fetch` and Web Crypto only.
+- **`IAuthValidator.validate` is async and capability-aware**, returning `{ errors, code }` rather
+  than a bare string array, so a validator can distinguish "this token is malformed" from "this
+  token is spent". The latter surfaces as `AUTH_REFRESH_REQUIRED`, which is never retryable.
+- **`AccountConfig.auth` widened** from `Record<string, string>` to carry an expiry and scopes
+  alongside the tokens.
+- **New:** `docs/OAUTH.md` fixes the boundary — the authorization-code redirect belongs to the
+  host's web application and will not be implemented here.
+
 ### 2.0.0 — Phase 4: capability model and generic validation
 
 Validating a new network is now a data structure, not another 150 lines of checks.

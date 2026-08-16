@@ -5,6 +5,7 @@ import type { IPlatform } from '../platforms/platform.interface.js';
 import type { PostRequest } from '../types/post-request.js';
 import type { AccountConfig, ResolvedAccountConfig } from '../types/account-config.js';
 import type { ILogger } from '../logger/logger.js';
+import type { CredentialProvider } from '../auth/credentials.js';
 import { ValidationError } from '../errors/posting-error.js';
 
 /**
@@ -16,6 +17,12 @@ export interface PostServiceDeps {
   platformRegistry: PlatformRegistry;
   authValidatorRegistry: AuthValidatorRegistry;
   logger: ILogger;
+  /**
+   * Where credentials come from. Defaults to the accounts in the client's own
+   * configuration; a host with expiring tokens supplies its own, backed by its
+   * encrypted store.
+   */
+  credentialProvider?: CredentialProvider;
 }
 
 /**
@@ -28,12 +35,14 @@ export abstract class BasePostService {
   protected readonly platformRegistry: PlatformRegistry;
   protected readonly authValidatorRegistry: AuthValidatorRegistry;
   protected readonly logger: ILogger;
+  protected readonly credentialProvider?: CredentialProvider;
 
   constructor(deps: PostServiceDeps) {
     this.config = deps.config;
     this.platformRegistry = deps.platformRegistry;
     this.authValidatorRegistry = deps.authValidatorRegistry;
     this.logger = deps.logger;
+    this.credentialProvider = deps.credentialProvider;
   }
 
   /**
@@ -41,13 +50,20 @@ export abstract class BasePostService {
    * @param request - Post request.
    * @throws ValidationError if neither an account nor inline credentials are given.
    */
-  protected getAccountConfig(request: PostRequest): ResolvedAccountConfig {
+  protected async getAccountConfig(request: PostRequest): Promise<ResolvedAccountConfig> {
     let baseConfig: AccountConfig;
     let source: 'account' | 'inline';
 
     if (request.account) {
       baseConfig = this.config.getAccount(request.account);
       source = 'account';
+
+      // A host-supplied provider is the authority on this account's current
+      // credentials; the ones in configuration are only a fallback.
+      if (this.credentialProvider) {
+        const credentials = await this.credentialProvider.getCredentials(request.account);
+        baseConfig = { ...baseConfig, auth: { ...baseConfig.auth, ...credentials } };
+      }
     } else if (request.auth) {
       baseConfig = {
         platform: request.platform.toLowerCase(),
@@ -61,7 +77,7 @@ export abstract class BasePostService {
     // Request-level credentials win over the ones stored with the account.
     const mergedAuth = {
       ...baseConfig.auth,
-      ...((request.auth ?? {}) as Record<string, string>),
+      ...(request.auth ?? {}),
     };
 
     return {
@@ -90,20 +106,23 @@ export abstract class BasePostService {
    * @param request - Post request.
    * @throws ValidationError on any resolution or validation failure.
    */
-  protected validateRequest(request: PostRequest): {
+  protected async validateRequest(request: PostRequest): Promise<{
     platform: IPlatform;
     accountConfig: ResolvedAccountConfig;
-  } {
+  }> {
     const platformName = request.platform?.toLowerCase();
     if (!platformName) {
       throw new ValidationError("Field 'platform' is required");
     }
 
     const platform = this.platformRegistry.get(platformName);
-    const accountConfig = this.getAccountConfig(request);
+    const accountConfig = await this.getAccountConfig(request);
 
     this.validatePlatformMatch(platformName, accountConfig);
-    this.authValidatorRegistry.validate(platformName, accountConfig.auth);
+    await this.authValidatorRegistry.validate(platformName, accountConfig.auth, {
+      capabilities: platform.capabilities,
+      accountRef: request.account,
+    });
 
     return { platform, accountConfig };
   }

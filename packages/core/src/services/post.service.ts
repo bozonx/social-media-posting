@@ -53,7 +53,7 @@ export class PostService extends BasePostService {
     try {
       assertValidPostRequest(request);
 
-      const { platform, accountConfig } = this.validateRequest(request);
+      const { platform, accountConfig } = await this.validateRequest(request);
 
       const postType = request.type || PostType.AUTO;
       if (!platform.capabilities.supportedTypes.includes(postType)) {
@@ -116,7 +116,7 @@ export class PostService extends BasePostService {
     handle: ResumeHandle,
     signal?: AbortSignal,
   ): Promise<StatusResult> {
-    const { platform, accountConfig } = this.validateRequest(request as PostRequest);
+    const { platform, accountConfig } = await this.validateRequest(request as PostRequest);
 
     if (!platform.checkStatus) {
       throw new ValidationError(

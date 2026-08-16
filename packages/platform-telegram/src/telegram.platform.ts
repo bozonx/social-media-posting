@@ -35,6 +35,8 @@ export interface TelegramPlatformDeps {
  * Account configuration understood by the Telegram platform.
  */
 export interface TelegramAccountConfig extends AccountConfig {
+  /** Bot token, plus the legacy `chatId` some configurations still carry. */
+  auth: AccountConfig['auth'] & { apiKey?: string; chatId?: string | number };
   /** Whether to disable notifications for this account by default */
   disableNotification?: boolean;
   /** API request timeout in seconds (passed to grammY client as timeoutSeconds) */
@@ -83,7 +85,11 @@ export class TelegramPlatform implements IPlatform {
       );
     }
 
-    const api = new TelegramApi(accountConfig.auth.apiKey, accountConfig.apiTimeoutSeconds);
+    // The auth validator has already established that this is a well-formed token.
+    const api = new TelegramApi(
+      accountConfig.auth.apiKey as string,
+      accountConfig.apiTimeoutSeconds,
+    );
     const signal = _options?.signal;
     const chatId = requireChatId(request, accountConfig);
 

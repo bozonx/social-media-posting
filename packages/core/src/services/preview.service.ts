@@ -22,7 +22,7 @@ export class PreviewService extends BasePostService {
     }
 
     try {
-      const { platform, accountConfig } = this.validateRequest(request);
+      const { platform, accountConfig } = await this.validateRequest(request);
 
       if (platform.preview) {
         return await platform.preview(request, accountConfig);

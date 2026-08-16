@@ -11,6 +11,7 @@ import type { PostResult, StatusResult } from './types/post-response.js';
 import type { PreviewResult } from './types/preview-response.js';
 import type { ResumeHandle } from './types/resume-handle.js';
 import type { PublishCallOptions } from './services/post.service.js';
+import type { CredentialProvider } from './auth/credentials.js';
 
 /**
  * Everything needed to build a posting client.
@@ -26,6 +27,14 @@ export interface PostingClientOptions extends PostingConfigInput {
    * Nothing outside the client is ever reconfigured — no ambient logger is touched.
    */
   logger?: ILogger;
+  /**
+   * Where credentials come from, and where rotated ones go back to.
+   *
+   * Omit it and the accounts in `accounts` are used as-is, which is right for
+   * static-token networks. A host serving a network with expiring tokens
+   * supplies its own, backed by its encrypted store.
+   */
+  credentialProvider?: CredentialProvider;
 }
 
 /**
@@ -103,7 +112,13 @@ export function createPostingClient(options: PostingClientOptions): PostingClien
     register(platformModule);
   }
 
-  const deps = { config, platformRegistry, authValidatorRegistry, logger };
+  const deps = {
+    config,
+    platformRegistry,
+    authValidatorRegistry,
+    logger,
+    credentialProvider: options.credentialProvider,
+  };
   const postService = new PostService(deps);
   const previewService = new PreviewService(deps);
 
