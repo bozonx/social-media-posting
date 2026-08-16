@@ -15,11 +15,13 @@
 
 ### Layout
 
-- Source: `src/`, with `common/`, `config/`, `modules/`.
-- Unit tests: `test/unit/`, setup in `test/setup/unit.setup.ts`.
-- E2E tests: `test/e2e/`, setup in `test/setup/e2e.setup.ts`.
+- pnpm workspace. Published packages in `packages/*`, deployables in `apps/*`, runnable
+  examples in `examples/*`.
+- Each package keeps its sources in `src/` and its tests in `test/`.
+- Shared test setup: `test/setup/`.
 - Guides: `docs/`. Development stage notes: `dev_docs/`.
-- Docker: `docker/Dockerfile` and `docker/docker-compose.yml`.
+- Docker: `apps/server/docker/Dockerfile` and `apps/server/docker/docker-compose.yml`;
+  the build context is the repository root.
 
 ### Practices
 
@@ -36,7 +38,14 @@
 
 ## Service specifics
 
-- Stack: TypeScript, NestJS, Fastify, Pino, Docker; also published as a TypeScript library.
-- `config.yaml` is the platform/account configuration source and is mounted read-only.
-- Library exports and their existing TypeScript aliases must remain buildable.
-- Entry point: `src/main.ts`; library entry point: `src/index.ts`.
+- The product is a library. The HTTP shell is a deployment artefact for non-Node consumers,
+  never published to npm.
+- `packages/core` (`@bozonx/social-posting`) and every `packages/platform-*` must keep an empty
+  `dependencies`. Vendor SDKs are not taken; see `dev_docs/package-readiness-plan.md`.
+- Published packages target web standards: `fetch`, `Request`/`Response`, WHATWG streams,
+  Web Crypto. Node built-ins are banned by ESLint and the core suite also runs under `workerd`
+  (`pnpm test:workerd`).
+- The core owns no durable state: no retries beyond a single attempt, no idempotency, no
+  rate limiting. Those belong to the host.
+- `apps/server/config.yaml` is the platform/account configuration source and is mounted read-only.
+- Entry points: `packages/core/src/index.ts` (library), `apps/server/src/main.ts` (HTTP shell).

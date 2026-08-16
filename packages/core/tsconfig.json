@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": "../..",
+    "noEmit": true,
+    "lib": ["ES2023", "DOM"],
+    "types": []
+  },
+  "include": ["src/**/*", "test/**/*"]
+}

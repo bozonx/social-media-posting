@@ -2,6 +2,43 @@
 
 ## Unreleased
 
+### 2.0.0 — Phase 1: framework-free core
+
+**Breaking.** The repository is now a pnpm workspace, and the library is a framework-free
+package rather than a NestJS application with a second run mode.
+
+- **Split into packages.** `@bozonx/social-posting` (core, zero runtime dependencies),
+  `@bozonx/social-posting-telegram` (Telegram), and `apps/server` (the HTTP shell, never
+  published to npm).
+- **NestJS is gone from the core.** No `@Injectable`, no `@Module`, no `rxjs`, no
+  `reflect-metadata`. Collaborators are passed through constructors.
+- **`createPostingClient` no longer touches global state.** It used to call
+  `NestLogger.overrideLogger(...)`, which hijacked logging for the entire host process.
+  A logger is now passed in and used by that client alone.
+- **`createPostingClient` no longer hardcodes Telegram.** Pass the platforms you want through
+  `platforms`/`authValidators`, or add them later with `client.registerPlatform()`.
+- **The extension contract is public.** `IPlatform`, `PlatformPublishResponse`,
+  `IAuthValidator`, `PlatformRegistry`, `AuthValidatorRegistry` and the error types are
+  exported, so a network can be implemented outside this repository.
+- **Idempotency removed.** `IdempotencyService` kept its records in a single process's memory,
+  so it deduplicated nothing as soon as a second replica existed, and it answered concurrent
+  duplicates with `VALIDATION_ERROR`. Deduplication belongs to the host, which has durable
+  state. `@nestjs/cache-manager` and `cache-manager` are gone with it.
+- **`class-validator` removed from the core**, replaced by `validatePostRequest()`. DTO classes
+  became plain interfaces: `PostRequestDto` → `PostRequest`, `PostResponseDto` → `PostResponse`,
+  `ErrorResponseDto` → `ErrorResponse`, `PreviewResponseDto` → `PreviewResponse`,
+  `PreviewErrorResponseDto` → `PreviewErrorResponse`. The HTTP shell keeps a decorated
+  `PostRequestDto` of its own for request-body validation.
+- **The core throws typed errors** (`PostingError`, `ValidationError`, `AbortedError`) instead
+  of Nest's `BadRequestException`.
+- **`MediaInputHelper.getFileId()` → `getPlatformRef()`**, and `toTelegramInput()` moved to the
+  Telegram package: neither Telegram nor grammY appears in the core any more.
+- **Web-standard discipline is enforced.** Published packages may not import Node built-ins
+  (ESLint `no-restricted-imports`), and the core test suite also runs inside `workerd`
+  (`pnpm test:workerd`).
+- **Tests run on Vitest** instead of Jest, as one workspace run with a project per package.
+- **`PostingClient.destroy()` removed.** The client owns no resources to release.
+
 - Fixed the Docker runtime entry point to launch the Nest build output at `dist/main.js`.
 - Upgraded `class-validator` to 0.15.1 after validating custom validators and request DTOs.
 - Split CI validation from tag-only multi-architecture image releases and aligned the fleet-wide

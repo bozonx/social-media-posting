@@ -1,0 +1,15 @@
+{
+  "name": "@bozonx/example-embedded",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Minimal in-process consumer of @bozonx/social-posting",
+  "type": "module",
+  "scripts": {
+    "start": "node --experimental-strip-types src/main.ts",
+    "verify": "node --experimental-strip-types src/verify-isolation.ts"
+  },
+  "dependencies": {
+    "@bozonx/social-posting": "workspace:*",
+    "@bozonx/social-posting-telegram": "workspace:*"
+  }
+}

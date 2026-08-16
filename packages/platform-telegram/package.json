@@ -1,0 +1,45 @@
+{
+  "name": "@bozonx/social-posting-telegram",
+  "version": "2.0.0",
+  "description": "Telegram platform for @bozonx/social-posting",
+  "keywords": [
+    "social-media",
+    "posting",
+    "telegram"
+  ],
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "grammy": "^1.40.0"
+  },
+  "peerDependencies": {
+    "@bozonx/social-posting": "workspace:^"
+  },
+  "devDependencies": {
+    "@bozonx/social-posting": "workspace:*"
+  },
+  "author": "Ivan K",
+  "license": "MIT",
+  "engines": {
+    "node": ">=24.0.0"
+  }
+}

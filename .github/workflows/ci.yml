@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   verify:
-    name: Check, e2e, and image
+    name: Check, e2e, workerd, and image
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -33,11 +33,22 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Build every package
+        run: pnpm build
+
       - name: Check
         run: pnpm check
 
+      - name: Typecheck each package in isolation
+        run: pnpm typecheck:packages
+
       - name: Run e2e tests
         run: pnpm test:e2e
+
+      # The lint rule catches a typo; this catches a transitive dependency on a
+      # Node built-in. Both are required for the packages to stay web-standard.
+      - name: Run core tests under workerd
+        run: pnpm test:workerd
 
       - name: Read build metadata
         id: metadata
@@ -52,7 +63,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: docker/Dockerfile
+          file: apps/server/docker/Dockerfile
           push: false
           load: false
           build-args: |

@@ -8,9 +8,19 @@
 !pnpm-lock.yaml
 !pnpm-workspace.yaml
 
-# Build configuration and source
+# Build configuration
+!tsconfig.base.json
 !tsconfig.json
-!tsconfig.build.json
-!tsconfig.lib.json
-!nest-cli.json
-!src
+
+# Workspace sources
+!packages
+!apps
+!examples
+
+# Never ship build output or dependencies from the host
+packages/*/dist
+packages/*/node_modules
+apps/*/dist
+apps/*/node_modules
+examples/*/node_modules
+**/*.tsbuildinfo

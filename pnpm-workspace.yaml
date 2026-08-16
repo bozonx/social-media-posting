@@ -1,7 +1,16 @@
 # pnpm settings. Since pnpm 11 these live here, not in package.json#pnpm.
+
+packages:
+  - 'packages/*'
+  - 'apps/*'
+  - 'examples/*'
+
 # Dependencies allowed to run install scripts — everything else is blocked by default.
 allowBuilds:
   unrs-resolver: true
+  # workerd is the runtime the core test suite is verified against; esbuild is its bundler.
+  esbuild: true
+  workerd: true
 
 # Transitive vulnerabilities that no direct-dependency upgrade fixes.
 # Each entry names the advisory it closes; drop an entry once the parent ships a fixed range.
