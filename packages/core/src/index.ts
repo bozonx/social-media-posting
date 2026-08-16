@@ -75,6 +75,33 @@ export type { OAuth2Config } from './auth/oauth2.js';
 export { PostingConfig } from './config/posting-config.js';
 export type { PostingConfigInput, LogLevel } from './config/posting-config.js';
 
+// Media pipeline
+export { MediaFetcher } from './media/media-fetcher.js';
+export type { MediaMetadata, OpenedMedia } from './media/media-fetcher.js';
+export { toMediaSource, requiresByteUpload, knownSizeBytes } from './media/media-source.js';
+export type {
+  MediaSource,
+  UrlMediaSource,
+  BytesMediaSource,
+  BlobMediaSource,
+  StreamMediaSource,
+  PlatformRefMediaSource,
+} from './media/media-source.js';
+export { sniffMimeType, mediaKindOf, SNIFF_BYTES } from './media/mime-sniffer.js';
+export type { MediaKind } from './media/mime-sniffer.js';
+export {
+  runChunkedUpload,
+  readResumePosition,
+  DEFAULT_CHUNK_SIZE_BYTES,
+  UPLOAD_STEP,
+} from './media/chunked-uploader.js';
+export type {
+  ChunkedUploadDriver,
+  ChunkedUploadOptions,
+  ChunkContext,
+  ResumePosition,
+} from './media/chunked-uploader.js';
+
 // Helpers available to platform packages
 export { MediaInputHelper } from './media/media-input.helper.js';
 export { detectPrimaryMediaField } from './media/media-priority.js';

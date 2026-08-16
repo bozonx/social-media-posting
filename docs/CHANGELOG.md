@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+### 2.0.0 — Phase 6: media pipeline
+
+Supports networks that need real byte uploads, without ever materializing a file.
+
+- **`MediaSource`** replaces the bare URL string at the library's internal boundary: a URL, bytes
+  in memory, a `Blob`, a factory that opens a `ReadableStream`, or a reference to media the
+  platform already stores. The public request shape is unchanged. There is no Node `Readable`
+  anywhere — a `ReadableStream` runs on Node, Workers, Deno and Bun alike.
+- **URL passthrough is a first-class fast path.** `requiresByteUpload(source, capabilities)` says
+  whether this process has to move the bytes at all. Telegram, Meta's Graph API and TikTok's
+  `PULL_FROM_URL` all fetch media themselves — which is what makes a Workers deployment real
+  rather than decorative.
+- **`MediaFetcher`** streams a remote source, reads type and size from the origin, checks the
+  platform's declared limits **before** paying for the download, and keeps checking while
+  streaming so an origin that understates `content-length` cannot force an unbounded buffer.
+- **Type is identified from the file's own bytes**, not from a URL extension. An extension is a
+  claim by whoever wrote the link; a `.jpg` that is really an HTML error page is exactly the
+  upload that fails after the bytes are paid for.
+- **`runChunkedUpload()`** drives the INIT/APPEND/FINALIZE shape shared by X, TikTok, YouTube and
+  LinkedIn: configurable chunk size, per-chunk retry (safe because a chunk is addressed by byte
+  offset, so a repeat overwrites rather than appends), and a `ResumeHandle` carrying the offset
+  reached, so the host's next attempt continues instead of uploading a second file.
+- **Peak memory is one chunk**, whatever the file size — covered by a test that streams 64 MiB and
+  asserts the high-water mark.
+
 ### 2.0.0 — Phase 5: credentials and OAuth
 
 Unblocks every network that is not Telegram: the ones with expiring tokens.
