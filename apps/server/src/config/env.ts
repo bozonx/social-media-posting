@@ -13,6 +13,9 @@ export interface ServerEnv {
   BASE_PATH?: string;
   LOG_LEVEL?: string;
   AUTH_BEARER_TOKENS?: string;
+  ALLOW_INLINE_AUTH?: string;
+  INCLUDE_RAW_RESPONSES?: string;
+  MAX_REQUEST_BODY_BYTES?: string;
   SHUTDOWN_DRAIN_SECONDS?: string;
   SERVICE_NAME?: string;
   SERVICE_VERSION?: string;
@@ -28,6 +31,9 @@ export interface RuntimeOptions {
   basePath: string;
   logLevel: LogLevel;
   authBearerTokens: string[];
+  allowInlineAuth: boolean;
+  includeRawResponses: boolean;
+  maxRequestBodyBytes: number;
   shutdownDrainSeconds: number;
   serviceName: string;
   serviceVersion: string;
@@ -51,6 +57,9 @@ export function readRuntimeOptions(env: ServerEnv): RuntimeOptions {
       .split(',')
       .map(token => token.trim())
       .filter(token => token.length > 0),
+    allowInlineAuth: toBoolean(env.ALLOW_INLINE_AUTH, false),
+    includeRawResponses: toBoolean(env.INCLUDE_RAW_RESPONSES, false),
+    maxRequestBodyBytes: toBoundedInteger(env.MAX_REQUEST_BODY_BYTES, 1_048_576, 1_024, 10_485_760),
     shutdownDrainSeconds: toInteger(env.SHUTDOWN_DRAIN_SECONDS, 5),
     serviceName: env.SERVICE_NAME?.trim() || 'social-posting-server',
     serviceVersion: env.SERVICE_VERSION?.trim() || 'dev',
@@ -95,4 +104,21 @@ export function buildApiPrefix(basePath: string | undefined): string {
 function toInteger(value: string | undefined, fallback: number): number {
   const parsed = Number.parseInt(value ?? '', 10);
   return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function toBoundedInteger(
+  value: string | undefined,
+  fallback: number,
+  min: number,
+  max: number,
+): number {
+  const parsed = toInteger(value, fallback);
+  return parsed >= min && parsed <= max ? parsed : fallback;
+}
+
+function toBoolean(value: string | undefined, fallback: boolean): boolean {
+  if (value === undefined) return fallback;
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  return fallback;
 }

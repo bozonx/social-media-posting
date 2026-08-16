@@ -110,7 +110,7 @@ to infer it from.
 
 ## Platform options
 
-`options` is passed to the Bot API unchanged — use its own field names:
+`options` accepts safe Bot API customizations using Telegram's own field names:
 
 ```json
 {
@@ -120,10 +120,14 @@ to infer it from.
     },
     "link_preview_options": { "is_disabled": true },
     "protect_content": true,
-    "reply_to_message_id": 1234
+    "reply_parameters": { "message_id": 1234 }
   }
 }
 ```
+
+Destination and content fields (`chat_id`, `text`, `photo`, `video`, `audio`, `document`,
+`caption`, and `disable_notification`) cannot be supplied through `options`. Use the corresponding
+top-level request fields so validation, audit logs, and the actual Bot API call remain aligned.
 
 ## Fields Telegram ignores
 

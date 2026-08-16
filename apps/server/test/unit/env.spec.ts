@@ -14,10 +14,28 @@ describe('readRuntimeOptions', () => {
       basePath: '',
       logLevel: 'warn',
       authBearerTokens: [],
+      allowInlineAuth: false,
+      includeRawResponses: false,
+      maxRequestBodyBytes: 1_048_576,
       shutdownDrainSeconds: 5,
       serviceName: 'social-posting-server',
       serviceVersion: 'dev',
     });
+  });
+
+  it('reads security controls only from explicit valid values', () => {
+    expect(
+      readRuntimeOptions({
+        ALLOW_INLINE_AUTH: 'true',
+        INCLUDE_RAW_RESPONSES: 'true',
+        MAX_REQUEST_BODY_BYTES: '2048',
+      }),
+    ).toMatchObject({
+      allowInlineAuth: true,
+      includeRawResponses: true,
+      maxRequestBodyBytes: 2048,
+    });
+    expect(readRuntimeOptions({ ALLOW_INLINE_AUTH: 'yes' }).allowInlineAuth).toBe(false);
   });
 
   it('splits and trims the bearer token list', () => {

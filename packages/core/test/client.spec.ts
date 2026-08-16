@@ -153,7 +153,7 @@ describe('createPostingClient', () => {
     const platformA = fakePlatform();
     const platformB = fakePlatform();
     const clientA = createPostingClient({ accounts, platforms: [moduleOf(platformA)] });
-    const clientB = createPostingClient({
+    const _clientB = createPostingClient({
       accounts: { main: { platform: 'fake', auth: { token: 'other' } } },
       platforms: [moduleOf(platformB)],
     });
@@ -162,6 +162,27 @@ describe('createPostingClient', () => {
 
     expect(platformA.publish).toHaveBeenCalledTimes(1);
     expect(platformB.publish).not.toHaveBeenCalled();
+  });
+
+  it('keeps an immutable snapshot of account configuration', async () => {
+    const mutableAccounts = {
+      main: { platform: 'fake', auth: { token: 'original', scopes: ['post'] } },
+    };
+    const platform = fakePlatform();
+    const client = createPostingClient({
+      accounts: mutableAccounts,
+      platforms: [moduleOf(platform)],
+    });
+
+    mutableAccounts.main.auth.token = 'changed';
+    mutableAccounts.main.auth.scopes.push('admin');
+    await client.post(request);
+
+    expect(platform.publish).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ auth: { token: 'original', scopes: ['post'] } }),
+      expect.anything(),
+    );
   });
 
   it('previews without touching the publish path', async () => {

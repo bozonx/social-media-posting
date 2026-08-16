@@ -42,7 +42,7 @@ There is deliberately no retry setting. One call makes one attempt.
 ## Client API
 
 ```ts
-client.post(request, { signal?, resume? });   // publish once
+client.post(request, { signal?, resume?, includeRaw? }); // publish once
 client.preview(request);                      // validate without publishing
 client.checkStatus(request, handle, signal?); // follow up a 'processing' publication
 client.registerPlatform(platformModule);      // add a network at runtime
@@ -102,7 +102,7 @@ type PostResult =
         platform: string;
         type: PostType;
         publishedAt: string;
-        raw?: Record<string, unknown>;
+        raw?: Record<string, unknown>; // only when includeRaw is true
         requestId: string;
       };
     }
@@ -117,7 +117,7 @@ type PostResult =
         platformCode?: string;
         resumeHandle?: ResumeHandle;
         details?: Record<string, unknown>;
-        raw?: unknown;
+        raw?: unknown; // only when includeRaw is true
         requestId: string;
       };
     };
@@ -125,6 +125,9 @@ type PostResult =
 
 `post()` never throws for an expected failure, so branching on `success` replaces a try/catch
 around every call.
+
+Raw platform payloads are diagnostic and may contain sensitive content. They are omitted by
+default; pass `includeRaw: true` only when the caller is allowed to receive them.
 
 ## Retrying is yours
 

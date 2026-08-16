@@ -32,6 +32,25 @@ describe('POST /api/v1/post', () => {
     );
   });
 
+  it('rejects a request before parsing when its body exceeds the configured limit', async () => {
+    const fake = fakePlatform();
+    const limited = createTestApp({
+      platforms: [fake.platformModule],
+      config: { accounts },
+      env: { MAX_REQUEST_BODY_BYTES: '1024' },
+    }).app;
+
+    const { status, body } = await postJson(limited, '/api/v1/post', {
+      platform: 'telegram',
+      account: 'test_account',
+      body: 'x'.repeat(2_000),
+    });
+
+    expect(status).toBe(413);
+    expect(body.error).toBe('PayloadTooLarge');
+    expect(fake.platform.publish).not.toHaveBeenCalled();
+  });
+
   it('publishes with inline credentials', async () => {
     platform.publish.mockResolvedValue({
       status: 'published',
@@ -56,6 +75,41 @@ describe('POST /api/v1/post', () => {
       postId: '100',
       url: 'https://t.me/test/100',
     });
+  });
+
+  it('rejects inline credentials unless explicitly enabled', async () => {
+    const fake = fakePlatform();
+    const secured = createTestApp({
+      platforms: [fake.platformModule],
+      config: { accounts },
+      env: { ALLOW_INLINE_AUTH: 'false' },
+    }).app;
+
+    const { status, body } = await postJson(secured, '/api/v1/post', {
+      platform: 'telegram',
+      body: 'Hello',
+      auth: { apiKey: 'request-token' },
+    });
+
+    expect(status).toBe(400);
+    expect(body.message).toContain('Inline credentials are disabled');
+    expect(fake.platform.publish).not.toHaveBeenCalled();
+  });
+
+  it('passes media metadata through the HTTP schema', async () => {
+    await postJson(app, '/api/v1/post', {
+      platform: 'telegram',
+      account: 'test_account',
+      cover: { src: 'https://example.com/a.jpg', width: 1200, height: 630, durationSecs: 0 },
+    });
+
+    expect(platform.publish).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cover: expect.objectContaining({ width: 1200, height: 630, durationSecs: 0 }),
+      }),
+      expect.anything(),
+      expect.anything(),
+    );
   });
 
   it('publishes with a configured account', async () => {

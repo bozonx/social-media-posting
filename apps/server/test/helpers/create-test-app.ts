@@ -27,7 +27,7 @@ export function createTestApp(options: {
       requestTimeoutSecs: options.config?.requestTimeoutSecs ?? 10,
       accounts: options.config?.accounts ?? {},
     },
-    env: options.env,
+    env: { ALLOW_INLINE_AUTH: 'true', ...options.env },
     logger: silentLogger,
     platforms: options.platforms,
   });

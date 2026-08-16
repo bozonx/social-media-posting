@@ -30,11 +30,12 @@ export class PreviewService extends BasePostService {
 
       // No platform dry-run: the descriptor already says everything the checks
       // in publish() consult, so previewing from it cannot drift.
+      const validateExtra = platform.validateExtra?.bind(platform);
       return previewFromCapabilities(request, platform.capabilities, {
         detectType: platform.detectType?.bind(platform),
-        validateExtra: platform.validateExtra
+        validateExtra: validateExtra
           ? (previewRequest, detectedType) =>
-              platform.validateExtra!(previewRequest, accountConfig, detectedType)
+              validateExtra(previewRequest, accountConfig, detectedType)
           : undefined,
       });
     } catch (error) {

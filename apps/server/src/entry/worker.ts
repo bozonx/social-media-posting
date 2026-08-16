@@ -2,6 +2,8 @@ import { createApp } from '../app.js';
 import { readConfigFromEnv } from '../config/env.js';
 import type { ServerEnv } from '../config/env.js';
 
+const apps = new WeakMap<object, ReturnType<typeof createApp>>();
+
 /**
  * The Cloudflare Workers deployment.
  *
@@ -23,7 +25,12 @@ export default {
       );
     }
 
-    const { app } = createApp({ config, env });
+    let created = apps.get(env);
+    if (!created) {
+      created = createApp({ config, env });
+      apps.set(env, created);
+    }
+    const { app } = created;
     return app.fetch(request, env);
   },
 };

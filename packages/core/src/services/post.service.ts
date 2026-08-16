@@ -4,6 +4,7 @@ import { ErrorCode } from '../errors/error-code.js';
 import { AbortedError, PostingError, ValidationError } from '../errors/posting-error.js';
 import { PlatformError } from '../errors/platform-error.js';
 import { assertValidPostRequest } from '../validation/validate-post-request.js';
+import { detectPostType } from '../validation/detect-post-type.js';
 import type { PostRequest } from '../types/post-request.js';
 import type {
   ErrorResponse,
@@ -27,6 +28,8 @@ export interface PublishCallOptions {
    * repeating the whole sequence.
    */
   resume?: ResumeHandle;
+  /** Include the platform's diagnostic payload in the result. Defaults to false. */
+  includeRaw?: boolean;
 }
 
 /**
@@ -55,7 +58,11 @@ export class PostService extends BasePostService {
 
       const { platform, accountConfig } = await this.validateRequest(request);
 
-      const postType = request.type || PostType.AUTO;
+      const requestedType = request.type || PostType.AUTO;
+      const postType =
+        requestedType === PostType.AUTO
+          ? (platform.detectType?.(request) ?? detectPostType(request))
+          : requestedType;
       if (!platform.capabilities.supportedTypes.includes(postType)) {
         throw new ValidationError(
           `Post type "${postType}" is not supported by ${request.platform}`,
@@ -91,14 +98,14 @@ export class PostService extends BasePostService {
           platform: request.platform,
           type: postType,
           publishedAt: new Date().toISOString(),
-          raw: result.raw,
+          raw: options.includeRaw ? result.raw : undefined,
           requestId,
         },
       };
 
       return response;
     } catch (error) {
-      return this.toErrorResponse(error, request, requestId);
+      return this.toErrorResponse(error, request, requestId, options.includeRaw ?? false);
     }
   }
 
@@ -118,7 +125,8 @@ export class PostService extends BasePostService {
   ): Promise<StatusResult> {
     const { platform, accountConfig } = await this.validateRequest(request as PostRequest);
 
-    if (!platform.checkStatus) {
+    const checkStatus = platform.checkStatus?.bind(platform);
+    if (!checkStatus) {
       throw new ValidationError(
         `Platform "${platform.name}" publishes synchronously and has no status to check`,
       );
@@ -130,7 +138,7 @@ export class PostService extends BasePostService {
     }
 
     const result = await this.withRequestTimeout(
-      innerSignal => platform.checkStatus!(handle, accountConfig, innerSignal),
+      innerSignal => checkStatus(handle, accountConfig, innerSignal),
       signal,
     );
 
@@ -144,7 +152,12 @@ export class PostService extends BasePostService {
     };
   }
 
-  private toErrorResponse(error: unknown, request: PostRequest, requestId: string): ErrorResponse {
+  private toErrorResponse(
+    error: unknown,
+    request: PostRequest,
+    requestId: string,
+    includeRaw: boolean,
+  ): ErrorResponse {
     const message = (error as Error)?.message ?? 'Unknown error';
 
     this.logger.error(
@@ -153,7 +166,7 @@ export class PostService extends BasePostService {
       LOG_CONTEXT,
     );
 
-    return { success: false, error: errorPayload(error, requestId) };
+    return { success: false, error: errorPayload(error, requestId, includeRaw) };
   }
 
   /**
@@ -209,7 +222,11 @@ export class PostService extends BasePostService {
  * Platforms classify their own failures, so this only has to unpack a
  * {@link PlatformError} or fall back for a failure raised by the core itself.
  */
-function errorPayload(error: unknown, requestId: string): ErrorResponse['error'] {
+function errorPayload(
+  error: unknown,
+  requestId: string,
+  includeRaw = true,
+): ErrorResponse['error'] {
   if (error instanceof PlatformError) {
     return {
       code: error.code,
@@ -219,7 +236,7 @@ function errorPayload(error: unknown, requestId: string): ErrorResponse['error']
       httpStatus: error.httpStatus,
       platformCode: error.platformCode,
       resumeHandle: error.resumeHandle,
-      raw: error.raw ?? error.cause,
+      raw: includeRaw ? (error.raw ?? error.cause) : undefined,
       requestId,
     };
   }
@@ -229,7 +246,7 @@ function errorPayload(error: unknown, requestId: string): ErrorResponse['error']
       code: error.code,
       message: error.message,
       retryable: error.retryable,
-      raw: error.cause,
+      raw: includeRaw ? error.cause : undefined,
       requestId,
     };
   }
@@ -240,7 +257,7 @@ function errorPayload(error: unknown, requestId: string): ErrorResponse['error']
     message: err.message ?? 'Unknown error',
     // An error the platform did not classify is not something to retry blindly.
     retryable: false,
-    raw: error,
+    raw: includeRaw ? error : undefined,
     requestId,
   };
 }

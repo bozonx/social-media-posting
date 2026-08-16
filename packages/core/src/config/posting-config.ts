@@ -71,7 +71,7 @@ export class PostingConfig {
       }
     }
 
-    this.accounts = (accounts ?? {}) as Record<string, AccountConfig>;
+    this.accounts = freezeAccounts((accounts ?? {}) as Record<string, AccountConfig>);
     this.requestTimeoutSecs = requireInteger(
       input.requestTimeoutSecs,
       'requestTimeoutSecs',
@@ -109,6 +109,30 @@ export class PostingConfig {
   getAllAccounts(): Record<string, AccountConfig> {
     return this.accounts;
   }
+}
+
+function freezeAccounts(accounts: Record<string, AccountConfig>): Record<string, AccountConfig> {
+  return freezeValue(accounts) as Record<string, AccountConfig>;
+}
+
+function freezeValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return Object.freeze(value.map(freezeValue));
+  }
+  if (typeof value === 'object' && value !== null) {
+    const prototype = Object.getPrototypeOf(value) as unknown;
+    if (prototype === Object.prototype || prototype === null) {
+      return Object.freeze(
+        Object.fromEntries(
+          Object.entries(value as Record<string, unknown>).map(([key, item]) => [
+            key,
+            freezeValue(item),
+          ]),
+        ),
+      );
+    }
+  }
+  return value;
 }
 
 function validateAccount(name: string, account: unknown): string[] {

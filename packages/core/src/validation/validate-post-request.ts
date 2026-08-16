@@ -30,7 +30,7 @@ function validateMediaInput(value: unknown, field: string, errors: string[]): vo
     return;
   }
 
-  const { src, hasSpoiler, type } = value as Partial<MediaInput>;
+  const { src, hasSpoiler, type, durationSecs, width, height } = value as Partial<MediaInput>;
 
   if (typeof src !== 'string' || src.length === 0) {
     errors.push(`Field '${field}.src' must be a non-empty string`);
@@ -44,6 +44,25 @@ function validateMediaInput(value: unknown, field: string, errors: string[]): vo
 
   if (type !== undefined && (typeof type !== 'string' || !MEDIA_TYPES.has(type))) {
     errors.push(`Field '${field}.type' must be one of ${Array.from(MEDIA_TYPES).join(', ')}`);
+  }
+
+  validateNonNegativeNumber(durationSecs, `${field}.durationSecs`, errors);
+  validatePositiveInteger(width, `${field}.width`, errors);
+  validatePositiveInteger(height, `${field}.height`, errors);
+  if ((width === undefined) !== (height === undefined)) {
+    errors.push(`Fields '${field}.width' and '${field}.height' must be provided together`);
+  }
+}
+
+function validateNonNegativeNumber(value: unknown, field: string, errors: string[]): void {
+  if (value !== undefined && (typeof value !== 'number' || !Number.isFinite(value) || value < 0)) {
+    errors.push(`Field '${field}' must be a finite non-negative number`);
+  }
+}
+
+function validatePositiveInteger(value: unknown, field: string, errors: string[]): void {
+  if (value !== undefined && (typeof value !== 'number' || !Number.isInteger(value) || value < 1)) {
+    errors.push(`Field '${field}' must be a positive integer`);
   }
 }
 

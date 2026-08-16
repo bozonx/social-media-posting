@@ -21,6 +21,11 @@ export interface OpenedMedia extends MediaMetadata {
   stream: ReadableStream<Uint8Array>;
 }
 
+export interface MediaFetcherOptions {
+  /** Host policy for remote media URLs (for example, an SSRF allow-list). */
+  validateUrl?: (url: URL) => void | Promise<void>;
+}
+
 /**
  * Opens media for upload without ever holding the whole file.
  *
@@ -30,6 +35,8 @@ export interface OpenedMedia extends MediaMetadata {
  * than from an extension in the URL.
  */
 export class MediaFetcher {
+  constructor(private readonly options: MediaFetcherOptions = {}) {}
+
   /**
    * Read what is knowable about a media item without downloading it.
    *
@@ -52,7 +59,10 @@ export class MediaFetcher {
       };
     }
 
+    await this.validateRemoteUrl(source.url);
+
     const response = await httpRequest(source.url, { method: 'HEAD', signal });
+    await this.validateRemoteUrl(response.url || source.url);
     if (!response.ok) {
       // Not every origin answers HEAD; the size check then happens while streaming.
       return { mimeType: source.mimeType, kind: mediaKindOf(source.mimeType) };
@@ -123,11 +133,13 @@ export class MediaFetcher {
       case 'stream':
         return source.open({ offsetBytes, signal });
       case 'url': {
+        await this.validateRemoteUrl(source.url);
         const headers: Record<string, string> = {};
         if (offsetBytes) {
           headers.range = `bytes=${offsetBytes}-`;
         }
         const response = await httpRequest(source.url, { headers, signal });
+        await this.validateRemoteUrl(response.url || source.url);
         if (!response.ok || !response.body) {
           throw new PlatformError(
             `Fetching media from ${safeHost(source.url)} failed with ${response.status}`,
@@ -137,6 +149,12 @@ export class MediaFetcher {
         }
         return response.body;
       }
+    }
+  }
+
+  private async validateRemoteUrl(url: string): Promise<void> {
+    if (this.options.validateUrl) {
+      await this.options.validateUrl(new URL(url));
     }
   }
 

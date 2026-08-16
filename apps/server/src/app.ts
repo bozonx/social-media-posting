@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { bodyLimit } from 'hono/body-limit';
 import {
   AuthValidatorRegistry,
   PlatformRegistry,
@@ -98,11 +99,24 @@ export function createApp(options: CreateAppOptions): CreatedApp {
 
   api.use('*', drain.middleware());
   api.use('*', bearerAuth(runtime.authBearerTokens));
+  api.use(
+    '*',
+    bodyLimit({
+      maxSize: runtime.maxRequestBodyBytes,
+      onError: c =>
+        c.json(
+          { statusCode: 413, message: 'Request body is too large', error: 'PayloadTooLarge' },
+          413,
+        ),
+    }),
+  );
   api.route(
     '/',
     postRoutes({
       postService: new PostService(deps),
       previewService: new PreviewService(deps),
+      allowInlineAuth: runtime.allowInlineAuth,
+      includeRawResponses: runtime.includeRawResponses,
     }),
   );
 

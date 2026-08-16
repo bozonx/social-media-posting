@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PostService } from '../src/services/post.service.js';
 import { PostingConfig } from '../src/config/posting-config.js';
 import { PlatformRegistry } from '../src/platforms/platform-registry.js';
@@ -59,6 +59,7 @@ function createService(configOverrides: Record<string, unknown> = {}) {
     },
     publish: vi.fn<IPlatform['publish']>(),
     preview: vi.fn<NonNullable<IPlatform['preview']>>(),
+    detectType: vi.fn<NonNullable<IPlatform['detectType']>>(() => PostType.POST),
   };
 
   const platformRegistry = new PlatformRegistry();
@@ -91,7 +92,7 @@ describe('PostService', () => {
       platform.publish.mockResolvedValue(createPlatformResult());
 
       const request = createPostRequest();
-      const result = await service.publish(request);
+      const result = await service.publish(request, { includeRaw: true });
 
       expect(result).toMatchObject({
         success: true,
@@ -110,6 +111,31 @@ describe('PostService', () => {
         { ...accountConfig, source: 'account' },
         { signal: expect.any(AbortSignal), resume: undefined },
       );
+    });
+
+    it('returns the detected type instead of auto', async () => {
+      const { service, platform } = createService();
+      platform.detectType.mockReturnValue(PostType.IMAGE);
+      platform.publish.mockResolvedValue(createPlatformResult());
+
+      const result = await service.publish(
+        createPostRequest({
+          type: PostType.AUTO,
+          body: undefined,
+          cover: { src: 'https://a/b.jpg' },
+        }),
+      );
+
+      expect(result.success && result.data.type).toBe(PostType.IMAGE);
+    });
+
+    it('omits raw platform data unless explicitly requested', async () => {
+      const { service, platform } = createService();
+      platform.publish.mockResolvedValue(createPlatformResult());
+
+      const result = await service.publish(createPostRequest());
+
+      expect(result.success && result.data.raw).toBeUndefined();
     });
 
     it('publishes using inline credentials', async () => {

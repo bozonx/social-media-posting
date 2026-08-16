@@ -33,6 +33,9 @@ What a Workers deployment can and cannot publish: [`docs/RUNTIMES.md`](../../doc
 | `BASE_PATH`                       | —               | Prefix in front of `api/v1`                           |
 | `LOG_LEVEL`                       | `warn`          | `debug` \| `info` \| `warn` \| `error` \| `silent`    |
 | `AUTH_BEARER_TOKENS`              | —               | Comma-separated; unset means no authentication        |
+| `ALLOW_INLINE_AUTH`               | `false`         | Allow credentials in request bodies                   |
+| `INCLUDE_RAW_RESPONSES`           | `false`         | Return diagnostic platform payloads                   |
+| `MAX_REQUEST_BODY_BYTES`          | `1048576`       | JSON body limit (1 KiB–10 MiB)                        |
 | `SHUTDOWN_DRAIN_SECONDS`          | `5`             | How long to answer 503 before closing                 |
 | `CONFIG_PATH`                     | `./config.yaml` | Configuration file (Node only)                        |
 | `CONFIG_JSON`                     | —               | The whole configuration as JSON (required on Workers) |
@@ -62,6 +65,10 @@ when `AUTH_BEARER_TOKENS` is set; `/health` never requires it.
 
 Body: the library's [`PostRequest`](../../packages/core/README.md#the-request), plus an optional
 `resume` handle from a previous failed attempt.
+
+By default requests must name a configured `account`. Set `ALLOW_INLINE_AUTH=true` only for a
+trusted deployment whose callers may supply social-network credentials. Raw platform payloads are
+similarly omitted unless `INCLUDE_RAW_RESPONSES=true`.
 
 ```bash
 curl -X POST localhost:8080/api/v1/post \
@@ -124,5 +131,6 @@ The shell polls nothing; you decide when to ask.
 | 200  | The request was handled — read `success` in the body |
 | 400  | The body is malformed; `details` names the fields    |
 | 401  | Missing or wrong bearer token                        |
+| 413  | Request body exceeds `MAX_REQUEST_BODY_BYTES`        |
 | 503  | Shutting down                                        |
 | 500  | An unexpected failure in the shell                   |

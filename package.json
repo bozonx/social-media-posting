@@ -8,7 +8,7 @@
     "build": "pnpm -r --filter \"./packages/*\" --filter \"./apps/*\" build",
     "clean": "pnpm -r clean && rm -rf coverage",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "eslint .",
+    "lint": "eslint . --max-warnings 0",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"{packages,apps,examples,test}/**/*.ts\"",
     "format:check": "prettier --check \"{packages,apps,examples,test}/**/*.ts\"",

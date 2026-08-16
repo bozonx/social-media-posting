@@ -25,11 +25,18 @@ export const serverConfigSchema = z.object({
 export type ServerConfig = z.infer<typeof serverConfigSchema>;
 
 /** Media accepted on a request: a source plus per-item options. */
-const mediaInputSchema = z.object({
-  src: z.string().min(1).max(500),
-  hasSpoiler: z.boolean().optional(),
-  type: z.enum(['image', 'video', 'audio', 'document']).optional(),
-});
+const mediaInputSchema = z
+  .object({
+    src: z.string().min(1).max(500),
+    hasSpoiler: z.boolean().optional(),
+    type: z.enum(['image', 'video', 'audio', 'document']).optional(),
+    durationSecs: z.number().finite().nonnegative().optional(),
+    width: z.number().int().positive().optional(),
+    height: z.number().int().positive().optional(),
+  })
+  .refine(media => (media.width === undefined) === (media.height === undefined), {
+    message: 'width and height must be provided together',
+  });
 
 /** A resume handle handed back from a previous failed attempt. */
 export const resumeHandleSchema = z.object({

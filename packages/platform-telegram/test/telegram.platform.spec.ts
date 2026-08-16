@@ -275,9 +275,8 @@ describe('TelegramPlatform', () => {
         type: PostType.POST,
         options: {
           parse_mode: 'Markdown',
-          disable_notification: true,
           link_preview_options: { is_disabled: true },
-          reply_to_message_id: 999,
+          reply_parameters: { message_id: 999 },
           protect_content: true,
           reply_markup: {
             inline_keyboard: [[{ text: 'Button', url: 'https://example.com' }]],
@@ -293,9 +292,22 @@ describe('TelegramPlatform', () => {
         chat_id: 'test-chat-id',
         text: 'Test message',
         disable_notification: false,
-        // All options from request.options are spread here and override defaults
         ...request.options,
       });
+    });
+
+    it('rejects options that could replace validated destination or content', async () => {
+      const request: PostRequest = {
+        platform: 'telegram',
+        body: 'Test message',
+        type: PostType.POST,
+        options: { chat_id: '@other', text: 'replacement' },
+      };
+
+      await expect(platform.publish(request, mockAccountConfig)).rejects.toThrow(
+        /protected Telegram option.*chat_id, text/,
+      );
+      expect(botApi.called('sendMessage')).toBe(false);
     });
 
     it('should use disableNotification from request to override config', async () => {

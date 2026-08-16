@@ -102,6 +102,18 @@ describe('validatePostRequest', () => {
       ).toContain("Field 'cover.type'");
     });
 
+    it('validates media dimensions and duration metadata', () => {
+      expect(
+        errorsFor({
+          cover: { src: 'https://a/b.jpg', durationSecs: -1, width: 100 } as never,
+        }).join(' '),
+      ).toContain('durationSecs');
+      expect(
+        errorsFor({ cover: { src: 'https://a/b.jpg', width: 100 } as never }).join(' '),
+      ).toContain('must be provided together');
+      expect(errorsFor({ cover: { src: 'https://a/b.jpg', width: 100, height: 50 } })).toEqual([]);
+    });
+
     it('reports the index of a bad album item', () => {
       expect(
         errorsFor({

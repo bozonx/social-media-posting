@@ -299,11 +299,12 @@ function firstRequest(options: PlatformContractOptions): PostRequest {
 
 /** The platform's own validation hooks, when it has them. */
 function hooks(harness: ContractHarness) {
+  const validateExtra = harness.platform.validateExtra?.bind(harness.platform);
   return {
     detectType: harness.platform.detectType?.bind(harness.platform),
-    validateExtra: harness.platform.validateExtra
+    validateExtra: validateExtra
       ? (request: PostRequest, type: PostType) =>
-          harness.platform.validateExtra!(request, harness.accountConfig, type)
+          validateExtra(request, harness.accountConfig, type)
       : undefined,
   };
 }

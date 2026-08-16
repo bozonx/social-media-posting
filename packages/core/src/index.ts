@@ -77,7 +77,7 @@ export type { PostingConfigInput, LogLevel } from './config/posting-config.js';
 
 // Media pipeline
 export { MediaFetcher } from './media/media-fetcher.js';
-export type { MediaMetadata, OpenedMedia } from './media/media-fetcher.js';
+export type { MediaMetadata, OpenedMedia, MediaFetcherOptions } from './media/media-fetcher.js';
 export { toMediaSource, requiresByteUpload, knownSizeBytes } from './media/media-source.js';
 export type {
   MediaSource,

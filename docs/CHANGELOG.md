@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Hardened the HTTP trust boundary: request bodies are size-limited, inline credentials and raw
+  platform payloads are opt-in, and media metadata now survives HTTP validation.
+- Protected Telegram destinations and content from replacement through platform `options`; only
+  an explicit safe option allow-list is accepted.
+- Publication results now report the actual auto-detected post type, media dimensions/duration
+  are validated at runtime, and posting configuration is held as an immutable snapshot.
+- Added a host media-URL policy hook (including final redirect validation) for adapters that fetch
+  bytes server-side, and reuse the Hono app across requests in a Cloudflare Worker isolate.
+
 - Prevented duplicate publications by limiting the HTTP micro-retry to idempotent methods;
   mutating `POST` and `PATCH` requests are never replayed after an ambiguous fetch failure.
 - Telegram preview and publish now share the body renderer, including Markdown-to-HTML

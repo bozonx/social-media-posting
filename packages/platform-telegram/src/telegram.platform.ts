@@ -118,7 +118,7 @@ export class TelegramPlatform implements IPlatform {
     );
 
     const startTime = Date.now();
-    let result: any;
+    let result: TelegramMessage | TelegramMessage[];
 
     try {
       switch (actualType) {
@@ -126,7 +126,7 @@ export class TelegramPlatform implements IPlatform {
           result = await this.sendMessage(
             api,
             chatId,
-            processedBody!, // Validated in validateRequest
+            requireValue(processedBody, 'body'),
             parseMode,
             disableNotification,
             platformOptions,
@@ -138,7 +138,7 @@ export class TelegramPlatform implements IPlatform {
           result = await this.sendPhoto(
             api,
             chatId,
-            request.cover!,
+            requireValue(request.cover, 'cover'),
             processedBody,
             parseMode,
             disableNotification,
@@ -151,7 +151,7 @@ export class TelegramPlatform implements IPlatform {
           result = await this.sendVideo(
             api,
             chatId,
-            request.video!,
+            requireValue(request.video, 'video'),
             processedBody,
             parseMode,
             disableNotification,
@@ -164,7 +164,7 @@ export class TelegramPlatform implements IPlatform {
           result = await this.sendAudio(
             api,
             chatId,
-            request.audio!,
+            requireValue(request.audio, 'audio'),
             processedBody,
             parseMode,
             disableNotification,
@@ -177,7 +177,7 @@ export class TelegramPlatform implements IPlatform {
           result = await this.sendDocument(
             api,
             chatId,
-            request.document!,
+            requireValue(request.document, 'document'),
             processedBody,
             parseMode,
             disableNotification,
@@ -190,7 +190,7 @@ export class TelegramPlatform implements IPlatform {
           result = await this.sendMediaGroup(
             api,
             chatId,
-            request.media!,
+            requireValue(request.media, 'media'),
             processedBody,
             parseMode,
             disableNotification,
@@ -218,10 +218,17 @@ export class TelegramPlatform implements IPlatform {
       LOG_CONTEXT,
     );
 
+    const messageId = Array.isArray(result) ? result[0]?.message_id : result.message_id;
+    if (messageId === undefined) {
+      throw new PlatformError('Telegram returned no message ID', ErrorCode.PLATFORM_ERROR, {
+        retryable: false,
+      });
+    }
+
     return {
       status: 'published',
-      postId: String(result.message_id || result[0]?.message_id),
-      url: this.buildPostUrl(chatId, result.message_id || result[0]?.message_id),
+      postId: String(messageId),
+      url: this.buildPostUrl(chatId, messageId),
       raw: { ok: true, result },
     };
   }
@@ -310,7 +317,7 @@ export class TelegramPlatform implements IPlatform {
       request.disableNotification ?? accountConfig.disableNotification ?? false;
 
     // Options are passed directly to Telegram API
-    const options = request.options || {};
+    const options = telegramOptions(request.options);
 
     // If parse_mode is specified in options, it overrides our mapping
     if (options.parse_mode !== undefined) {
@@ -514,10 +521,40 @@ function mapMediaTypeToTelegram(
 /** Platform-specific options passed straight through to the Bot API. */
 type TelegramOptions = Record<string, unknown>;
 
+/** Parameters callers may safely customize without changing the validated destination/content. */
+const ALLOWED_TELEGRAM_OPTIONS = new Set([
+  'parse_mode',
+  'message_thread_id',
+  'protect_content',
+  'reply_parameters',
+  'reply_markup',
+  'link_preview_options',
+  'show_caption_above_media',
+  'has_spoiler',
+]);
+
+function telegramOptions(input: Record<string, unknown> | undefined): TelegramOptions {
+  if (!input) return {};
+  const rejected = Object.keys(input).filter(key => !ALLOWED_TELEGRAM_OPTIONS.has(key));
+  if (rejected.length > 0) {
+    throw new ValidationError(
+      `Unsupported or protected Telegram option(s): ${rejected.join(', ')}`,
+    );
+  }
+  return { ...input };
+}
+
 /** The parts of a Bot API `Message` this platform reads. */
 interface TelegramMessage {
   message_id: number;
   [key: string]: unknown;
+}
+
+function requireValue<T>(value: T | undefined, field: string): T {
+  if (value === undefined) {
+    throw new ValidationError(`Field '${field}' is required`);
+  }
+  return value;
 }
 
 /**
