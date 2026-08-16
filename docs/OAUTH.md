@@ -7,17 +7,17 @@ first OAuth network lands rather than after.
 
 ## The line
 
-| Step | Owner |
-| --- | --- |
-| Registering an app with the network and holding the client ID and secret | host |
-| Redirecting a user to the network's consent screen | **host** |
-| Receiving the `?code=` callback and exchanging it for the first tokens | **host** |
-| Storing tokens, encrypted, against a user or channel | **host** |
-| Deciding when a channel needs re-authorization and telling the user | **host** |
-| Knowing that an access token has expired | library |
-| Performing the `refresh_token` grant | library |
-| Handing rotated tokens back for storage | library |
-| Reporting that only re-authorization can help | library |
+| Step                                                                     | Owner    |
+| ------------------------------------------------------------------------ | -------- |
+| Registering an app with the network and holding the client ID and secret | host     |
+| Redirecting a user to the network's consent screen                       | **host** |
+| Receiving the `?code=` callback and exchanging it for the first tokens   | **host** |
+| Storing tokens, encrypted, against a user or channel                     | **host** |
+| Deciding when a channel needs re-authorization and telling the user      | **host** |
+| Knowing that an access token has expired                                 | library  |
+| Performing the `refresh_token` grant                                     | library  |
+| Handing rotated tokens back for storage                                  | library  |
+| Reporting that only re-authorization can help                            | library  |
 
 The authorization-code redirect is not implemented here and will not be. It needs a browser, a
 public callback URL, session state and a CSRF-protected `state` parameter — all of which belong to

@@ -6,15 +6,15 @@ per-network detail.
 
 ## What the library does and does not do
 
-| Concern | Owner |
-| --- | --- |
-| Translating a request into platform API calls | this library |
-| Choreographing a multi-step publication | this library |
-| Classifying failures (`retryable`, `retryAfterMs`, `resumeHandle`) | this library |
-| Resuming an interrupted multi-step publication | this library, from a handle the host stored |
-| Deciding whether to retry, and waiting | the host |
-| Remembering that a post already went out | the host |
-| Rate limiting across processes | the host |
+| Concern                                                            | Owner                                       |
+| ------------------------------------------------------------------ | ------------------------------------------- |
+| Translating a request into platform API calls                      | this library                                |
+| Choreographing a multi-step publication                            | this library                                |
+| Classifying failures (`retryable`, `retryAfterMs`, `resumeHandle`) | this library                                |
+| Resuming an interrupted multi-step publication                     | this library, from a handle the host stored |
+| Deciding whether to retry, and waiting                             | the host                                    |
+| Remembering that a post already went out                           | the host                                    |
+| Rate limiting across processes                                     | the host                                    |
 
 The library has no database, no cache and no cross-process coordination. An idempotency
 mechanism built on any of those would have to be faked here, and a faked one is worse than none:
@@ -82,9 +82,9 @@ because polling requires a scheduler and a scheduler requires durable state.
 
 ## Per-network notes
 
-| Network | Native idempotency | Duplicate window | Reconciliation |
-| --- | --- | --- | --- |
-| Telegram | none | one Bot API call; a lost response after the message was sent | none from the API side — the Bot API cannot list a channel's recent messages, so a duplicate is only visible to a client that reads the channel |
+| Network  | Native idempotency | Duplicate window                                             | Reconciliation                                                                                                                                  |
+| -------- | ------------------ | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Telegram | none               | one Bot API call; a lost response after the message was sent | none from the API side — the Bot API cannot list a channel's recent messages, so a duplicate is only visible to a client that reads the channel |
 
 This table grows one row per network as networks land, and each row is filled in from that
 network's documented behaviour rather than from assumption. A network is not "done" until its row

@@ -183,7 +183,7 @@ types, once.
   `parameters.retry_after` into `retryAfterMs`. `'fetch failed'` / `'undici'` string matching and
   grammY field access are gone from the core.
 - **Publication status.** `publish()` returns `{ status: 'published' | 'processing', postId?,
-  url?, handle?, checkAfterMs? }`, and `IPlatform.checkStatus(handle)` is available for networks
+url?, handle?, checkAfterMs? }`, and `IPlatform.checkStatus(handle)` is available for networks
   that materialize posts asynchronously. Nothing in this library polls.
 - **Resumable operations.** A failure that left progress behind carries a JSON-serializable
   `resumeHandle`; `post(request, { resume })` continues from that step. Without this the
@@ -245,6 +245,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
 - **Bearer Token Authentication**:
   - Optional API authentication using `AUTH_BEARER_TOKENS` environment variable.
   - Supports multiple comma-separated tokens.
