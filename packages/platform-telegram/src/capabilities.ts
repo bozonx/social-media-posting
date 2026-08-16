@@ -15,7 +15,6 @@ export const telegramCapabilities: PlatformCapabilities = {
   displayName: 'Telegram',
 
   supportedTypes: [
-    PostType.AUTO,
     PostType.POST,
     PostType.IMAGE,
     PostType.VIDEO,
@@ -56,10 +55,13 @@ export const telegramCapabilities: PlatformCapabilities = {
   requiresByteUpload: false,
 
   media: {
-    image: { maxBytes: 10 * 1024 * 1024, mimeTypes: ['image/jpeg', 'image/png', 'image/webp'] },
-    video: { maxBytes: 50 * 1024 * 1024 },
-    audio: { maxBytes: 50 * 1024 * 1024 },
-    document: { maxBytes: 50 * 1024 * 1024 },
+    // URL-pass-through media is fetched by Telegram, so local validation has
+    // no trustworthy byte size or MIME type to check. Do not advertise limits
+    // the package cannot enforce.
+    image: {},
+    video: {},
+    audio: {},
+    document: {},
   },
 
   rateLimits: {

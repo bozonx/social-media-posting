@@ -155,7 +155,7 @@ describe('POST /api/v1/post', () => {
     });
 
     expect(body.success).toBe(false);
-    expect(body.error.message).toMatch(/Post type "post" is not supported/i);
+    expect(body.error.message).toMatch(/Post type 'post' is not supported/i);
   });
 
   it('hands the caller everything its own backoff needs', async () => {
@@ -271,7 +271,7 @@ describe('POST /api/v1/status', () => {
     );
   });
 
-  it('returns a client error when status is unsupported', async () => {
+  it('returns a failed status result when status is unsupported', async () => {
     const { platformModule } = fakePlatform();
     const synchronousModule = {
       ...platformModule,
@@ -289,12 +289,14 @@ describe('POST /api/v1/status', () => {
       handle: { platform: 'telegram', step: 'done', state: {} },
     });
 
-    expect(status).toBe(400);
+    expect(status).toBe(200);
     expect(body).toMatchObject({
-      error: 'ValidationError',
-      code: ErrorCode.VALIDATION_ERROR,
-      retryable: false,
+      status: 'failed',
+      error: {
+        code: ErrorCode.VALIDATION_ERROR,
+        retryable: false,
+      },
     });
-    expect(body.message).toContain('has no status to check');
+    expect(body.error.message).toContain('has no status to check');
   });
 });

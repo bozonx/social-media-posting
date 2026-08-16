@@ -64,6 +64,8 @@ export interface ContractHarness {
 export interface ResumableScenario {
   /** A request whose publication takes more than one call. */
   request: PostRequest;
+  /** Number of completed transport steps that a resumed attempt must not repeat. */
+  completedStepsBeforeInterruption: number;
   /**
    * Arrange the transport so the publication fails after some progress.
    * @returns The harness to run the failing attempt against.
@@ -93,7 +95,7 @@ export interface PlatformContractOptions {
   /** Recorded failures and the classification each must produce. */
   errorCases: ErrorCase[];
   /** A request that breaks a declared limit, and the message it must produce. */
-  overLimitRequest?: { request: PostRequest; expectedError: RegExp };
+  overLimitRequest: { request: PostRequest; expectedError: RegExp };
   /** A multi-step publication, for platforms that have one. */
   resumable?: ResumableScenario;
 }

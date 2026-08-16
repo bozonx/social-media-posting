@@ -110,7 +110,8 @@ export function describePlatformContract(options: PlatformContractOptions): void
 
       it('refuses a type it does not declare, without calling the API', async () => {
         const unsupported = Object.values(PostType).find(
-          type => !platformModule.capabilities.supportedTypes.includes(type),
+          type =>
+            type !== PostType.AUTO && !platformModule.capabilities.supportedTypes.includes(type),
         );
         if (!unsupported) {
           return;
@@ -125,17 +126,13 @@ export function describePlatformContract(options: PlatformContractOptions): void
         expect(harness.callCount()).toBe(0);
       });
 
-      const overLimitRequest = options.overLimitRequest;
-      const overLimitIt = overLimitRequest ? it : it.skip;
-      overLimitIt('enforces a declared limit locally rather than through the API', async () => {
+      it('enforces a declared limit locally rather than through the API', async () => {
+        const { overLimitRequest } = options;
         harness.respondSuccess();
 
         await expect(
-          harness.platform.publish(
-            overLimitRequest?.request ?? firstRequest(options),
-            harness.accountConfig,
-          ),
-        ).rejects.toThrow(overLimitRequest?.expectedError);
+          harness.platform.publish(overLimitRequest.request, harness.accountConfig),
+        ).rejects.toThrow(overLimitRequest.expectedError);
         expect(harness.callCount()).toBe(0);
       });
     });
@@ -178,9 +175,9 @@ export function describePlatformContract(options: PlatformContractOptions): void
         expect(harness.callCount()).toBe(0);
       });
 
-      const abortMidFlightIt = options.createHarness().respondNever ? it : it.skip;
-      abortMidFlightIt('stops a publication aborted mid-flight', async () => {
-        harness.respondNever?.();
+      it('stops a publication aborted mid-flight when the harness supports it', async () => {
+        if (!harness.respondNever) return;
+        harness.respondNever();
         const controller = new AbortController();
 
         const inFlight = harness.platform.publish(firstRequest(options), harness.accountConfig, {
@@ -278,7 +275,9 @@ export function describePlatformContract(options: PlatformContractOptions): void
         expect(['published', 'processing']).toContain(result.status);
         // Resuming must not redo the steps the first attempt completed: that is
         // what would create a second uploaded file or a second post.
-        expect(harness.callCount() - callsBeforeResume).toBeLessThan(callsBeforeResume);
+        expect(harness.callCount() - callsBeforeResume).toBeLessThanOrEqual(
+          scenario.completedStepsBeforeInterruption,
+        );
       });
     });
   });

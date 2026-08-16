@@ -1,10 +1,10 @@
 import { BasePostService } from './base-post.service.js';
-import { PostType } from '../types/post-type.js';
 import { ErrorCode } from '../errors/error-code.js';
 import { AbortedError, PostingError, ValidationError } from '../errors/posting-error.js';
 import { PlatformError } from '../errors/platform-error.js';
 import { assertValidPostRequest } from '../validation/validate-post-request.js';
 import { detectPostType } from '../validation/detect-post-type.js';
+import { validateAgainstCapabilities } from '../validation/capability-validator.js';
 import type { PostRequest } from '../types/post-request.js';
 import type {
   ErrorResponse,
@@ -57,22 +57,26 @@ export class PostService extends BasePostService {
       assertValidPostRequest(request);
 
       const { platform, accountConfig } = await this.validateRequest(request);
-
-      const requestedType = request.type || PostType.AUTO;
-      const postType =
-        requestedType === PostType.AUTO
-          ? (platform.detectType?.(request) ?? detectPostType(request))
-          : requestedType;
-      if (!platform.capabilities.supportedTypes.includes(postType)) {
-        throw new ValidationError(
-          `Post type "${postType}" is not supported by ${request.platform}`,
-        );
+      const effectiveRequest = withAccountBodyLimit(request, accountConfig.maxBody);
+      const validateExtra = platform.validateExtra?.bind(platform);
+      const validation = validateAgainstCapabilities(effectiveRequest, platform.capabilities, {
+        detectType: platform.detectType?.bind(platform) ?? detectPostType,
+        validateExtra: validateExtra
+          ? (candidate, detectedType) => validateExtra(candidate, accountConfig, detectedType)
+          : undefined,
+      });
+      if (validation.errors.length > 0) {
+        throw new ValidationError(validation.errors);
       }
+      const postType = validation.detectedType;
 
       if (options.resume && options.resume.platform !== platform.name) {
         throw new ValidationError(
           `Resume handle belongs to platform "${options.resume.platform}", not "${platform.name}"`,
         );
+      }
+      if (options.resume?.expiresAt && Date.parse(options.resume.expiresAt) <= Date.now()) {
+        throw new ValidationError('Resume handle has expired');
       }
 
       this.logger.log(
@@ -83,7 +87,8 @@ export class PostService extends BasePostService {
       );
 
       const result = await this.withRequestTimeout(
-        signal => platform.publish(request, accountConfig, { signal, resume: options.resume }),
+        signal =>
+          platform.publish(effectiveRequest, accountConfig, { signal, resume: options.resume }),
         options.signal,
       );
 
@@ -123,33 +128,39 @@ export class PostService extends BasePostService {
     handle: ResumeHandle,
     signal?: AbortSignal,
   ): Promise<StatusResult> {
-    const { platform, accountConfig } = await this.validateRequest(request as PostRequest);
+    try {
+      const { platform, accountConfig } = await this.validateRequest(request as PostRequest);
+      const checkStatus = platform.checkStatus?.bind(platform);
+      if (!checkStatus) {
+        throw new ValidationError(
+          `Platform "${platform.name}" publishes synchronously and has no status to check`,
+        );
+      }
+      if (handle.platform !== platform.name) {
+        throw new ValidationError(
+          `Handle belongs to platform "${handle.platform}", not "${platform.name}"`,
+        );
+      }
+      if (handle.expiresAt && Date.parse(handle.expiresAt) <= Date.now()) {
+        throw new ValidationError('Resume handle has expired');
+      }
 
-    const checkStatus = platform.checkStatus?.bind(platform);
-    if (!checkStatus) {
-      throw new ValidationError(
-        `Platform "${platform.name}" publishes synchronously and has no status to check`,
+      const result = await this.withRequestTimeout(
+        innerSignal => checkStatus(handle, accountConfig, innerSignal),
+        signal,
       );
-    }
-    if (handle.platform !== platform.name) {
-      throw new ValidationError(
-        `Handle belongs to platform "${handle.platform}", not "${platform.name}"`,
-      );
-    }
 
-    const result = await this.withRequestTimeout(
-      innerSignal => checkStatus(handle, accountConfig, innerSignal),
-      signal,
-    );
-
-    return {
-      status: result.status,
-      postId: result.postId,
-      url: result.url,
-      checkAfterMs: result.checkAfterMs,
-      error: result.error ? errorPayload(result.error, crypto.randomUUID()) : undefined,
-      raw: result.raw,
-    };
+      return {
+        status: result.status,
+        postId: result.postId,
+        url: result.url,
+        checkAfterMs: result.checkAfterMs,
+        error: result.error ? errorPayload(result.error, crypto.randomUUID(), false) : undefined,
+        raw: result.raw,
+      };
+    } catch (error) {
+      return { status: 'failed', error: errorPayload(error, crypto.randomUUID(), false) };
+    }
   }
 
   private toErrorResponse(
@@ -216,6 +227,14 @@ export class PostService extends BasePostService {
   }
 }
 
+function withAccountBodyLimit(
+  request: PostRequest,
+  accountMaxBody: number | undefined,
+): PostRequest {
+  if (accountMaxBody === undefined) return request;
+  return { ...request, maxBody: Math.min(request.maxBody ?? accountMaxBody, accountMaxBody) };
+}
+
 /**
  * Flatten an error into the payload shape hosts read.
  *
@@ -246,6 +265,7 @@ function errorPayload(
       code: error.code,
       message: error.message,
       retryable: error.retryable,
+      details: error instanceof ValidationError ? { errors: error.errors } : undefined,
       raw: includeRaw ? error.cause : undefined,
       requestId,
     };

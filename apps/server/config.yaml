@@ -1,4 +1,4 @@
-# Social Media Posting Microservice Configuration
+# Social Media Posting Server Configuration
 # This file is the source of truth for the configuration structure
 
 # ============================================
@@ -22,11 +22,11 @@ requestTimeoutSecs: 60
 accounts:
   # Company Telegram channel
   company_telegram:
-  
+
     # Platform name
     # Must match one of the supported platforms (currently: telegram)
     platform: telegram
-  
+
     # Authentication (API credentials)
     # You can use environment variables: ${MY_CUSTOM_VAR}
     # Auth object may contain additional provider-specific fields besides apiKey
@@ -41,11 +41,10 @@ accounts:
     channelId: '@your_channel_username'
 
     # Maximum body length for this account (characters)
-    # Can be overridden by maxBody in request (up to hard service limit 500000)
-    # If not set, uses hard service limit 500000 as default
+    # Request maxBody may only make this limit stricter.
+    # If not set, the platform descriptor supplies the limit.
     maxBody: 100000
 
     # Disable notifications by default
     # If true, posts will be sent silently without notifying subscribers
     disableNotification: false
-  

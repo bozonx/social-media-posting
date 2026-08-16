@@ -61,8 +61,7 @@ export class MediaFetcher {
 
     await this.validateRemoteUrl(source.url);
 
-    const response = await httpRequest(source.url, { method: 'HEAD', signal });
-    await this.validateRemoteUrl(response.url || source.url);
+    const response = await this.fetchRemote(source.url, { method: 'HEAD', signal });
     if (!response.ok) {
       // Not every origin answers HEAD; the size check then happens while streaming.
       return { mimeType: source.mimeType, kind: mediaKindOf(source.mimeType) };
@@ -138,8 +137,7 @@ export class MediaFetcher {
         if (offsetBytes) {
           headers.range = `bytes=${offsetBytes}-`;
         }
-        const response = await httpRequest(source.url, { headers, signal });
-        await this.validateRemoteUrl(response.url || source.url);
+        const response = await this.fetchRemote(source.url, { headers, signal });
         if (!response.ok || !response.body) {
           throw new PlatformError(
             `Fetching media from ${safeHost(source.url)} failed with ${response.status}`,
@@ -156,6 +154,21 @@ export class MediaFetcher {
     if (this.options.validateUrl) {
       await this.options.validateUrl(new URL(url));
     }
+  }
+
+  /** Follow redirects one hop at a time so the host policy sees every URL. */
+  private async fetchRemote(url: string, init: RequestInit): Promise<Response> {
+    let currentUrl = url;
+    for (let redirects = 0; redirects <= 5; redirects += 1) {
+      await this.validateRemoteUrl(currentUrl);
+      const response = await httpRequest(currentUrl, { ...init, redirect: 'manual' });
+      if (response.status < 300 || response.status >= 400) return response;
+
+      const location = response.headers.get('location');
+      if (!location) return response;
+      currentUrl = new URL(location, currentUrl).toString();
+    }
+    throw new ValidationError('Media URL exceeded the maximum of 5 redirects');
   }
 
   /**

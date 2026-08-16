@@ -8,6 +8,7 @@ import {
   markdownToHtml,
   markdownToPlainText,
   truncateBody,
+  truncateHtml,
 } from '../src/rendering/body.js';
 
 describe('countBodyLength', () => {
@@ -48,6 +49,16 @@ describe('truncateBody', () => {
   });
 });
 
+describe('truncateHtml', () => {
+  it('does not split escaped entities or leave generated tags unclosed', () => {
+    const result = truncateHtml(`${'a'.repeat(20)}&lt;<b>bold</b>`, 25);
+
+    expect(result).not.toMatch(/&(?:[a-z]*)$/);
+    expect(result).not.toContain('<b>bold…');
+    expect(result.length).toBeLessThanOrEqual(25);
+  });
+});
+
 describe('escaping', () => {
   it('escapes HTML metacharacters', () => {
     expect(escapeHtml('<a href="x">&</a>')).toBe('&lt;a href=&quot;x&quot;&gt;&amp;&lt;/a&gt;');
@@ -81,6 +92,14 @@ describe('convertBody', () => {
     expect(markdownToHtml('[docs](https://example.com)')).toBe(
       '<a href="https://example.com">docs</a>',
     );
+  });
+
+  it('drops links with an unsafe URL scheme', () => {
+    expect(markdownToHtml('[x](javascript:alert(1))')).toBe('x)');
+  });
+
+  it('escapes text when converting to Markdown', () => {
+    expect(convertBody('a *b* [d]', 'text', 'md')).toBe('a \\*b\\* \\[d\\]');
   });
 
   it('flattens Markdown to readable plain text', () => {

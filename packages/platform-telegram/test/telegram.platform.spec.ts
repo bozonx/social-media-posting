@@ -76,20 +76,15 @@ describe('TelegramPlatform', () => {
     platform: 'telegram',
     auth: {
       apiKey: 'test-token',
-      chatId: 'test-chat-id',
     },
+    channelId: 'test-chat-id',
     disableNotification: false,
   };
 
   const originalFetch = globalThis.fetch;
 
   beforeEach(() => {
-    platform = new TelegramPlatform({
-      logger: silentLogger,
-      typeDetector: {
-        detectType: vi.fn((request: PostRequest) => request.type ?? PostType.POST),
-      } as never,
-    });
+    platform = new TelegramPlatform({ logger: silentLogger });
 
     botApi.reset();
     botApi.install();
@@ -107,7 +102,6 @@ describe('TelegramPlatform', () => {
 
     it('should support correct post types', () => {
       expect(platform.capabilities.supportedTypes).toEqual([
-        PostType.AUTO,
         PostType.POST,
         PostType.IMAGE,
         PostType.VIDEO,
@@ -336,8 +330,8 @@ describe('TelegramPlatform', () => {
         platform: 'telegram',
         auth: {
           apiKey: 'test-token',
-          chatId: '@publicchannel',
         },
+        channelId: '@publicchannel',
       };
 
       const request: PostRequest = {
@@ -767,7 +761,6 @@ describe('TelegramPlatform', () => {
     // generic path, driven by the same descriptor and hooks publish() uses.
     const preview = (request: PostRequest) =>
       previewFromCapabilities(request, platform.capabilities, {
-        detectType: r => platform.detectType(r),
         validateExtra: (r, type) => platform.validateExtra(r, mockAccountConfig, type),
       });
 

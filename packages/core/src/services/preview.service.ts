@@ -23,15 +23,16 @@ export class PreviewService extends BasePostService {
 
     try {
       const { platform, accountConfig } = await this.validateRequest(request);
+      const effectiveRequest = withAccountBodyLimit(request, accountConfig.maxBody);
 
       if (platform.preview) {
-        return await platform.preview(request, accountConfig);
+        return await platform.preview(effectiveRequest, accountConfig);
       }
 
       // No platform dry-run: the descriptor already says everything the checks
       // in publish() consult, so previewing from it cannot drift.
       const validateExtra = platform.validateExtra?.bind(platform);
-      return previewFromCapabilities(request, platform.capabilities, {
+      return previewFromCapabilities(effectiveRequest, platform.capabilities, {
         detectType: platform.detectType?.bind(platform),
         validateExtra: validateExtra
           ? (previewRequest, detectedType) =>
@@ -47,6 +48,14 @@ export class PreviewService extends BasePostService {
       return errorResponse([message]);
     }
   }
+}
+
+function withAccountBodyLimit(
+  request: PostRequest,
+  accountMaxBody: number | undefined,
+): PostRequest {
+  if (accountMaxBody === undefined) return request;
+  return { ...request, maxBody: Math.min(request.maxBody ?? accountMaxBody, accountMaxBody) };
 }
 
 function errorResponse(errors: string[]): PreviewErrorResponse {

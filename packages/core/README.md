@@ -159,6 +159,8 @@ export const mastodon: PlatformModule = {
 The core exports everything that takes: `IPlatform`, `PlatformCapabilities`, `PlatformError`,
 `ResumeHandle`, `validateAgainstCapabilities()`, `previewFromCapabilities()`, `httpRequest()`,
 `MediaFetcher`, `runChunkedUpload()`, `OAuth2TokenRefresher`, and the body-rendering helpers.
+The media-fetching, chunked-upload and OAuth helpers are experimental extension points until a
+published platform uses byte uploads; their API may change in a minor release.
 
 Run [`@bozonx/social-posting-conformance`](https://www.npmjs.com/package/@bozonx/social-posting-conformance)
 against it, and see `CONTRIBUTING-PLATFORMS.md`.

@@ -57,6 +57,46 @@ export function truncateBody(body: string, maxLength: number, rule?: BodyLengthR
   return candidate.trimEnd() + ellipsis;
 }
 
+/** Shorten generated HTML without splitting entities or leaving tags open. */
+export function truncateHtml(body: string, maxLength: number, rule?: BodyLengthRule): string {
+  if (countBodyLength(body, rule) <= maxLength) return body;
+
+  const ellipsis = '…';
+  const tokens = body.match(/<[^>]*>|&(?:#\d+|#x[\da-f]+|[a-z]+);|[^<&]+|[<&]/gi) ?? [];
+  const output: string[] = [];
+  const openTags: string[] = [];
+  const closingTags = () =>
+    openTags
+      .map(tag => `</${tag}>`)
+      .reverse()
+      .join('');
+  const fits = (part: string) =>
+    countBodyLength(output.join('') + part + ellipsis + closingTags(), rule) <= maxLength;
+
+  for (const token of tokens) {
+    const opening = token.match(/^<([a-z][\w-]*)(?:\s[^>]*)?>$/i);
+    const closing = token.match(/^<\/([a-z][\w-]*)\s*>$/i);
+    if (opening) {
+      if (!fits(token)) break;
+      output.push(token);
+      openTags.push(opening[1].toLowerCase());
+      continue;
+    }
+    if (closing) {
+      if (!fits(token)) break;
+      output.push(token);
+      const index = openTags.lastIndexOf(closing[1].toLowerCase());
+      if (index >= 0) openTags.splice(index, 1);
+      continue;
+    }
+    for (const character of token) {
+      if (!fits(character)) return output.join('') + ellipsis + closingTags();
+      output.push(character);
+    }
+  }
+  return output.join('') + ellipsis + closingTags();
+}
+
 /** Escape text so it is safe inside the HTML subset the platforms accept. */
 export function escapeHtml(text: string): string {
   return text
@@ -90,7 +130,16 @@ export function markdownToHtml(markdown: string): string {
     .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
     .replace(/(?<!\*)\*(?!\s)(.+?)(?<!\s)\*(?!\*)/g, '<i>$1</i>')
     .replace(/`([^`]+)`/g, '<code>$1</code>')
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_match, text: string, href: string) => {
+      try {
+        const url = new URL(href);
+        return url.protocol === 'http:' || url.protocol === 'https:'
+          ? `<a href="${href}">${text}</a>`
+          : text;
+      } catch {
+        return text;
+      }
+    });
 }
 
 /** Strip Markdown syntax, leaving the text a reader would see. */
@@ -135,5 +184,5 @@ export function convertBody(body: string, from: string, to: string): string {
 
   // Converting *into* Markdown would have to guess at the author's intent, so
   // the text is emitted literally with its Markdown characters escaped.
-  return from === BodyFormat.HTML ? htmlToPlainText(body) : body;
+  return from === BodyFormat.HTML ? htmlToPlainText(body) : escapeMarkdownV2(body);
 }

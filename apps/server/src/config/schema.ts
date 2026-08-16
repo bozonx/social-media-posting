@@ -1,4 +1,13 @@
 import { z } from 'zod';
+import {
+  MAX_BODY_LIMIT,
+  MAX_DESCRIPTION_LENGTH,
+  MAX_MEDIA_SRC_LENGTH,
+  MAX_TAG_LENGTH,
+  MAX_TAGS,
+  MAX_TITLE_LENGTH,
+  PostType,
+} from '@bozonx/social-posting';
 
 /** One configured account: a platform, its credentials, and its defaults. */
 export const accountSchema = z
@@ -6,7 +15,7 @@ export const accountSchema = z
     platform: z.string().min(1),
     auth: z.record(z.string(), z.unknown()).default({}),
     channelId: z.union([z.string(), z.number()]).optional(),
-    maxBody: z.number().int().min(1).max(500_000).optional(),
+    maxBody: z.number().int().min(1).max(MAX_BODY_LIMIT).optional(),
   })
   .loose();
 
@@ -27,7 +36,7 @@ export type ServerConfig = z.infer<typeof serverConfigSchema>;
 /** Media accepted on a request: a source plus per-item options. */
 const mediaInputSchema = z
   .object({
-    src: z.string().min(1).max(500),
+    src: z.string().min(1).max(MAX_MEDIA_SRC_LENGTH),
     hasSpoiler: z.boolean().optional(),
     type: z.enum(['image', 'video', 'audio', 'document']).optional(),
     durationSecs: z.number().finite().nonnegative().optional(),
@@ -55,25 +64,11 @@ export const resumeHandleSchema = z.object({
  */
 export const postRequestSchema = z.object({
   platform: z.string().min(1),
-  body: z.string().max(500_000).optional(),
-  type: z
-    .enum([
-      'auto',
-      'post',
-      'article',
-      'image',
-      'album',
-      'video',
-      'short',
-      'audio',
-      'document',
-      'story',
-      'poll',
-    ])
-    .optional(),
+  body: z.string().max(MAX_BODY_LIMIT).optional(),
+  type: z.nativeEnum(PostType).optional(),
   bodyFormat: z.string().max(50).optional(),
-  title: z.string().max(1000).optional(),
-  description: z.string().max(5000).optional(),
+  title: z.string().max(MAX_TITLE_LENGTH).optional(),
+  description: z.string().max(MAX_DESCRIPTION_LENGTH).optional(),
   cover: mediaInputSchema.optional(),
   video: mediaInputSchema.optional(),
   audio: mediaInputSchema.optional(),
@@ -84,11 +79,11 @@ export const postRequestSchema = z.object({
   auth: z.record(z.string(), z.unknown()).optional(),
   options: z.record(z.string(), z.unknown()).optional(),
   disableNotification: z.boolean().optional(),
-  tags: z.array(z.string().max(300)).max(200).optional(),
+  tags: z.array(z.string().max(MAX_TAG_LENGTH)).max(MAX_TAGS).optional(),
   scheduledAt: z.string().max(50).optional(),
   postLanguage: z.string().max(50).optional(),
   mode: z.enum(['publish', 'draft']).optional(),
-  maxBody: z.number().int().min(1).max(500_000).optional(),
+  maxBody: z.number().int().min(1).max(MAX_BODY_LIMIT).optional(),
   resume: resumeHandleSchema.optional(),
 });
 

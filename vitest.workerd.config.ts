@@ -24,5 +24,6 @@ export default defineConfig({
     name: 'packages-workerd',
     root: '.',
     include: ['packages/*/test/**/*.spec.ts'],
+    setupFiles: ['./test/setup/no-network-workerd.ts'],
   },
 });

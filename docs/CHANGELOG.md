@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Centralized capability validation in the core publish path, so every platform receives the same
+  descriptor checks as preview. Account `maxBody` now takes effect.
+- Fixed Telegram caption limits after HTML conversion, safe HTML truncation, album options, and
+  preview validation of unsupported options. Removed legacy `auth.chatId` and the duplicate type detector.
+- Made status failures result values, redact raw status error payloads by default, reject expired
+  resume handles, and corrected Docker's mounted configuration and bind address.
+
 - Hardened the HTTP trust boundary: request bodies are size-limited, inline credentials and raw
   platform payloads are opt-in, and media metadata now survives HTTP validation.
 - Protected Telegram destinations and content from replacement through platform `options`; only

@@ -18,7 +18,6 @@ import type {
   PublishOptions,
   CapabilityValidationOptions,
 } from '@bozonx/social-posting';
-import { TelegramTypeDetector } from './telegram-type-detector.js';
 import { toTelegramInput } from './telegram-media.js';
 import { toPlatformError } from './telegram-error.js';
 import { TelegramApi } from './telegram-api.js';
@@ -31,16 +30,14 @@ import { MAX_CAPTION_LENGTH, MAX_MEDIA_GROUP_SIZE, telegramCapabilities } from '
 export interface TelegramPlatformDeps {
   /** Logger the platform writes to. */
   logger: ILogger;
-  /** Overridable type detector; the default one is used when omitted. */
-  typeDetector?: TelegramTypeDetector;
 }
 
 /**
  * Account configuration understood by the Telegram platform.
  */
 export interface TelegramAccountConfig extends AccountConfig {
-  /** Bot token, plus the legacy `chatId` some configurations still carry. */
-  auth: AccountConfig['auth'] & { apiKey?: string; chatId?: string | number };
+  /** Bot token. */
+  auth: AccountConfig['auth'] & { apiKey?: string };
   /** Whether to disable notifications for this account by default */
   disableNotification?: boolean;
   /** API request timeout in seconds. */
@@ -54,11 +51,8 @@ export class TelegramPlatform implements IPlatform {
   readonly capabilities = telegramCapabilities;
 
   private readonly logger: ILogger;
-  private readonly typeDetector: TelegramTypeDetector;
-
   constructor(deps: TelegramPlatformDeps) {
     this.logger = deps.logger;
-    this.typeDetector = deps.typeDetector ?? new TelegramTypeDetector();
   }
 
   async publish(
@@ -110,7 +104,7 @@ export class TelegramPlatform implements IPlatform {
       parseMode,
       disableNotification,
       options: platformOptions,
-    } = this.prepareMessageData(request, accountConfig);
+    } = this.prepareMessageData(request, accountConfig, actualType);
 
     this.logger.debug(
       `Sending to Telegram chat ${chatId} (type: ${actualType}, silent: ${disableNotification})`,
@@ -194,6 +188,7 @@ export class TelegramPlatform implements IPlatform {
             processedBody,
             parseMode,
             disableNotification,
+            platformOptions,
             signal,
           );
           break;
@@ -234,14 +229,6 @@ export class TelegramPlatform implements IPlatform {
   }
 
   /**
-   * Telegram's own type priority. The generic rules agree with it today, but
-   * the network is free to change its mind about, say, cover-plus-video.
-   */
-  detectType(request: PostRequest): PostType {
-    return this.typeDetector.detectType(request);
-  }
-
-  /**
    * Telegram-specific checks: a target chat must be resolvable, captions on
    * media are limited far below the 4096 characters a text message allows, and
    * an album item identified by `file_id` cannot have its kind guessed.
@@ -259,14 +246,26 @@ export class TelegramPlatform implements IPlatform {
 
     if (resolveChatId(request, accountConfig) === undefined) {
       errors.push(
-        'Field "channelId" is required for Telegram (provide via request.channelId, account config channelId, or legacy auth.chatId)',
+        'Field "channelId" is required for Telegram (provide via request.channelId or account config channelId)',
       );
     }
 
-    if (type !== PostType.POST && request.body && request.body.length > MAX_CAPTION_LENGTH) {
+    const bodyLimit = type === PostType.POST ? this.capabilities.maxBodyLength : MAX_CAPTION_LENGTH;
+    const rendered = renderBody(
+      request,
+      { ...this.capabilities, maxBodyLength: bodyLimit },
+      resolveBodyTargetFormat(request, this.capabilities),
+    );
+    if (rendered && rendered.length > (bodyLimit ?? Number.POSITIVE_INFINITY)) {
       errors.push(
-        `Media captions are limited to ${MAX_CAPTION_LENGTH} characters for Telegram, got ${request.body.length}`,
+        `Media captions are limited to ${MAX_CAPTION_LENGTH} characters for Telegram, got ${rendered.length}`,
       );
+    }
+
+    try {
+      telegramOptions(request.options);
+    } catch (error) {
+      errors.push((error as Error).message);
     }
 
     if (type === PostType.ALBUM) {
@@ -287,14 +286,21 @@ export class TelegramPlatform implements IPlatform {
   /** The hooks bundled the way the generic validator wants them. */
   private validationHooks(accountConfig: TelegramAccountConfig): CapabilityValidationOptions {
     return {
-      detectType: request => this.detectType(request),
       validateExtra: (request, type) => this.validateExtra(request, accountConfig, type),
     };
   }
 
-  private prepareMessageData(request: PostRequest, accountConfig: TelegramAccountConfig) {
+  private prepareMessageData(
+    request: PostRequest,
+    accountConfig: TelegramAccountConfig,
+    type: PostType,
+  ) {
     const targetFormat = resolveBodyTargetFormat(request, this.capabilities);
-    const processedBody = renderBody(request, this.capabilities, targetFormat);
+    const processedBody = renderBody(
+      request,
+      { ...this.capabilities, maxBodyLength: type === PostType.POST ? 4096 : MAX_CAPTION_LENGTH },
+      targetFormat,
+    );
 
     // Map bodyFormat to Telegram parse_mode
     let parseMode: string | undefined;
@@ -454,6 +460,7 @@ export class TelegramPlatform implements IPlatform {
     caption: string | undefined,
     parseMode: string | undefined,
     disableNotification: boolean,
+    options: TelegramOptions,
     signal?: AbortSignal,
   ): Promise<TelegramMessage[]> {
     const mediaGroup = media.slice(0, MAX_MEDIA_GROUP_SIZE).map((item, index) => {
@@ -487,6 +494,7 @@ export class TelegramPlatform implements IPlatform {
         chat_id: chatId,
         media: mediaGroup,
         disable_notification: disableNotification,
+        ...options,
       },
       signal,
     );
@@ -560,8 +568,7 @@ function requireValue<T>(value: T | undefined, field: string): T {
 /**
  * Resolve the chat to publish to.
  *
- * Priority: `request.channelId`, then the account's `channelId`, then the
- * legacy `auth.chatId`.
+ * Priority: `request.channelId`, then the account's `channelId`.
  *
  * @returns The chat identifier, or undefined when none is configured.
  */
@@ -569,8 +576,7 @@ function resolveChatId(
   request: PostRequest,
   accountConfig: TelegramAccountConfig,
 ): string | number | undefined {
-  const legacyChatId = (accountConfig.auth as Record<string, unknown> | undefined)?.chatId;
-  const finalId = request.channelId ?? accountConfig.channelId ?? legacyChatId;
+  const finalId = request.channelId ?? accountConfig.channelId;
 
   if (finalId === undefined || finalId === null || finalId === '') {
     return undefined;
@@ -592,7 +598,7 @@ function requireChatId(
   const chatId = resolveChatId(request, accountConfig);
   if (chatId === undefined) {
     throw new ValidationError(
-      'Field "channelId" is required for Telegram (provide via request.channelId, account config channelId, or legacy auth.chatId)',
+      'Field "channelId" is required for Telegram (provide via request.channelId or account config channelId)',
     );
   }
   return chatId;

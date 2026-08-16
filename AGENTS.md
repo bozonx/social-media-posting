@@ -42,11 +42,11 @@
 - The product is a library. The HTTP shell is a deployment artefact for non-Node consumers,
   never published to npm.
 - `packages/core` (`@bozonx/social-posting`) and every `packages/platform-*` must keep an empty
-  `dependencies`. Vendor SDKs are not taken; see `dev_docs/package-readiness-plan.md`.
+  `dependencies`. Vendor SDKs are not taken.
 - Published packages target web standards: `fetch`, `Request`/`Response`, WHATWG streams,
   Web Crypto. Node built-ins are banned by ESLint and the core suite also runs under `workerd`
   (`pnpm test:workerd`).
 - The core owns no durable state: no retries beyond a single attempt, no idempotency, no
   rate limiting. Those belong to the host.
 - `apps/server/config.yaml` is the platform/account configuration source and is mounted read-only.
-- Entry points: `packages/core/src/index.ts` (library), `apps/server/src/main.ts` (HTTP shell).
+- Entry points: `packages/core/src/index.ts` (library), `apps/server/src/entry/node.ts` (HTTP shell).

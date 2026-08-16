@@ -35,8 +35,7 @@ const client = createPostingClient({
 | `apiTimeoutSeconds`   | number           | Per-call Bot API timeout                           |
 | `maxBody`             | number           | A stricter body limit than Telegram's own          |
 
-The target chat is resolved from `request.channelId`, then the account's `channelId`, then the
-legacy `auth.chatId`.
+The target chat is resolved from `request.channelId`, then the account's `channelId`.
 
 ## Post types
 

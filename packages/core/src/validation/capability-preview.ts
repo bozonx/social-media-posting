@@ -1,5 +1,5 @@
 import { validateAgainstCapabilities } from './capability-validator.js';
-import { convertBody, countBodyLength, truncateBody } from '../rendering/body.js';
+import { convertBody, countBodyLength, truncateBody, truncateHtml } from '../rendering/body.js';
 import type { CapabilityValidationOptions } from './capability-validator.js';
 import type { PostRequest } from '../types/post-request.js';
 import type { PlatformCapabilities } from '../platforms/capabilities.js';
@@ -73,7 +73,9 @@ export function renderBody(
     return converted;
   }
 
-  return truncateBody(converted, limit, capabilities.bodyLengthRule);
+  return targetFormat === 'html'
+    ? truncateHtml(converted, limit, capabilities.bodyLengthRule)
+    : truncateBody(converted, limit, capabilities.bodyLengthRule);
 }
 
 /** Resolve the actual wire format, preserving platform-native dialects. */

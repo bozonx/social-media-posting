@@ -418,7 +418,7 @@ describe('PostService', () => {
       delete (platform as unknown as { checkStatus?: unknown }).checkStatus;
     });
 
-    it('rejects a status check on a platform that publishes synchronously', async () => {
+    it('returns a failed status result on a platform that publishes synchronously', async () => {
       const { service } = createService();
 
       await expect(
@@ -430,7 +430,10 @@ describe('PostService', () => {
             state: {},
           },
         ),
-      ).rejects.toThrow(/publishes synchronously/);
+      ).resolves.toMatchObject({
+        status: 'failed',
+        error: { message: expect.stringMatching(/publishes synchronously/) },
+      });
     });
   });
 

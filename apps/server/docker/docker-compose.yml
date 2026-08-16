@@ -1,5 +1,5 @@
 services:
-  microservice:
+  social-posting-server:
     image: ghcr.io/bozonx/social-posting-server:${TAG:-latest}
     build:
       context: ../../..
@@ -16,6 +16,8 @@ services:
     env_file:
       - ../../../.env
     environment:
+      CONFIG_PATH: /app/config.yaml
+      LISTEN_HOST: 0.0.0.0
       TZ: ${TZ:-UTC}
       LOG_LEVEL: ${LOG_LEVEL:-warn}
     volumes:
