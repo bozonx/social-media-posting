@@ -2,22 +2,66 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { PostType } from '@bozonx/social-posting';
 import type { ILogger, PostRequest } from '@bozonx/social-posting';
 
-// Bot API calls are the boundary under test; grammY is mocked so nothing leaves the process.
-const mockApi = {
-  sendMessage: vi.fn(),
-  sendPhoto: vi.fn(),
-  sendVideo: vi.fn(),
-  sendAudio: vi.fn(),
-  sendMediaGroup: vi.fn(),
-  sendDocument: vi.fn(),
-};
+// The Bot API is the boundary under test, so `fetch` is stubbed and every
+// assertion is made against the JSON payload that actually goes on the wire.
+type BotApiCall = { method: string; payload: Record<string, unknown> };
 
-vi.mock('grammy', () => ({
-  Bot: vi.fn(function (this: { api: typeof mockApi }) {
-    this.api = mockApi;
-  }),
-  InputFile: vi.fn(),
-}));
+/**
+ * Stands in for `https://api.telegram.org`: records the JSON each Bot API call
+ * sends and answers with whatever the test queued for that method.
+ */
+function createBotApiDouble() {
+  const calls: BotApiCall[] = [];
+  const replies = new Map<string, unknown>();
+  const failures = new Map<string, { error_code: number; description: string }>();
+
+  const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    const method = url.slice(url.lastIndexOf('/') + 1);
+    calls.push({ method, payload: JSON.parse(String(init?.body ?? '{}')) });
+
+    const failure = failures.get(method);
+    if (failure) {
+      return new Response(JSON.stringify({ ok: false, ...failure }), {
+        status: failure.error_code,
+      });
+    }
+
+    return new Response(JSON.stringify({ ok: true, result: replies.get(method) ?? {} }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    });
+  });
+
+  return {
+    install(): void {
+      globalThis.fetch = fetchStub as unknown as typeof fetch;
+    },
+    reset(): void {
+      calls.length = 0;
+      replies.clear();
+      failures.clear();
+      fetchStub.mockClear();
+    },
+    reply(method: string, result: unknown): void {
+      replies.set(method, result);
+    },
+    fail(method: string, failure: { error_code: number; description: string }): void {
+      failures.set(method, failure);
+    },
+    called(method: string): boolean {
+      return calls.some(call => call.method === method);
+    },
+    lastPayload(method: string): Record<string, unknown> | undefined {
+      return calls.filter(call => call.method === method).at(-1)?.payload;
+    },
+    lastUrl(): string | undefined {
+      return fetchStub.mock.calls.at(-1)?.[0] as string | undefined;
+    },
+  };
+}
+
+const botApi = createBotApiDouble();
 
 const { TelegramPlatform } = await import('../src/telegram.platform.js');
 type TelegramPlatformInstance = InstanceType<typeof TelegramPlatform>;
@@ -37,6 +81,8 @@ describe('TelegramPlatform', () => {
     disableNotification: false,
   };
 
+  const originalFetch = globalThis.fetch;
+
   beforeEach(() => {
     platform = new TelegramPlatform({
       logger: silentLogger,
@@ -45,10 +91,12 @@ describe('TelegramPlatform', () => {
       } as never,
     });
 
-    vi.clearAllMocks();
+    botApi.reset();
+    botApi.install();
   });
 
   afterEach(() => {
+    globalThis.fetch = originalFetch;
     vi.clearAllMocks();
   });
 
@@ -58,7 +106,7 @@ describe('TelegramPlatform', () => {
     });
 
     it('should support correct post types', () => {
-      expect(platform.supportedTypes).toEqual([
+      expect(platform.capabilities.supportedTypes).toEqual([
         PostType.AUTO,
         PostType.POST,
         PostType.IMAGE,
@@ -78,7 +126,7 @@ describe('TelegramPlatform', () => {
         type: PostType.POST,
       };
 
-      mockApi.sendMessage.mockResolvedValue({
+      botApi.reply('sendMessage', {
         message_id: 12345,
         chat: { id: 'test-chat-id' },
       });
@@ -98,7 +146,9 @@ describe('TelegramPlatform', () => {
         },
       });
 
-      expect(mockApi.sendMessage).toHaveBeenCalledWith('test-chat-id', 'Test message', {
+      expect(botApi.lastPayload('sendMessage')).toEqual({
+        chat_id: 'test-chat-id',
+        text: 'Test message',
         disable_notification: false,
       });
     });
@@ -111,16 +161,16 @@ describe('TelegramPlatform', () => {
         type: PostType.POST,
       };
 
-      mockApi.sendMessage.mockResolvedValue({ message_id: 12345 });
+      botApi.reply('sendMessage', { message_id: 12345 });
 
       const result = await platform.publish(request, mockAccountConfig);
 
       expect(result.postId).toBe('12345');
-      expect(mockApi.sendMessage).toHaveBeenCalledWith(
-        'test-chat-id',
-        longBody,
-        expect.objectContaining({ disable_notification: false }),
-      );
+      expect(botApi.lastPayload('sendMessage')).toEqual({
+        chat_id: 'test-chat-id',
+        text: longBody,
+        disable_notification: false,
+      });
     });
 
     it('should send body as-is without conversion and map bodyFormat to parse_mode', async () => {
@@ -131,18 +181,19 @@ describe('TelegramPlatform', () => {
         type: PostType.POST,
       };
 
-      mockApi.sendMessage.mockResolvedValue({ message_id: 12345 });
+      botApi.reply('sendMessage', { message_id: 12345 });
 
       await platform.publish(request, mockAccountConfig);
 
       // Body should not be converted
 
       // parse_mode should be Markdown
-      expect(mockApi.sendMessage).toHaveBeenCalledWith(
-        'test-chat-id',
-        '**Markdown** text',
-        expect.objectContaining({ parse_mode: 'Markdown' }),
-      );
+      expect(botApi.lastPayload('sendMessage')).toEqual({
+        chat_id: 'test-chat-id',
+        text: '**Markdown** text',
+        parse_mode: 'Markdown',
+        disable_notification: false,
+      });
     });
 
     it('should send HTML body as-is and set parse_mode to HTML', async () => {
@@ -153,15 +204,16 @@ describe('TelegramPlatform', () => {
         type: PostType.POST,
       };
 
-      mockApi.sendMessage.mockResolvedValue({ message_id: 12345 });
+      botApi.reply('sendMessage', { message_id: 12345 });
 
       await platform.publish(request, mockAccountConfig);
 
-      expect(mockApi.sendMessage).toHaveBeenCalledWith(
-        'test-chat-id',
-        '<b>HTML</b> text',
-        expect.objectContaining({ parse_mode: 'HTML' }),
-      );
+      expect(botApi.lastPayload('sendMessage')).toEqual({
+        chat_id: 'test-chat-id',
+        text: '<b>HTML</b> text',
+        parse_mode: 'HTML',
+        disable_notification: false,
+      });
     });
 
     it('should support MarkdownV2 format directly via bodyFormat', async () => {
@@ -172,15 +224,16 @@ describe('TelegramPlatform', () => {
         type: PostType.POST,
       };
 
-      mockApi.sendMessage.mockResolvedValue({ message_id: 12345 });
+      botApi.reply('sendMessage', { message_id: 12345 });
 
       await platform.publish(request, mockAccountConfig);
 
-      expect(mockApi.sendMessage).toHaveBeenCalledWith(
-        'test-chat-id',
-        '*Hello* _world_\\!',
-        expect.objectContaining({ parse_mode: 'MarkdownV2' }),
-      );
+      expect(botApi.lastPayload('sendMessage')).toEqual({
+        chat_id: 'test-chat-id',
+        text: '*Hello* _world_\\!',
+        parse_mode: 'MarkdownV2',
+        disable_notification: false,
+      });
     });
 
     it('should allow options.parse_mode to override bodyFormat', async () => {
@@ -194,16 +247,17 @@ describe('TelegramPlatform', () => {
         },
       };
 
-      mockApi.sendMessage.mockResolvedValue({ message_id: 12345 });
+      botApi.reply('sendMessage', { message_id: 12345 });
 
       await platform.publish(request, mockAccountConfig);
 
       // options.parse_mode should override bodyFormat
-      expect(mockApi.sendMessage).toHaveBeenCalledWith(
-        'test-chat-id',
-        '*Hello* _world_\\!',
-        expect.objectContaining({ parse_mode: 'MarkdownV2' }),
-      );
+      expect(botApi.lastPayload('sendMessage')).toEqual({
+        chat_id: 'test-chat-id',
+        text: '*Hello* _world_\\!',
+        parse_mode: 'MarkdownV2',
+        disable_notification: false,
+      });
     });
 
     it('should use platform-specific parameters', async () => {
@@ -223,11 +277,13 @@ describe('TelegramPlatform', () => {
         },
       };
 
-      mockApi.sendMessage.mockResolvedValue({ message_id: 12345 });
+      botApi.reply('sendMessage', { message_id: 12345 });
 
       await platform.publish(request, mockAccountConfig);
 
-      expect(mockApi.sendMessage).toHaveBeenCalledWith('test-chat-id', 'Test message', {
+      expect(botApi.lastPayload('sendMessage')).toEqual({
+        chat_id: 'test-chat-id',
+        text: 'Test message',
         disable_notification: false,
         // All options from request.options are spread here and override defaults
         ...request.options,
@@ -242,12 +298,14 @@ describe('TelegramPlatform', () => {
         disableNotification: true,
       };
 
-      mockApi.sendMessage.mockResolvedValue({ message_id: 12345 });
+      botApi.reply('sendMessage', { message_id: 12345 });
 
       // Config has disableNotification: false
       await platform.publish(request, mockAccountConfig);
 
-      expect(mockApi.sendMessage).toHaveBeenCalledWith('test-chat-id', 'Test message', {
+      expect(botApi.lastPayload('sendMessage')).toEqual({
+        chat_id: 'test-chat-id',
+        text: 'Test message',
         disable_notification: true,
       });
     });
@@ -267,7 +325,7 @@ describe('TelegramPlatform', () => {
         type: PostType.POST,
       };
 
-      mockApi.sendMessage.mockResolvedValue({ message_id: 12345 });
+      botApi.reply('sendMessage', { message_id: 12345 });
 
       const result = await platform.publish(request, publicAccountConfig);
 
@@ -285,21 +343,19 @@ describe('TelegramPlatform', () => {
         type: PostType.IMAGE,
       };
 
-      mockApi.sendPhoto.mockResolvedValue({ message_id: 12345 });
+      botApi.reply('sendPhoto', { message_id: 12345 });
 
       const result = await platform.publish(request, mockAccountConfig);
 
       expect(result.postId).toBe('12345');
-      expect(mockApi.sendPhoto).toHaveBeenCalledWith(
-        'test-chat-id',
-        'https://example.com/image.jpg',
-        expect.objectContaining({
-          caption: 'Image caption',
-          parse_mode: 'HTML',
-          disable_notification: false,
-          has_spoiler: false,
-        }),
-      );
+      expect(botApi.lastPayload('sendPhoto')).toEqual({
+        chat_id: 'test-chat-id',
+        photo: 'https://example.com/image.jpg',
+        caption: 'Image caption',
+        parse_mode: 'HTML',
+        disable_notification: false,
+        has_spoiler: false,
+      });
     });
 
     it('should throw error if cover is missing for IMAGE type', async () => {
@@ -325,21 +381,19 @@ describe('TelegramPlatform', () => {
         type: PostType.VIDEO,
       };
 
-      mockApi.sendVideo.mockResolvedValue({ message_id: 12345 });
+      botApi.reply('sendVideo', { message_id: 12345 });
 
       const result = await platform.publish(request, mockAccountConfig);
 
       expect(result.postId).toBe('12345');
-      expect(mockApi.sendVideo).toHaveBeenCalledWith(
-        'test-chat-id',
-        'https://example.com/video.mp4',
-        expect.objectContaining({
-          caption: 'Video caption',
-          parse_mode: 'HTML',
-          disable_notification: false,
-          has_spoiler: false,
-        }),
-      );
+      expect(botApi.lastPayload('sendVideo')).toEqual({
+        chat_id: 'test-chat-id',
+        video: 'https://example.com/video.mp4',
+        caption: 'Video caption',
+        parse_mode: 'HTML',
+        disable_notification: false,
+        has_spoiler: false,
+      });
     });
 
     it('should throw error if video is missing for VIDEO type', async () => {
@@ -369,7 +423,7 @@ describe('TelegramPlatform', () => {
         type: PostType.ALBUM,
       };
 
-      mockApi.sendMediaGroup.mockResolvedValue([
+      botApi.reply('sendMediaGroup', [
         { message_id: 12345 },
         { message_id: 12346 },
         { message_id: 12347 },
@@ -378,9 +432,9 @@ describe('TelegramPlatform', () => {
       const result = await platform.publish(request, mockAccountConfig);
 
       expect(result.postId).toBe('12345');
-      expect(mockApi.sendMediaGroup).toHaveBeenCalledWith(
-        'test-chat-id',
-        [
+      expect(botApi.lastPayload('sendMediaGroup')).toEqual({
+        chat_id: 'test-chat-id',
+        media: [
           {
             type: 'photo',
             media: 'https://example.com/image1.jpg',
@@ -401,8 +455,8 @@ describe('TelegramPlatform', () => {
             has_spoiler: false,
           },
         ],
-        { disable_notification: false },
-      );
+        disable_notification: false,
+      });
     });
 
     it('should throw error when using Telegram file_id in album without explicit type', async () => {
@@ -418,7 +472,7 @@ describe('TelegramPlatform', () => {
         "Media item at index 0 must specify 'type' when using Telegram file_id in albums",
       );
 
-      expect(mockApi.sendMediaGroup).not.toHaveBeenCalled();
+      expect(botApi.called('sendMediaGroup')).toBe(false);
     });
 
     it('should respect explicit media type for album items', async () => {
@@ -434,7 +488,7 @@ describe('TelegramPlatform', () => {
         type: PostType.ALBUM,
       };
 
-      mockApi.sendMediaGroup.mockResolvedValue([
+      botApi.reply('sendMediaGroup', [
         { message_id: 12345 },
         { message_id: 12346 },
         { message_id: 12347 },
@@ -442,16 +496,16 @@ describe('TelegramPlatform', () => {
 
       await platform.publish(request, mockAccountConfig);
 
-      expect(mockApi.sendMediaGroup).toHaveBeenCalledWith(
-        'test-chat-id',
-        [
+      expect(botApi.lastPayload('sendMediaGroup')).toEqual({
+        chat_id: 'test-chat-id',
+        media: [
           expect.objectContaining({ type: 'photo', media: 'https://example.com/file1' }),
           expect.objectContaining({ type: 'video', media: 'https://example.com/file2' }),
           // No explicit type and no extension -> falls back to photo
           expect.objectContaining({ type: 'photo', media: 'https://example.com/file3' }),
         ],
-        { disable_notification: false },
-      );
+        disable_notification: false,
+      });
     });
 
     it('should throw error if media array is empty for ALBUM type', async () => {
@@ -478,20 +532,18 @@ describe('TelegramPlatform', () => {
         type: PostType.DOCUMENT,
       };
 
-      mockApi.sendDocument.mockResolvedValue({ message_id: 12345 });
+      botApi.reply('sendDocument', { message_id: 12345 });
 
       const result = await platform.publish(request, mockAccountConfig);
 
       expect(result.postId).toBe('12345');
-      expect(mockApi.sendDocument).toHaveBeenCalledWith(
-        'test-chat-id',
-        'https://example.com/document.pdf',
-        expect.objectContaining({
-          caption: 'Document caption',
-          parse_mode: 'HTML',
-          disable_notification: false,
-        }),
-      );
+      expect(botApi.lastPayload('sendDocument')).toEqual({
+        chat_id: 'test-chat-id',
+        document: 'https://example.com/document.pdf',
+        caption: 'Document caption',
+        parse_mode: 'HTML',
+        disable_notification: false,
+      });
     });
 
     it('should throw error if no document URL is provided', async () => {
@@ -517,20 +569,18 @@ describe('TelegramPlatform', () => {
         type: PostType.AUDIO,
       };
 
-      mockApi.sendAudio.mockResolvedValue({ message_id: 12345 });
+      botApi.reply('sendAudio', { message_id: 12345 });
 
       const result = await platform.publish(request, mockAccountConfig);
 
       expect(result.postId).toBe('12345');
-      expect(mockApi.sendAudio).toHaveBeenCalledWith(
-        'test-chat-id',
-        'https://example.com/audio.mp3',
-        expect.objectContaining({
-          caption: 'Audio caption',
-          parse_mode: 'HTML',
-          disable_notification: false,
-        }),
-      );
+      expect(botApi.lastPayload('sendAudio')).toEqual({
+        chat_id: 'test-chat-id',
+        audio: 'https://example.com/audio.mp3',
+        caption: 'Audio caption',
+        parse_mode: 'HTML',
+        disable_notification: false,
+      });
     });
 
     it('should throw error if audio is missing for AUDIO type', async () => {
@@ -555,15 +605,17 @@ describe('TelegramPlatform', () => {
         type: PostType.IMAGE,
       };
 
-      mockApi.sendPhoto.mockResolvedValue({ message_id: 12345 });
+      botApi.reply('sendPhoto', { message_id: 12345 });
 
       await platform.publish(request, mockAccountConfig);
 
-      expect(mockApi.sendPhoto).toHaveBeenCalledWith(
-        'test-chat-id',
-        'AgACAgIAAxkBAAIC...',
-        expect.any(Object),
-      );
+      expect(botApi.lastPayload('sendPhoto')).toEqual({
+        chat_id: 'test-chat-id',
+        photo: 'AgACAgIAAxkBAAIC...',
+        caption: 'Image caption',
+        has_spoiler: false,
+        disable_notification: false,
+      });
     });
 
     it('should send photo with hasSpoiler flag', async () => {
@@ -574,17 +626,17 @@ describe('TelegramPlatform', () => {
         type: PostType.IMAGE,
       };
 
-      mockApi.sendPhoto.mockResolvedValue({ message_id: 12345 });
+      botApi.reply('sendPhoto', { message_id: 12345 });
 
       await platform.publish(request, mockAccountConfig);
 
-      expect(mockApi.sendPhoto).toHaveBeenCalledWith(
-        'test-chat-id',
-        'https://example.com/image.jpg',
-        expect.objectContaining({
-          has_spoiler: true,
-        }),
-      );
+      expect(botApi.lastPayload('sendPhoto')).toEqual({
+        chat_id: 'test-chat-id',
+        photo: 'https://example.com/image.jpg',
+        caption: 'Spoiler image',
+        has_spoiler: true,
+        disable_notification: false,
+      });
     });
 
     it('should send video with hasSpoiler flag', async () => {
@@ -595,17 +647,17 @@ describe('TelegramPlatform', () => {
         type: PostType.VIDEO,
       };
 
-      mockApi.sendVideo.mockResolvedValue({ message_id: 12345 });
+      botApi.reply('sendVideo', { message_id: 12345 });
 
       await platform.publish(request, mockAccountConfig);
 
-      expect(mockApi.sendVideo).toHaveBeenCalledWith(
-        'test-chat-id',
-        'https://example.com/video.mp4',
-        expect.objectContaining({
-          has_spoiler: true,
-        }),
-      );
+      expect(botApi.lastPayload('sendVideo')).toEqual({
+        chat_id: 'test-chat-id',
+        video: 'https://example.com/video.mp4',
+        caption: 'Spoiler video',
+        has_spoiler: true,
+        disable_notification: false,
+      });
     });
 
     it('should treat non-URL src as fileId', async () => {
@@ -616,15 +668,16 @@ describe('TelegramPlatform', () => {
         type: PostType.DOCUMENT,
       };
 
-      mockApi.sendDocument.mockResolvedValue({ message_id: 12345 });
+      botApi.reply('sendDocument', { message_id: 12345 });
 
       await platform.publish(request, mockAccountConfig);
 
-      expect(mockApi.sendDocument).toHaveBeenCalledWith(
-        'test-chat-id',
-        'BQACAgIAAxkBAAIC...',
-        expect.any(Object),
-      );
+      expect(botApi.lastPayload('sendDocument')).toEqual({
+        chat_id: 'test-chat-id',
+        document: 'BQACAgIAAxkBAAIC...',
+        caption: 'Document caption',
+        disable_notification: false,
+      });
     });
   });
 

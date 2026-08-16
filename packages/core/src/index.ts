@@ -24,6 +24,13 @@ export type {
   PublishOptions,
 } from './platforms/platform.interface.js';
 export type { IAuthValidator } from './platforms/auth-validator.interface.js';
+export type { PlatformModule, PlatformDeps } from './platforms/platform-module.js';
+export type {
+  PlatformCapabilities,
+  PostTypeCapabilities,
+  MediaConstraints,
+  BodyLengthRule,
+} from './platforms/capabilities.js';
 export { PlatformRegistry } from './platforms/platform-registry.js';
 export { AuthValidatorRegistry } from './platforms/auth-validator-registry.js';
 

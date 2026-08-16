@@ -1,4 +1,3 @@
-import { Bot } from 'grammy';
 import {
   MediaInputHelper,
   PostType,
@@ -9,6 +8,7 @@ import type {
   AccountConfig,
   ILogger,
   IPlatform,
+  MediaInput,
   PlatformPublishResponse,
   PostRequest,
   PreviewResult,
@@ -17,6 +17,8 @@ import type {
 import { TelegramTypeDetector } from './telegram-type-detector.js';
 import { toTelegramInput } from './telegram-media.js';
 import { toPlatformError } from './telegram-error.js';
+import { TelegramApi } from './telegram-api.js';
+import { MAX_MEDIA_GROUP_SIZE, telegramCapabilities } from './capabilities.js';
 
 /**
  * Collaborators the Telegram platform needs. Passed explicitly — the package
@@ -43,21 +45,10 @@ const LOG_CONTEXT = 'TelegramPlatform';
 
 export class TelegramPlatform implements IPlatform {
   readonly name = 'telegram';
-  readonly supportedTypes = [
-    PostType.AUTO,
-    PostType.POST,
-    PostType.IMAGE,
-    PostType.VIDEO,
-    PostType.ALBUM,
-    PostType.AUDIO,
-    PostType.DOCUMENT,
-  ];
-  readonly supportsCoverWithMedia = false;
+  readonly capabilities = telegramCapabilities;
 
   private readonly logger: ILogger;
   private readonly typeDetector: TelegramTypeDetector;
-
-  private readonly MAX_MEDIA_GROUP_SIZE = 10;
 
   constructor(deps: TelegramPlatformDeps) {
     this.logger = deps.logger;
@@ -84,12 +75,8 @@ export class TelegramPlatform implements IPlatform {
       );
     }
 
-    const { apiKey } = accountConfig.auth;
-    const bot = new Bot(apiKey, {
-      client: {
-        ...(accountConfig.apiTimeoutSeconds && { timeoutSeconds: accountConfig.apiTimeoutSeconds }),
-      },
-    });
+    const api = new TelegramApi(accountConfig.auth.apiKey, accountConfig.apiTimeoutSeconds);
+    const signal = _options?.signal;
     const chatId = this.resolveChatId(request, accountConfig);
 
     const { processedBody, parseMode, disableNotification, options } = this.prepareMessageData(
@@ -109,71 +96,77 @@ export class TelegramPlatform implements IPlatform {
       switch (actualType) {
         case PostType.POST:
           result = await this.sendMessage(
-            bot,
+            api,
             chatId,
             processedBody!, // Validated in validateRequest
             parseMode,
             disableNotification,
             options,
+            signal,
           );
           break;
 
         case PostType.IMAGE:
           result = await this.sendPhoto(
-            bot,
+            api,
             chatId,
             request.cover!,
             processedBody,
             parseMode,
             disableNotification,
             options,
+            signal,
           );
           break;
 
         case PostType.VIDEO:
           result = await this.sendVideo(
-            bot,
+            api,
             chatId,
             request.video!,
             processedBody,
             parseMode,
             disableNotification,
             options,
+            signal,
           );
           break;
 
         case PostType.AUDIO:
           result = await this.sendAudio(
-            bot,
+            api,
             chatId,
             request.audio!,
             processedBody,
             parseMode,
             disableNotification,
             options,
+            signal,
           );
           break;
 
         case PostType.DOCUMENT:
           result = await this.sendDocument(
-            bot,
+            api,
             chatId,
             request.document!,
             processedBody,
             parseMode,
             disableNotification,
             options,
+            signal,
           );
           break;
 
         case PostType.ALBUM:
           result = await this.sendMediaGroup(
-            bot,
+            api,
             chatId,
             request.media!,
             processedBody,
             parseMode,
             disableNotification,
+            signal,
           );
           break;
 
@@ -244,7 +237,7 @@ export class TelegramPlatform implements IPlatform {
     // Detect Type
     const actualType = this.typeDetector.detectType(request);
 
-    if (!this.supportedTypes.includes(actualType)) {
+    if (!this.capabilities.supportedTypes.includes(actualType)) {
       errors.push(`Post type '${actualType}' is not supported for Telegram`);
     }
 
@@ -336,112 +329,137 @@ export class TelegramPlatform implements IPlatform {
   }
 
   private async sendMessage(
-    bot: Bot,
+    api: TelegramApi,
     chatId: string | number,
     text: string,
     parseMode: string | undefined,
     disableNotification: boolean,
-    options: any,
-  ) {
-    return await bot.api.sendMessage(chatId, text, {
-      ...(parseMode && { parse_mode: parseMode as any }),
-      disable_notification: disableNotification,
-      ...options,
-    });
+    options: TelegramOptions,
+    signal?: AbortSignal,
+  ): Promise<TelegramMessage> {
+    return api.call<TelegramMessage>(
+      'sendMessage',
+      {
+        chat_id: chatId,
+        text,
+        parse_mode: parseMode,
+        disable_notification: disableNotification,
+        ...options,
+      },
+      signal,
+    );
   }
 
   private async sendPhoto(
-    bot: Bot,
+    api: TelegramApi,
     chatId: string | number,
-    cover: any,
+    cover: MediaInput,
     caption: string | undefined,
     parseMode: string | undefined,
     disableNotification: boolean,
-    options: any,
-  ) {
-    const photo = toTelegramInput(cover);
-    const hasSpoiler = MediaInputHelper.getHasSpoiler(cover);
-
-    return await bot.api.sendPhoto(chatId, photo, {
-      caption,
-      ...(parseMode && { parse_mode: parseMode as any }),
-      disable_notification: disableNotification,
-      has_spoiler: hasSpoiler,
-      ...options,
-    });
+    options: TelegramOptions,
+    signal?: AbortSignal,
+  ): Promise<TelegramMessage> {
+    return api.call<TelegramMessage>(
+      'sendPhoto',
+      {
+        chat_id: chatId,
+        photo: toTelegramInput(cover),
+        caption,
+        parse_mode: parseMode,
+        disable_notification: disableNotification,
+        has_spoiler: MediaInputHelper.getHasSpoiler(cover),
+        ...options,
+      },
+      signal,
+    );
   }
 
   private async sendVideo(
-    bot: Bot,
+    api: TelegramApi,
     chatId: string | number,
-    video: any,
+    video: MediaInput,
     caption: string | undefined,
     parseMode: string | undefined,
     disableNotification: boolean,
-    options: any,
-  ) {
-    const videoInput = toTelegramInput(video);
-    const hasSpoiler = MediaInputHelper.getHasSpoiler(video);
-
-    return await bot.api.sendVideo(chatId, videoInput, {
-      caption,
-      ...(parseMode && { parse_mode: parseMode as any }),
-      disable_notification: disableNotification,
-      has_spoiler: hasSpoiler,
-      ...options,
-    });
+    options: TelegramOptions,
+    signal?: AbortSignal,
+  ): Promise<TelegramMessage> {
+    return api.call<TelegramMessage>(
+      'sendVideo',
+      {
+        chat_id: chatId,
+        video: toTelegramInput(video),
+        caption,
+        parse_mode: parseMode,
+        disable_notification: disableNotification,
+        has_spoiler: MediaInputHelper.getHasSpoiler(video),
+        ...options,
+      },
+      signal,
+    );
   }
 
   private async sendAudio(
-    bot: Bot,
+    api: TelegramApi,
     chatId: string | number,
-    audio: any,
+    audio: MediaInput,
     caption: string | undefined,
     parseMode: string | undefined,
     disableNotification: boolean,
-    options: any,
-  ) {
-    const audioInput = toTelegramInput(audio);
-
-    return await bot.api.sendAudio(chatId, audioInput, {
-      caption,
-      ...(parseMode && { parse_mode: parseMode as any }),
-      disable_notification: disableNotification,
-      ...options,
-    });
+    options: TelegramOptions,
+    signal?: AbortSignal,
+  ): Promise<TelegramMessage> {
+    return api.call<TelegramMessage>(
+      'sendAudio',
+      {
+        chat_id: chatId,
+        audio: toTelegramInput(audio),
+        caption,
+        parse_mode: parseMode,
+        disable_notification: disableNotification,
+        ...options,
+      },
+      signal,
+    );
   }
 
   private async sendDocument(
-    bot: Bot,
+    api: TelegramApi,
     chatId: string | number,
-    document: any,
+    document: MediaInput,
     caption: string | undefined,
     parseMode: string | undefined,
     disableNotification: boolean,
-    options: any,
-  ) {
-    const documentInput = toTelegramInput(document);
-
-    return await bot.api.sendDocument(chatId, documentInput, {
-      caption,
-      ...(parseMode && { parse_mode: parseMode as any }),
-      disable_notification: disableNotification,
-      ...options,
-    });
+    options: TelegramOptions,
+    signal?: AbortSignal,
+  ): Promise<TelegramMessage> {
+    return api.call<TelegramMessage>(
+      'sendDocument',
+      {
+        chat_id: chatId,
+        document: toTelegramInput(document),
+        caption,
+        parse_mode: parseMode,
+        disable_notification: disableNotification,
+        ...options,
+      },
+      signal,
+    );
   }
 
   private async sendMediaGroup(
-    bot: Bot,
+    api: TelegramApi,
     chatId: string | number,
-    media: any[],
+    media: MediaInput[],
     caption: string | undefined,
     parseMode: string | undefined,
     disableNotification: boolean,
-  ) {
-    const mediaGroup = media.slice(0, this.MAX_MEDIA_GROUP_SIZE).map((item, index) => {
+    signal?: AbortSignal,
+  ): Promise<TelegramMessage[]> {
+    const mediaGroup = media.slice(0, MAX_MEDIA_GROUP_SIZE).map((item, index) => {
       const url = MediaInputHelper.getUrl(item);
       const fileId = MediaInputHelper.getPlatformRef(item);
-      const hasSpoiler = MediaInputHelper.getHasSpoiler(item);
       const explicitType = MediaInputHelper.getType(item);
       const mediaInput = fileId || url;
 
@@ -455,43 +473,24 @@ export class TelegramPlatform implements IPlatform {
         );
       }
 
-      // Use explicit type if provided, otherwise detect by URL extension
-      const telegramType = this.mapMediaTypeToTelegram(explicitType, url);
-
       return {
-        type: telegramType,
+        type: mapMediaTypeToTelegram(explicitType, url),
         media: mediaInput,
         caption: index === 0 ? caption : undefined,
-        ...(parseMode && index === 0 && { parse_mode: parseMode as any }),
-        has_spoiler: hasSpoiler,
-      } as any;
+        parse_mode: parseMode && index === 0 ? parseMode : undefined,
+        has_spoiler: MediaInputHelper.getHasSpoiler(item),
+      };
     });
 
-    return await bot.api.sendMediaGroup(chatId, mediaGroup, {
-      disable_notification: disableNotification,
-    });
-  }
-
-  /**
-   * Map MediaType to Telegram media group type
-   * Falls back to URL extension detection if no explicit type provided
-   */
-  private mapMediaTypeToTelegram(
-    explicitType: string | undefined,
-    url: string | undefined,
-  ): 'photo' | 'video' {
-    if (explicitType) {
-      // Telegram sendMediaGroup only supports photo and video
-      if (explicitType === 'video') {
-        return 'video';
-      }
-      // image, audio, document all map to photo in media groups
-      return 'photo';
-    }
-
-    // Fallback: detect by URL extension
-    const isVideo = url ? /\.(mp4|mov|avi|mkv)$/i.test(url) : false;
-    return isVideo ? 'video' : 'photo';
+    return api.call<TelegramMessage[]>(
+      'sendMediaGroup',
+      {
+        chat_id: chatId,
+        media: mediaGroup,
+        disable_notification: disableNotification,
+      },
+      signal,
+    );
   }
 
   private getRequiredFieldsErrors(request: PostRequest, type: PostType): string[] {
@@ -649,4 +648,29 @@ export class TelegramPlatform implements IPlatform {
     }
     return undefined;
   }
+}
+
+/**
+ * Media groups accept only `photo` and `video`, so every other kind of media
+ * is sent as a photo; when the type is not stated, the URL extension decides.
+ */
+function mapMediaTypeToTelegram(
+  explicitType: string | undefined,
+  url: string | undefined,
+): 'photo' | 'video' {
+  if (explicitType) {
+    return explicitType === 'video' ? 'video' : 'photo';
+  }
+
+  const isVideo = url ? /\.(mp4|mov|avi|mkv)$/i.test(url) : false;
+  return isVideo ? 'video' : 'photo';
+}
+
+/** Platform-specific options passed straight through to the Bot API. */
+type TelegramOptions = Record<string, unknown>;
+
+/** The parts of a Bot API `Message` this platform reads. */
+interface TelegramMessage {
+  message_id: number;
+  [key: string]: unknown;
 }

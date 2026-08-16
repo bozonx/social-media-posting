@@ -51,8 +51,17 @@ export default defineConfig({
       },
       {
         test: {
-          name: 'examples',
+          name: 'example-embedded',
           root: './examples/embedded',
+          environment: 'node',
+          include: ['test/**/*.spec.ts'],
+          testTimeout: 5000,
+        },
+      },
+      {
+        test: {
+          name: 'example-custom-platform',
+          root: './examples/custom-platform',
           environment: 'node',
           include: ['test/**/*.spec.ts'],
           testTimeout: 5000,

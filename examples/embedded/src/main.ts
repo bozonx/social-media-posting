@@ -5,7 +5,7 @@
  * it should serve, preview, publish. No HTTP, no framework, no globals.
  */
 import { createPostingClient, PostType } from '@bozonx/social-posting';
-import { TelegramAuthValidator, TelegramPlatform } from '@bozonx/social-posting-telegram';
+import { telegram } from '@bozonx/social-posting-telegram';
 import type { ILogger } from '@bozonx/social-posting';
 
 const logger: ILogger = {
@@ -26,8 +26,7 @@ const client = createPostingClient({
   },
   requestTimeoutSecs: 30,
   logger,
-  platforms: [new TelegramPlatform({ logger })],
-  authValidators: [new TelegramAuthValidator()],
+  platforms: [telegram],
 });
 
 const request = {

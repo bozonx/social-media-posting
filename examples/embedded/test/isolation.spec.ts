@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createPostingClient, PostType } from '@bozonx/social-posting';
-import { TelegramAuthValidator, TelegramPlatform } from '@bozonx/social-posting-telegram';
+import { telegram } from '@bozonx/social-posting-telegram';
 import type { ILogger } from '@bozonx/social-posting';
 
 function recordingLogger(): ILogger & { lines: string[] } {
@@ -20,8 +20,7 @@ function clientWith(logger: ILogger, apiKey: string, channelId: string) {
       main: { platform: 'telegram', auth: { apiKey }, channelId },
     },
     logger,
-    platforms: [new TelegramPlatform({ logger })],
-    authValidators: [new TelegramAuthValidator()],
+    platforms: [telegram],
   });
 }
 

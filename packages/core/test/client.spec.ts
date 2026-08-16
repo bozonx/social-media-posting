@@ -5,12 +5,20 @@ import { ErrorCode } from '../src/errors/error-code.js';
 import type { ILogger } from '../src/logger/logger.js';
 import type { IAuthValidator } from '../src/platforms/auth-validator.interface.js';
 import type { IPlatform } from '../src/platforms/platform.interface.js';
+import type { PlatformModule } from '../src/platforms/platform-module.js';
 
-function fakePlatform(name = 'fake'): IPlatform & { publish: ReturnType<typeof vi.fn> } {
+type FakePlatform = IPlatform & {
+  publish: ReturnType<typeof vi.fn>;
+  preview: ReturnType<typeof vi.fn>;
+};
+
+function fakePlatform(name = 'fake'): FakePlatform {
   return {
     name,
-    supportedTypes: [PostType.AUTO, PostType.POST],
-    publish: vi.fn().mockResolvedValue({ postId: '1', url: `https://${name}/1` }),
+    capabilities: { name, supportedTypes: [PostType.AUTO, PostType.POST] },
+    publish: vi
+      .fn()
+      .mockResolvedValue({ status: 'published', postId: '1', url: `https://${name}/1` }),
     preview: vi.fn().mockResolvedValue({
       success: true,
       data: {
@@ -22,6 +30,16 @@ function fakePlatform(name = 'fake'): IPlatform & { publish: ReturnType<typeof v
         warnings: [],
       },
     }),
+  };
+}
+
+/** Wrap a platform instance in the descriptor a host would register. */
+function moduleOf(platform: FakePlatform, authValidator?: IAuthValidator): PlatformModule {
+  return {
+    name: platform.name,
+    capabilities: platform.capabilities,
+    create: () => platform,
+    authValidator,
   };
 }
 
@@ -38,7 +56,7 @@ const request = {
 
 describe('createPostingClient', () => {
   it('serves only the platforms it was given', () => {
-    const client = createPostingClient({ accounts, platforms: [fakePlatform()] });
+    const client = createPostingClient({ accounts, platforms: [moduleOf(fakePlatform())] });
 
     expect(client.getRegisteredPlatforms()).toEqual(['fake']);
   });
@@ -58,7 +76,7 @@ describe('createPostingClient', () => {
     const client = createPostingClient({ accounts });
     const platform = fakePlatform();
 
-    client.registerPlatform(platform);
+    client.registerPlatform(moduleOf(platform));
     const result = await client.post(request);
 
     expect(result.success).toBe(true);
@@ -75,7 +93,11 @@ describe('createPostingClient', () => {
     };
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
-    const client = createPostingClient({ accounts, logger, platforms: [fakePlatform()] });
+    const client = createPostingClient({
+      accounts,
+      logger,
+      platforms: [moduleOf(fakePlatform())],
+    });
     await client.post(request);
 
     expect(lines.some(line => line.startsWith('log:Publishing to fake'))).toBe(true);
@@ -90,8 +112,7 @@ describe('createPostingClient', () => {
     };
     const client = createPostingClient({
       accounts: { main: { platform: 'fake', auth: {} } },
-      platforms: [fakePlatform()],
-      authValidators: [validator],
+      platforms: [moduleOf(fakePlatform(), validator)],
     });
 
     const result = await client.post(request);
@@ -114,10 +135,10 @@ describe('createPostingClient', () => {
   it('keeps two clients in one process independent', async () => {
     const platformA = fakePlatform();
     const platformB = fakePlatform();
-    const clientA = createPostingClient({ accounts, platforms: [platformA] });
+    const clientA = createPostingClient({ accounts, platforms: [moduleOf(platformA)] });
     const clientB = createPostingClient({
       accounts: { main: { platform: 'fake', auth: { token: 'other' } } },
-      platforms: [platformB],
+      platforms: [moduleOf(platformB)],
     });
 
     await clientA.post(request);
@@ -128,7 +149,7 @@ describe('createPostingClient', () => {
 
   it('previews without touching the publish path', async () => {
     const platform = fakePlatform();
-    const client = createPostingClient({ accounts, platforms: [platform] });
+    const client = createPostingClient({ accounts, platforms: [moduleOf(platform)] });
 
     const result = await client.preview(request);
 

@@ -1,0 +1,13 @@
+{
+  "name": "@bozonx/example-custom-platform",
+  "version": "0.0.0",
+  "private": true,
+  "description": "A social network implemented outside the library, in one file",
+  "type": "module",
+  "scripts": {
+    "start": "node --experimental-strip-types src/main.ts"
+  },
+  "dependencies": {
+    "@bozonx/social-posting": "workspace:*"
+  }
+}

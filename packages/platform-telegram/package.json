@@ -28,9 +28,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run"
   },
-  "dependencies": {
-    "grammy": "^1.40.0"
-  },
+  "dependencies": {},
   "peerDependencies": {
     "@bozonx/social-posting": "workspace:^"
   },

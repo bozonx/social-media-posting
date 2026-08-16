@@ -4,8 +4,8 @@ import { AuthValidatorRegistry } from './platforms/auth-validator-registry.js';
 import { PostService } from './services/post.service.js';
 import { PreviewService } from './services/preview.service.js';
 import { ConsoleLogger, type ILogger } from './logger/logger.js';
-import type { IPlatform } from './platforms/platform.interface.js';
-import type { IAuthValidator } from './platforms/auth-validator.interface.js';
+import type { PlatformModule } from './platforms/platform-module.js';
+import type { PlatformCapabilities } from './platforms/capabilities.js';
 import type { PostRequest } from './types/post-request.js';
 import type { PostResult, StatusResult } from './types/post-response.js';
 import type { PreviewResult } from './types/preview-response.js';
@@ -16,10 +16,11 @@ import type { PublishCallOptions } from './services/post.service.js';
  * Everything needed to build a posting client.
  */
 export interface PostingClientOptions extends PostingConfigInput {
-  /** Platform implementations to serve. The core ships none of its own. */
-  platforms?: IPlatform[];
-  /** Credential-shape validators, one per platform at most. */
-  authValidators?: IAuthValidator[];
+  /**
+   * Networks this client can publish to, as the descriptors their packages
+   * export. The core ships none of its own.
+   */
+  platforms?: PlatformModule[];
   /**
    * Logger the client writes to. Defaults to a console logger at `logLevel`.
    * Nothing outside the client is ever reconfigured — no ambient logger is touched.
@@ -57,14 +58,21 @@ export interface PostingClient {
   preview(request: PostRequest): Promise<PreviewResult>;
 
   /**
-   * Register an additional platform after construction.
-   * @param platform - Platform implementation.
-   * @param authValidator - Optional validator for that platform's credentials.
+   * Register an additional network after construction.
+   * @param platformModule - The descriptor the network's package exports.
    */
-  registerPlatform(platform: IPlatform, authValidator?: IAuthValidator): void;
+  registerPlatform(platformModule: PlatformModule): void;
 
   /** Names of every platform this client can publish to. */
   getRegisteredPlatforms(): string[];
+
+  /**
+   * Read what a platform accepts — post types, limits, formats — so a host UI
+   * can show its rules without attempting a publish.
+   * @param platform - Platform name.
+   * @throws ValidationError if the platform is not registered.
+   */
+  getCapabilities(platform: string): PlatformCapabilities;
 }
 
 /**
@@ -84,11 +92,15 @@ export function createPostingClient(options: PostingClientOptions): PostingClien
   const platformRegistry = new PlatformRegistry();
   const authValidatorRegistry = new AuthValidatorRegistry();
 
-  for (const platform of options.platforms ?? []) {
-    platformRegistry.register(platform);
-  }
-  for (const validator of options.authValidators ?? []) {
-    authValidatorRegistry.register(validator);
+  const register = (platformModule: PlatformModule): void => {
+    platformRegistry.register(platformModule.create({ logger }));
+    if (platformModule.authValidator) {
+      authValidatorRegistry.register(platformModule.authValidator);
+    }
+  };
+
+  for (const platformModule of options.platforms ?? []) {
+    register(platformModule);
   }
 
   const deps = { config, platformRegistry, authValidatorRegistry, logger };
@@ -112,15 +124,16 @@ export function createPostingClient(options: PostingClientOptions): PostingClien
       return previewService.preview(request);
     },
 
-    registerPlatform(platform: IPlatform, authValidator?: IAuthValidator): void {
-      platformRegistry.register(platform);
-      if (authValidator) {
-        authValidatorRegistry.register(authValidator);
-      }
+    registerPlatform(platformModule: PlatformModule): void {
+      register(platformModule);
     },
 
     getRegisteredPlatforms(): string[] {
       return platformRegistry.getRegisteredPlatforms();
+    },
+
+    getCapabilities(platform: string): PlatformCapabilities {
+      return platformRegistry.getCapabilities(platform);
     },
   };
 }

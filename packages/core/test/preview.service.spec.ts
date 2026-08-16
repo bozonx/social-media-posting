@@ -31,7 +31,7 @@ const previewResult: PreviewResponse = {
 function createService(accounts: Record<string, unknown> = { 'test-channel': telegramAccount }) {
   const platform = {
     name: 'telegram',
-    supportedTypes: [],
+    capabilities: { name: 'telegram', supportedTypes: [] },
     publish: vi.fn(),
     preview: vi.fn().mockResolvedValue(previewResult),
   } satisfies IPlatform & { preview: ReturnType<typeof vi.fn> };

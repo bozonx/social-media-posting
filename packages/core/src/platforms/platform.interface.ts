@@ -1,9 +1,9 @@
-import type { PostType } from '../types/post-type.js';
 import type { PostRequest } from '../types/post-request.js';
 import type { PreviewResult } from '../types/preview-response.js';
 import type { ResolvedAccountConfig } from '../types/account-config.js';
 import type { ResumeHandle } from '../types/resume-handle.js';
 import type { PlatformError } from '../errors/platform-error.js';
+import type { PlatformCapabilities } from './capabilities.js';
 
 /**
  * What a platform reports after `publish()` returns without throwing.
@@ -67,10 +67,12 @@ export interface PublishOptions {
 export interface IPlatform {
   /** Platform name (e.g. 'telegram'). */
   readonly name: string;
-  /** Post types this platform can publish. */
-  readonly supportedTypes: PostType[];
-  /** Whether a cover image may accompany other media (e.g. a video cover). */
-  readonly supportsCoverWithMedia?: boolean;
+  /**
+   * What this platform accepts, as data: post types, limits, formats and
+   * transport traits. Generic validation and preview read it, so a platform
+   * states its rules once instead of re-implementing the checks.
+   */
+  readonly capabilities: PlatformCapabilities;
 
   /**
    * Publish a post.

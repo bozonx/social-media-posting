@@ -12,7 +12,7 @@ import { createTestApp } from './test-app.factory.js';
 /** A platform that never finishes on its own, so the abort path is observable. */
 class SlowPlatform implements IPlatform {
   readonly name = 'slow-platform';
-  readonly supportedTypes = [PostType.POST];
+  readonly capabilities = { name: 'slow-platform', supportedTypes: [PostType.POST] };
 
   public wasAborted = false;
 

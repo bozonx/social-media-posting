@@ -8,7 +8,7 @@ import {
   PostingConfig,
   PreviewService,
 } from '@bozonx/social-posting';
-import { TelegramAuthValidator, TelegramPlatform } from '@bozonx/social-posting-telegram';
+import { telegram } from '@bozonx/social-posting-telegram';
 import type { ILogger, PostServiceDeps } from '@bozonx/social-posting';
 import { PostController } from './post.controller.js';
 import { PinoLoggerAdapter } from '../../common/logging/pino-logger.adapter.js';
@@ -59,8 +59,14 @@ export const POST_SERVICE_DEPS = Symbol('POST_SERVICE_DEPS');
         const platformRegistry = new PlatformRegistry();
         const authValidatorRegistry = new AuthValidatorRegistry();
 
-        platformRegistry.register(new TelegramPlatform({ logger }));
-        authValidatorRegistry.register(new TelegramAuthValidator());
+        // The networks this deployment serves. Adding one is a line here plus
+        // a dependency — nothing in the core changes.
+        for (const platformModule of [telegram]) {
+          platformRegistry.register(platformModule.create({ logger }));
+          if (platformModule.authValidator) {
+            authValidatorRegistry.register(platformModule.authValidator);
+          }
+        }
 
         return { config, platformRegistry, authValidatorRegistry, logger };
       },

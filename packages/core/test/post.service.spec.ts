@@ -46,14 +46,17 @@ const createPlatformResult = (
 function createService(configOverrides: Record<string, unknown> = {}) {
   const platform = {
     name: 'telegram',
-    supportedTypes: [
-      PostType.AUTO,
-      PostType.POST,
-      PostType.IMAGE,
-      PostType.VIDEO,
-      PostType.ALBUM,
-      PostType.DOCUMENT,
-    ],
+    capabilities: {
+      name: 'telegram',
+      supportedTypes: [
+        PostType.AUTO,
+        PostType.POST,
+        PostType.IMAGE,
+        PostType.VIDEO,
+        PostType.ALBUM,
+        PostType.DOCUMENT,
+      ],
+    },
     publish: vi.fn<IPlatform['publish']>(),
     preview: vi.fn<IPlatform['preview']>(),
   };

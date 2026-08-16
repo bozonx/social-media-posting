@@ -9,14 +9,17 @@ describe('PostController (e2e)', () => {
 
   const mockTelegramPlatform = {
     name: 'telegram',
-    supportedTypes: [
-      PostType.AUTO,
-      PostType.POST,
-      PostType.IMAGE,
-      PostType.VIDEO,
-      PostType.ALBUM,
-      PostType.DOCUMENT,
-    ],
+    capabilities: {
+      name: 'telegram',
+      supportedTypes: [
+        PostType.AUTO,
+        PostType.POST,
+        PostType.IMAGE,
+        PostType.VIDEO,
+        PostType.ALBUM,
+        PostType.DOCUMENT,
+      ],
+    },
     publish: vi.fn<IPlatform['publish']>(),
     preview: vi.fn<IPlatform['preview']>(),
   };
@@ -136,8 +139,8 @@ describe('PostController (e2e)', () => {
     });
 
     it('should fail when post type is not supported', async () => {
-      const originalSupportedTypes = [...mockTelegramPlatform.supportedTypes];
-      mockTelegramPlatform.supportedTypes = []; // Empty list
+      const originalSupportedTypes = [...mockTelegramPlatform.capabilities.supportedTypes];
+      mockTelegramPlatform.capabilities.supportedTypes = [];
 
       const payload = {
         platform: 'telegram',
@@ -155,7 +158,7 @@ describe('PostController (e2e)', () => {
         payload,
       });
 
-      mockTelegramPlatform.supportedTypes = originalSupportedTypes;
+      mockTelegramPlatform.capabilities.supportedTypes = originalSupportedTypes;
 
       expect(response.statusCode).toBe(200);
       const body = JSON.parse(response.body);

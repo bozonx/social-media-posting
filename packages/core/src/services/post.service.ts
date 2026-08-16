@@ -56,7 +56,7 @@ export class PostService extends BasePostService {
       const { platform, accountConfig } = this.validateRequest(request);
 
       const postType = request.type || PostType.AUTO;
-      if (!platform.supportedTypes.includes(postType)) {
+      if (!platform.capabilities.supportedTypes.includes(postType)) {
         throw new ValidationError(
           `Post type "${postType}" is not supported by ${request.platform}`,
         );

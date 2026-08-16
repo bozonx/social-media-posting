@@ -1,4 +1,5 @@
 import type { IPlatform } from './platform.interface.js';
+import type { PlatformCapabilities } from './capabilities.js';
 import { ValidationError } from '../errors/posting-error.js';
 
 /**
@@ -41,5 +42,15 @@ export class PlatformRegistry {
    */
   getRegisteredPlatforms(): string[] {
     return Array.from(this.platforms.keys());
+  }
+
+  /**
+   * Read what a platform accepts, so a host UI can render its limits without
+   * attempting a publish.
+   * @param platformName - Platform name.
+   * @throws ValidationError if the platform is not registered.
+   */
+  getCapabilities(platformName: string): PlatformCapabilities {
+    return this.get(platformName).capabilities;
   }
 }

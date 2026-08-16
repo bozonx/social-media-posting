@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+### 2.0.0 — Phase 3: the public extension API
+
+A network can now be implemented, registered and published to without touching the core.
+
+- **`PlatformModule`** is the single object a network package exports: its name, its
+  capabilities, a `create(deps)` factory and an optional credential validator.
+  `@bozonx/social-posting-telegram` exports `telegram`.
+- **`createPostingClient({ platforms })`** takes those descriptors; `client.registerPlatform()`
+  takes one at runtime. Telegram is no longer instantiated anywhere inside the core.
+- **`PlatformCapabilities`** describes a network as data: supported post types and their
+  required/forbidden fields, body-length and format rules, media constraints, transport traits
+  (`supportsUrlPassthrough`, `requiresByteUpload`), scheduling and draft support, and documented
+  rate limits. `IPlatform.supportedTypes` and `supportsCoverWithMedia` are replaced by
+  `IPlatform.capabilities`.
+- **`client.getCapabilities(platform)`** exposes that to a host UI without attempting a publish.
+- **grammY is gone.** Telegram now talks to the Bot API over plain `fetch`, through the shared
+  `httpRequest()` helper, so the package has an empty `dependencies`. Its tests assert the JSON
+  that actually goes on the wire rather than an SDK's method calls.
+- **New:** `examples/custom-platform/` implements a network entirely outside the library, and its
+  tests run in CI — proof the seam works from the outside, not just from within this repository.
+
 ### 2.0.0 — Phase 2: the result contract
 
 **Breaking.** Everything `publish()` can return other than a plain success is now described by
