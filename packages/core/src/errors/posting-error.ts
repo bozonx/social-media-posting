@@ -4,22 +4,36 @@ import { ErrorCode } from './error-code.js';
  * Base class for every error this library throws deliberately.
  *
  * Framework-free replacement for the HTTP exceptions the core used to throw:
- * the host decides how (or whether) to turn these into HTTP responses.
+ * the host decides how — or whether — to turn these into HTTP responses.
  */
 export class PostingError extends Error {
   /** Machine-readable classification of the failure. */
   readonly code: ErrorCode;
 
-  constructor(message: string, code: ErrorCode, options?: { cause?: unknown }) {
-    super(message, options as ErrorOptions);
+  /**
+   * Whether repeating the same call could succeed.
+   *
+   * This library never retries on the caller's behalf (beyond a single
+   * transport-level retry before any bytes of a request body are sent). The
+   * flag exists so the host's own backoff has something to key on.
+   */
+  readonly retryable: boolean;
+
+  constructor(
+    message: string,
+    code: ErrorCode,
+    options?: { cause?: unknown; retryable?: boolean },
+  ) {
+    super(message, { cause: options?.cause });
     this.name = new.target.name;
     this.code = code;
+    this.retryable = options?.retryable ?? false;
   }
 }
 
 /**
  * The request cannot be published as given. Never retryable: the same input
- * will fail the same way.
+ * fails the same way.
  */
 export class ValidationError extends PostingError {
   /** Individual validation messages, when the failure has more than one cause. */
@@ -27,7 +41,7 @@ export class ValidationError extends PostingError {
 
   constructor(errors: string | string[], options?: { cause?: unknown }) {
     const list = Array.isArray(errors) ? errors : [errors];
-    super(list.join('; '), ErrorCode.VALIDATION_ERROR, options);
+    super(list.join('; '), ErrorCode.VALIDATION_ERROR, { cause: options?.cause });
     this.errors = list;
   }
 }
@@ -38,6 +52,8 @@ export class ValidationError extends PostingError {
  */
 export class AbortedError extends PostingError {
   constructor(message = 'Operation aborted', code: ErrorCode = ErrorCode.TIMEOUT_ERROR) {
-    super(message, code);
+    // The caller aborted or ran out of time; whether that is worth repeating is
+    // the host's call, and a timeout usually is.
+    super(message, code, { retryable: code === ErrorCode.TIMEOUT_ERROR });
   }
 }

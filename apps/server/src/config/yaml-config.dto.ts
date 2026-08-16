@@ -53,24 +53,6 @@ export class YamlConfigDto {
   requestTimeoutSecs: number = 60;
 
   /**
-   * Number of retry attempts on error
-   * Must be between 0 and 10
-   */
-  @IsInt()
-  @Min(0)
-  @Max(10)
-  retryAttempts: number = 3;
-
-  /**
-   * Delay between retry attempts in milliseconds
-   * Must be between 0 and 60000 (1 minute)
-   */
-  @IsInt()
-  @Min(0)
-  @Max(60000)
-  retryDelayMs: number = 1000;
-
-  /**
    * Named account configurations
    */
   @IsOptional()

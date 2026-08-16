@@ -12,9 +12,11 @@ import type {
   PlatformPublishResponse,
   PostRequest,
   PreviewResult,
+  PublishOptions,
 } from '@bozonx/social-posting';
 import { TelegramTypeDetector } from './telegram-type-detector.js';
 import { toTelegramInput } from './telegram-media.js';
+import { toPlatformError } from './telegram-error.js';
 
 /**
  * Collaborators the Telegram platform needs. Passed explicitly — the package
@@ -65,8 +67,9 @@ export class TelegramPlatform implements IPlatform {
   async publish(
     request: PostRequest,
     accountConfig: TelegramAccountConfig,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    abortSignal?: AbortSignal,
+    // Telegram publishes in a single Bot API call, so there is no partial
+    // progress to resume from and no deferred result to check on.
+    _options?: PublishOptions,
   ): Promise<PlatformPublishResponse> {
     const { errors, warnings, actualType } = this.validateRequest(request);
 
@@ -179,12 +182,13 @@ export class TelegramPlatform implements IPlatform {
       }
     } catch (error) {
       const duration = Date.now() - startTime;
+      const platformError = toPlatformError(error);
       this.logger.error(
-        `Telegram API request failed after ${duration}ms (chat: ${chatId}, type: ${actualType})`,
-        (error as Error)?.stack,
+        `Telegram API request failed after ${duration}ms (chat: ${chatId}, type: ${actualType}, code: ${platformError.code})`,
+        platformError.stack,
         LOG_CONTEXT,
       );
-      throw error;
+      throw platformError;
     }
 
     const totalDuration = Date.now() - startTime;
@@ -194,6 +198,7 @@ export class TelegramPlatform implements IPlatform {
     );
 
     return {
+      status: 'published',
       postId: String(result.message_id || result[0]?.message_id),
       url: this.buildPostUrl(chatId, result.message_id || result[0]?.message_id),
       raw: { ok: true, result },

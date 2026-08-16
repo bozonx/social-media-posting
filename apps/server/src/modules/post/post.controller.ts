@@ -18,7 +18,7 @@ export class PostController {
   async publish(@Body() request: PostRequestDto, @Req() req: FastifyRequest): Promise<PostResult> {
     const { signal, cleanup } = this.createAbortSignal(req);
     try {
-      return await this.postService.publish(request, signal);
+      return await this.postService.publish(request, { signal });
     } finally {
       cleanup();
     }

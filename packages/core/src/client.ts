@@ -7,8 +7,10 @@ import { ConsoleLogger, type ILogger } from './logger/logger.js';
 import type { IPlatform } from './platforms/platform.interface.js';
 import type { IAuthValidator } from './platforms/auth-validator.interface.js';
 import type { PostRequest } from './types/post-request.js';
-import type { PostResult } from './types/post-response.js';
+import type { PostResult, StatusResult } from './types/post-response.js';
 import type { PreviewResult } from './types/preview-response.js';
+import type { ResumeHandle } from './types/resume-handle.js';
+import type { PublishCallOptions } from './services/post.service.js';
 
 /**
  * Everything needed to build a posting client.
@@ -30,11 +32,23 @@ export interface PostingClientOptions extends PostingConfigInput {
  */
 export interface PostingClient {
   /**
-   * Publish a post.
+   * Publish a post. Exactly one attempt; retrying is the caller's job.
    * @param request - Post request with platform, content and media.
-   * @param abortSignal - Aborts the operation, including the in-flight platform call.
+   * @param options - Abort signal and optional resume handle from a failed attempt.
    */
-  post(request: PostRequest, abortSignal?: AbortSignal): Promise<PostResult>;
+  post(request: PostRequest, options?: PublishCallOptions): Promise<PostResult>;
+
+  /**
+   * Check on a post that `post()` left in `processing`.
+   * @param request - Enough of a request to resolve the platform and credentials.
+   * @param handle - The handle `post()` returned.
+   * @param signal - Aborts the operation.
+   */
+  checkStatus(
+    request: Pick<PostRequest, 'platform' | 'account' | 'auth'>,
+    handle: ResumeHandle,
+    signal?: AbortSignal,
+  ): Promise<StatusResult>;
 
   /**
    * Validate a post and report what publishing it would do, without publishing.
@@ -82,8 +96,16 @@ export function createPostingClient(options: PostingClientOptions): PostingClien
   const previewService = new PreviewService(deps);
 
   return {
-    post(request: PostRequest, abortSignal?: AbortSignal): Promise<PostResult> {
-      return postService.publish(request, abortSignal);
+    post(request: PostRequest, options?: PublishCallOptions): Promise<PostResult> {
+      return postService.publish(request, options);
+    },
+
+    checkStatus(
+      request: Pick<PostRequest, 'platform' | 'account' | 'auth'>,
+      handle: ResumeHandle,
+      signal?: AbortSignal,
+    ): Promise<StatusResult> {
+      return postService.checkStatus(request, handle, signal);
     },
 
     preview(request: PostRequest): Promise<PreviewResult> {

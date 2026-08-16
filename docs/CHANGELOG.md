@@ -2,6 +2,36 @@
 
 ## Unreleased
 
+### 2.0.0 — Phase 2: the result contract
+
+**Breaking.** Everything `publish()` can return other than a plain success is now described by
+types, once.
+
+- **One attempt per call.** `retryAttempts` and `retryDelayMs` are gone from the library, from
+  `config.yaml` and from the HTTP shell. Stacked with a caller's own retry and a queue's
+  `attempts`, the old defaults turned one post into up to 45 platform calls. Retrying is the
+  host's job.
+- **The one exception is transport-level.** `httpRequest()` repeats a request exactly once when
+  the connection failed before the request completed and the body can be replayed. A request the
+  platform may have seen is never repeated automatically.
+- **`PlatformError`** carries `code`, `retryable`, `retryAfterMs`, `httpStatus`, `platformCode`,
+  `resumeHandle` and `cause`. Platforms throw it; the core no longer sniffs error strings or
+  reads vendor-specific fields.
+- **New error codes:** `CONTENT_REJECTED`, `QUOTA_EXCEEDED`, `AUTH_REFRESH_REQUIRED`.
+- **Telegram error mapping moved into `@bozonx/social-posting-telegram`**, and it now reads
+  `parameters.retry_after` into `retryAfterMs`. `'fetch failed'` / `'undici'` string matching and
+  grammY field access are gone from the core.
+- **Publication status.** `publish()` returns `{ status: 'published' | 'processing', postId?,
+  url?, handle?, checkAfterMs? }`, and `IPlatform.checkStatus(handle)` is available for networks
+  that materialize posts asynchronously. Nothing in this library polls.
+- **Resumable operations.** A failure that left progress behind carries a JSON-serializable
+  `resumeHandle`; `post(request, { resume })` continues from that step. Without this the
+  "the host retries" model is not merely incomplete but wrong for multi-step publications.
+- **`post()` takes an options object** (`{ signal, resume }`) instead of a bare `AbortSignal`.
+- **Error responses gained** `retryable`, `retryAfterMs`, `httpStatus`, `platformCode` and
+  `resumeHandle`, over HTTP as well as in-process.
+- **New:** `docs/DELIVERY-SEMANTICS.md` documents the duplicate-risk window and the host pattern.
+
 ### 2.0.0 — Phase 1: framework-free core
 
 **Breaking.** The repository is now a pnpm workspace, and the library is a framework-free

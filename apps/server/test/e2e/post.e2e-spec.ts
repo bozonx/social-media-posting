@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import type { NestFastifyApplication } from '@nestjs/platform-fastify';
-import { PostType } from '@bozonx/social-posting';
+import { ErrorCode, PlatformError, PostType } from '@bozonx/social-posting';
 import type { IPlatform } from '@bozonx/social-posting';
 import { createTestApp } from './test-app.factory.js';
 
@@ -75,6 +75,7 @@ describe('PostController (e2e)', () => {
       };
 
       const mockResult = {
+        status: 'published' as const,
         postId: '100',
         url: 'https://t.me/test/100',
         raw: { message_id: 100 },
@@ -172,6 +173,7 @@ describe('PostController (e2e)', () => {
       };
 
       const mockResult = {
+        status: 'published' as const,
         postId: '200',
         url: 'https://t.me/test/200',
         raw: { message_id: 200 },
@@ -212,9 +214,12 @@ describe('PostController (e2e)', () => {
         auth: { apiKey: 't', chatId: 'c' },
       };
 
-      const platformError = new Error('Telegram API Error');
-      (platformError as any).response = { status: 500, data: { description: 'Internal Error' } };
-      mockTelegramPlatform.publish.mockRejectedValue(platformError);
+      mockTelegramPlatform.publish.mockRejectedValue(
+        new PlatformError('Telegram API Error', ErrorCode.PLATFORM_ERROR, {
+          retryable: true,
+          httpStatus: 500,
+        }),
+      );
 
       const response = await app.inject({
         method: 'POST',
@@ -227,6 +232,9 @@ describe('PostController (e2e)', () => {
       expect(body.success).toBe(false);
       expect(body.error.code).toBe('PLATFORM_ERROR');
       expect(body.error.message).toBe('Telegram API Error');
+      // The shell hands the caller everything it needs for its own backoff.
+      expect(body.error.retryable).toBe(true);
+      expect(body.error.httpStatus).toBe(500);
     });
   });
 

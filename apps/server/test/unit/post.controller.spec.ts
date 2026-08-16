@@ -61,6 +61,7 @@ describe('PostController', () => {
       const expectedResponse: PostResponse = {
         success: true,
         data: {
+          status: 'published',
           postId: '123',
           url: 'http://example.com',
           platform: 'telegram',
@@ -88,7 +89,9 @@ describe('PostController', () => {
 
       const result = await controller.publish(request, mockRequest);
 
-      expect(postService.publish).toHaveBeenCalledWith(request, expect.any(AbortSignal));
+      expect(postService.publish).toHaveBeenCalledWith(request, {
+        signal: expect.any(AbortSignal),
+      });
       expect(result).toEqual(expectedResponse);
     });
 
@@ -102,6 +105,7 @@ describe('PostController', () => {
         success: false,
         error: {
           code: ErrorCode.VALIDATION_ERROR,
+          retryable: false,
           message: 'Error message',
           requestId: 'req-123',
         },
@@ -124,7 +128,9 @@ describe('PostController', () => {
 
       const result = await controller.publish(request, mockRequest);
 
-      expect(postService.publish).toHaveBeenCalledWith(request, expect.any(AbortSignal));
+      expect(postService.publish).toHaveBeenCalledWith(request, {
+        signal: expect.any(AbortSignal),
+      });
       expect(result).toEqual(errorResponse);
     });
   });

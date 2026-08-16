@@ -74,10 +74,10 @@ export default [
       'no-restricted-imports': [
         'error',
         {
-          patterns: [
-            { group: ['node:*'], message: WEB_STANDARD_MESSAGE },
-            { group: NODE_BUILTINS, message: WEB_STANDARD_MESSAGE },
-          ],
+          // `paths` matches module specifiers exactly, so a local `./http/...`
+          // module is not mistaken for the `http` built-in.
+          paths: NODE_BUILTINS.map(name => ({ name, message: WEB_STANDARD_MESSAGE })),
+          patterns: [{ group: ['node:*'], message: WEB_STANDARD_MESSAGE }],
         },
       ],
       'no-restricted-globals': [

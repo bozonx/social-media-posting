@@ -86,6 +86,7 @@ describe('TelegramPlatform', () => {
       const result = await platform.publish(request, mockAccountConfig);
 
       expect(result).toEqual({
+        status: 'published',
         postId: '12345',
         url: undefined,
         raw: {

@@ -1,7 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import type { NestFastifyApplication } from '@nestjs/platform-fastify';
 import { PostType } from '@bozonx/social-posting';
-import type { IPlatform, PlatformPublishResponse, PostRequest } from '@bozonx/social-posting';
+import type {
+  IPlatform,
+  PlatformPublishResponse,
+  PostRequest,
+  PublishOptions,
+} from '@bozonx/social-posting';
 import { createTestApp } from './test-app.factory.js';
 
 /** A platform that never finishes on its own, so the abort path is observable. */
@@ -14,8 +19,9 @@ class SlowPlatform implements IPlatform {
   async publish(
     _request: PostRequest,
     _config: unknown,
-    signal?: AbortSignal,
+    options?: PublishOptions,
   ): Promise<PlatformPublishResponse> {
+    const signal = options?.signal;
     return new Promise((resolve, reject) => {
       if (signal?.aborted) {
         this.wasAborted = true;
@@ -32,7 +38,7 @@ class SlowPlatform implements IPlatform {
 
       setTimeout(() => {
         signal?.removeEventListener('abort', onAbort);
-        resolve({ postId: '123', url: 'http://example.com' });
+        resolve({ status: 'published', postId: '123', url: 'http://example.com' });
       }, 5000);
     });
   }

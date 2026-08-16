@@ -6,10 +6,12 @@ import { AuthValidatorRegistry } from '../src/platforms/auth-validator-registry.
 import { PostType } from '../src/types/post-type.js';
 import { ErrorCode } from '../src/errors/error-code.js';
 import { ValidationError } from '../src/errors/posting-error.js';
+import { PlatformError } from '../src/errors/platform-error.js';
 import type { IPlatform, PlatformPublishResponse } from '../src/platforms/platform.interface.js';
 import type { ILogger } from '../src/logger/logger.js';
 import type { PostRequest } from '../src/types/post-request.js';
 import type { PostResponse } from '../src/types/post-response.js';
+import type { ResumeHandle } from '../src/types/resume-handle.js';
 
 const accountConfig = {
   platform: 'telegram',
@@ -34,6 +36,7 @@ const createPostRequest = (overrides: Partial<PostRequest> = {}): PostRequest =>
 const createPlatformResult = (
   overrides: Partial<PlatformPublishResponse> = {},
 ): PlatformPublishResponse => ({
+  status: 'published',
   postId: '12345',
   url: 'https://t.me/test/12345',
   raw: { message_id: 12345 },
@@ -60,8 +63,6 @@ function createService(configOverrides: Record<string, unknown> = {}) {
 
   const config = new PostingConfig({
     accounts: { 'test-channel': accountConfig },
-    retryAttempts: 3,
-    retryDelayMs: 0,
     ...configOverrides,
   });
 
@@ -104,7 +105,7 @@ describe('PostService', () => {
       expect(platform.publish).toHaveBeenCalledWith(
         request,
         { ...accountConfig, source: 'account' },
-        expect.any(AbortSignal),
+        { signal: expect.any(AbortSignal), resume: undefined },
       );
     });
 
@@ -199,19 +200,21 @@ describe('PostService', () => {
       if (!result.success) {
         expect(result.error.message).toBe('Publishing failed');
         expect(result.error.requestId).toBeDefined();
-        expect(result.error.code).toBe(ErrorCode.PLATFORM_ERROR);
       }
     });
 
-    it('reports a network failure as NETWORK_ERROR', async () => {
+    it('reports a network failure the platform classified', async () => {
       const { service, platform } = createService();
-      platform.publish.mockRejectedValue(Object.assign(new Error('boom'), { code: 'ENOTFOUND' }));
+      platform.publish.mockRejectedValue(
+        new PlatformError('connection reset', ErrorCode.NETWORK_ERROR, { retryable: true }),
+      );
 
       const result = await service.publish(createPostRequest());
 
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error.code).toBe(ErrorCode.NETWORK_ERROR);
+        expect(result.error.retryable).toBe(true);
       }
     });
 
@@ -228,45 +231,177 @@ describe('PostService', () => {
     });
   });
 
-  describe('retry behaviour', () => {
-    it('retries a transient network failure', async () => {
+  describe('error contract', () => {
+    it('passes the platform classification through untouched', async () => {
       const { service, platform } = createService();
-      platform.publish
-        .mockRejectedValueOnce(Object.assign(new Error('down'), { code: 'ECONNRESET' }))
-        .mockResolvedValue(createPlatformResult());
-
-      const result = await service.publish(createPostRequest());
-
-      expect(result.success).toBe(true);
-      expect(platform.publish).toHaveBeenCalledTimes(2);
-    });
-
-    it('does not retry a validation error', async () => {
-      const { service, platform } = createService();
-      platform.publish.mockRejectedValue(new ValidationError('nope'));
-
-      await service.publish(createPostRequest());
-
-      expect(platform.publish).toHaveBeenCalledTimes(1);
-    });
-
-    it('does not retry a permanent platform error', async () => {
-      const { service, platform } = createService();
-      platform.publish.mockRejectedValue(new Error('rejected by platform'));
-
-      await service.publish(createPostRequest());
-
-      expect(platform.publish).toHaveBeenCalledTimes(1);
-    });
-
-    it('gives up after the configured number of attempts', async () => {
-      const { service, platform } = createService({ retryAttempts: 2 });
-      platform.publish.mockRejectedValue(Object.assign(new Error('down'), { code: 'ECONNRESET' }));
+      platform.publish.mockRejectedValue(
+        new PlatformError('Too Many Requests', ErrorCode.RATE_LIMIT_ERROR, {
+          retryable: true,
+          retryAfterMs: 30_000,
+          httpStatus: 429,
+          platformCode: '429',
+        }),
+      );
 
       const result = await service.publish(createPostRequest());
 
       expect(result.success).toBe(false);
-      expect(platform.publish).toHaveBeenCalledTimes(2);
+      if (!result.success) {
+        expect(result.error).toMatchObject({
+          code: ErrorCode.RATE_LIMIT_ERROR,
+          retryable: true,
+          retryAfterMs: 30_000,
+          httpStatus: 429,
+          platformCode: '429',
+        });
+      }
+    });
+
+    it('reports an unclassified error as non-retryable', async () => {
+      const { service, platform } = createService();
+      platform.publish.mockRejectedValue(new Error('who knows'));
+
+      const result = await service.publish(createPostRequest());
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.code).toBe(ErrorCode.INTERNAL_ERROR);
+        expect(result.error.retryable).toBe(false);
+      }
+    });
+
+    it('marks a validation error as non-retryable', async () => {
+      const { service } = createService();
+
+      const result = await service.publish(createPostRequest({ platform: 'vk' }));
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.retryable).toBe(false);
+      }
+    });
+  });
+
+  describe('resumable operations', () => {
+    const handle: ResumeHandle = {
+      platform: 'telegram',
+      step: 'upload',
+      state: { uploadId: 'u-1', offset: 1024 },
+    };
+
+    it('surfaces the resume handle a failed attempt left behind', async () => {
+      const { service, platform } = createService();
+      platform.publish.mockRejectedValue(
+        new PlatformError('upload interrupted', ErrorCode.NETWORK_ERROR, {
+          retryable: true,
+          resumeHandle: handle,
+        }),
+      );
+
+      const result = await service.publish(createPostRequest());
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.resumeHandle).toEqual(handle);
+        // The handle must survive the host storing it in a JSON job record.
+        expect(JSON.parse(JSON.stringify(result.error.resumeHandle))).toEqual(handle);
+      }
+    });
+
+    it('hands a resume handle back to the platform', async () => {
+      const { service, platform } = createService();
+      platform.publish.mockResolvedValue(createPlatformResult());
+
+      await service.publish(createPostRequest(), { resume: handle });
+
+      expect(platform.publish).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        expect.objectContaining({ resume: handle }),
+      );
+    });
+
+    it('refuses a handle from another platform', async () => {
+      const { service, platform } = createService();
+
+      const result = await service.publish(createPostRequest(), {
+        resume: { ...handle, platform: 'vk' },
+      });
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.message).toContain('belongs to platform "vk"');
+      }
+      expect(platform.publish).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('deferred results', () => {
+    it('reports a processing publication with a follow-up handle', async () => {
+      const { service, platform } = createService();
+      const handle: ResumeHandle = {
+        platform: 'telegram',
+        step: 'moderation',
+        state: { id: 'p1' },
+      };
+      platform.publish.mockResolvedValue({
+        status: 'processing',
+        handle,
+        checkAfterMs: 15_000,
+      });
+
+      const result = await service.publish(createPostRequest());
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.status).toBe('processing');
+        expect(result.data.handle).toEqual(handle);
+        expect(result.data.checkAfterMs).toBe(15_000);
+        expect(result.data.postId).toBeUndefined();
+      }
+    });
+
+    it('checks the status of a processing publication', async () => {
+      const { service, platform } = createService();
+      const handle: ResumeHandle = {
+        platform: 'telegram',
+        step: 'moderation',
+        state: { id: 'p1' },
+      };
+      const checkStatus = vi.fn().mockResolvedValue({
+        status: 'published',
+        postId: '42',
+        url: 'https://t.me/test/42',
+      });
+      (platform as unknown as { checkStatus: unknown }).checkStatus = checkStatus;
+
+      const status = await service.checkStatus(
+        { platform: 'telegram', account: 'test-channel' },
+        handle,
+      );
+
+      expect(status).toMatchObject({ status: 'published', postId: '42' });
+      expect(checkStatus).toHaveBeenCalledWith(
+        handle,
+        expect.objectContaining({ source: 'account' }),
+        expect.any(AbortSignal),
+      );
+      delete (platform as unknown as { checkStatus?: unknown }).checkStatus;
+    });
+
+    it('rejects a status check on a platform that publishes synchronously', async () => {
+      const { service } = createService();
+
+      await expect(
+        service.checkStatus(
+          { platform: 'telegram', account: 'test-channel' },
+          {
+            platform: 'telegram',
+            step: 'x',
+            state: {},
+          },
+        ),
+      ).rejects.toThrow(/publishes synchronously/);
     });
   });
 
@@ -291,7 +426,7 @@ describe('PostService', () => {
       const controller = new AbortController();
       controller.abort();
 
-      const result = await service.publish(createPostRequest(), controller.signal);
+      const result = await service.publish(createPostRequest(), { signal: controller.signal });
 
       expect(result.success).toBe(false);
       expect(platform.publish).not.toHaveBeenCalled();
@@ -300,12 +435,10 @@ describe('PostService', () => {
     it('passes an abort signal down to the platform', async () => {
       const { service, platform } = createService();
       let receivedSignal: AbortSignal | undefined;
-      platform.publish.mockImplementation(
-        (_request: PostRequest, _account: unknown, signal?: AbortSignal) => {
-          receivedSignal = signal;
-          return Promise.resolve(createPlatformResult());
-        },
-      );
+      platform.publish.mockImplementation((_request, _account, options) => {
+        receivedSignal = options?.signal;
+        return Promise.resolve(createPlatformResult());
+      });
 
       await service.publish(createPostRequest());
 

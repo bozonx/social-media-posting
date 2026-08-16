@@ -5,22 +5,14 @@
 # COMMON PARAMETERS
 # ============================================
 # Request timeout (seconds)
-# Total time limit for processing a request, including all retries and platform delays
+# Total time limit for one publish call, including platform delays.
 requestTimeoutSecs: 60
 
-# Number of retry attempts on error
-# How many times to retry a failed request before giving up
-retryAttempts: 3
-
-# Delay between retry attempts (milliseconds)
-# Base delay before retrying a failed request
-# Note: Jitter for retry (±20%) is hardcoded in the implementation
-# Actual delay will be: retryDelayMs * random(0.8, 1.2)
-retryDelayMs: 1000
-
-# Time-to-live for idempotency records in cache (minutes)
-# How long to keep idempotency keys in cache to prevent duplicate posts
-idempotencyTtlMinutes: 10
+# There is deliberately no retry or idempotency setting here.
+# One request makes one attempt to the platform. Every error response carries
+# `retryable`, `retryAfterMs` and — for a multi-step publication — `resumeHandle`,
+# so the caller can run its own backoff and deduplication against durable state.
+# See docs/DELIVERY-SEMANTICS.md.
 
 # ============================================
 # ACCOUNTS (NAMED CONFIGURATIONS)

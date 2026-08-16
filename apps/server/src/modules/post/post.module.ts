@@ -49,8 +49,6 @@ export const POST_SERVICE_DEPS = Symbol('POST_SERVICE_DEPS');
         return new PostingConfig({
           accounts: yamlConfig.accounts,
           requestTimeoutSecs: yamlConfig.requestTimeoutSecs,
-          retryAttempts: yamlConfig.retryAttempts,
-          retryDelayMs: yamlConfig.retryDelayMs,
         });
       },
     },

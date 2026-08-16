@@ -11,19 +11,31 @@ export type { PostingClient, PostingClientOptions } from './client.js';
 
 // Services (for hosts assembling their own composition root)
 export { PostService } from './services/post.service.js';
+export type { PublishCallOptions } from './services/post.service.js';
 export { PreviewService } from './services/preview.service.js';
 export { BasePostService } from './services/base-post.service.js';
 export type { PostServiceDeps } from './services/base-post.service.js';
 
 // Extension contract
-export type { IPlatform, PlatformPublishResponse } from './platforms/platform.interface.js';
+export type {
+  IPlatform,
+  PlatformPublishResponse,
+  PlatformStatusResponse,
+  PublishOptions,
+} from './platforms/platform.interface.js';
 export type { IAuthValidator } from './platforms/auth-validator.interface.js';
 export { PlatformRegistry } from './platforms/platform-registry.js';
 export { AuthValidatorRegistry } from './platforms/auth-validator-registry.js';
 
 // Request and result types
 export type { PostRequest } from './types/post-request.js';
-export type { PostResponse, ErrorResponse, PostResult } from './types/post-response.js';
+export type {
+  PostResponse,
+  ErrorResponse,
+  PostResult,
+  StatusResult,
+} from './types/post-response.js';
+export type { ResumeHandle, JsonValue } from './types/resume-handle.js';
 export type {
   PreviewResponse,
   PreviewErrorResponse,
@@ -39,6 +51,8 @@ export { ErrorCode } from './errors/error-code.js';
 
 // Errors
 export { PostingError, ValidationError, AbortedError } from './errors/posting-error.js';
+export { PlatformError } from './errors/platform-error.js';
+export type { PlatformErrorOptions } from './errors/platform-error.js';
 
 // Configuration
 export { PostingConfig } from './config/posting-config.js';
@@ -58,6 +72,10 @@ export {
   MAX_TITLE_LENGTH,
   MAX_DESCRIPTION_LENGTH,
 } from './validation/validate-post-request.js';
+
+// HTTP transport shared by platform packages
+export { httpRequest } from './http/http-request.js';
+export type { HttpRequestOptions } from './http/http-request.js';
 
 // Logging
 export type { ILogger } from './logger/logger.js';

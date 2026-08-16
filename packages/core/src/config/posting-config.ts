@@ -5,11 +5,6 @@ const MIN_REQUEST_TIMEOUT_SECS = 1;
 const MAX_REQUEST_TIMEOUT_SECS = 600;
 const DEFAULT_REQUEST_TIMEOUT_SECS = 60;
 
-const MAX_RETRY_ATTEMPTS = 10;
-const DEFAULT_RETRY_ATTEMPTS = 3;
-const MAX_RETRY_DELAY_MS = 60_000;
-const DEFAULT_RETRY_DELAY_MS = 1000;
-
 const LOG_LEVELS = ['debug', 'info', 'warn', 'error'] as const;
 
 /** Log level accepted by the built-in console logger. */
@@ -18,16 +13,15 @@ export type LogLevel = (typeof LOG_LEVELS)[number];
 /**
  * Tuning knobs shared by every posting client, independent of which platforms
  * are registered.
+ *
+ * There is deliberately no retry setting: one publish call makes one attempt.
+ * Retrying is the host's job, and every error says whether and when to.
  */
 export interface PostingConfigInput {
   /** Named account configurations. */
   accounts: Record<string, AccountConfig>;
   /** Overall timeout for one publish call, in seconds (default: 60). */
   requestTimeoutSecs?: number;
-  /** Number of attempts per publish call (default: 3). */
-  retryAttempts?: number;
-  /** Base delay between attempts, in milliseconds (default: 1000). */
-  retryDelayMs?: number;
   /** Log level for the built-in console logger (default: 'warn'). */
   logLevel?: LogLevel;
 }
@@ -59,8 +53,6 @@ function requireInteger(
 export class PostingConfig {
   readonly accounts: Record<string, AccountConfig>;
   readonly requestTimeoutSecs: number;
-  readonly retryAttempts: number;
-  readonly retryDelayMs: number;
   readonly logLevel: LogLevel;
 
   constructor(input: PostingConfigInput) {
@@ -86,22 +78,6 @@ export class PostingConfig {
       MIN_REQUEST_TIMEOUT_SECS,
       MAX_REQUEST_TIMEOUT_SECS,
       DEFAULT_REQUEST_TIMEOUT_SECS,
-      errors,
-    );
-    this.retryAttempts = requireInteger(
-      input.retryAttempts,
-      'retryAttempts',
-      0,
-      MAX_RETRY_ATTEMPTS,
-      DEFAULT_RETRY_ATTEMPTS,
-      errors,
-    );
-    this.retryDelayMs = requireInteger(
-      input.retryDelayMs,
-      'retryDelayMs',
-      0,
-      MAX_RETRY_DELAY_MS,
-      DEFAULT_RETRY_DELAY_MS,
       errors,
     );
 

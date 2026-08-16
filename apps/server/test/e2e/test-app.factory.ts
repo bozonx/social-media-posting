@@ -23,8 +23,6 @@ export interface TestAppOptions {
   accounts?: Record<string, AccountConfig>;
   /** Overall request timeout, in seconds. */
   requestTimeoutSecs?: number;
-  /** Attempts per publish call. */
-  retryAttempts?: number;
   /** Global API prefix; defaults to the one derived from BASE_PATH. */
   globalPrefix?: string;
 }
@@ -45,8 +43,6 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<NestF
     config: new PostingConfig({
       accounts: options.accounts ?? {},
       requestTimeoutSecs: options.requestTimeoutSecs ?? 10,
-      retryAttempts: options.retryAttempts ?? 1,
-      retryDelayMs: 0,
     }),
     platformRegistry,
     authValidatorRegistry: new AuthValidatorRegistry(),
