@@ -6,12 +6,11 @@ import { PlatformError } from '../errors/platform-error.js';
  */
 export interface HttpRequestOptions extends RequestInit {
   /**
-   * Whether the request body may be sent twice.
+   * Whether an idempotent request body may be sent twice.
    *
-   * A connection that dies before any byte of the body left the process cannot
-   * have been acted on, so re-sending is safe and saves the host a whole retry
-   * cycle. Once a stream has been consumed there is nothing left to re-send,
-   * so streamed bodies must set this to false.
+   * This never makes a mutating method retryable. Once a stream has been
+   * consumed there is nothing left to re-send, so streamed bodies must set
+   * this to false.
    *
    * Defaults to true for bodies that can be replayed (no body, string,
    * `URLSearchParams`, `Blob`, typed array) and false for a `ReadableStream`.
@@ -20,13 +19,13 @@ export interface HttpRequestOptions extends RequestInit {
 }
 
 /**
- * `fetch` with exactly one transport-level retry.
+ * `fetch` with at most one transport-level retry for idempotent methods.
  *
  * This is the only retry anywhere in this library, and it is deliberately
- * narrow: it repeats a request whose connection failed *before* the request
- * completed, never one that failed after the platform may have seen it. A
- * request that reached the platform and came back as an error is the host's to
- * repeat, with the platform's own `retryAfterMs` in hand.
+ * narrow: it repeats only an idempotent method with a replayable body. A fetch
+ * rejection does not reveal whether a mutating request reached the platform,
+ * so POST and PATCH are never repeated. A platform response is also the host's
+ * to handle, with the platform's own `retryAfterMs` in hand.
  *
  * @param url - Target URL.
  * @param options - Standard `fetch` init plus {@link HttpRequestOptions}.
@@ -38,7 +37,7 @@ export async function httpRequest(
   options: HttpRequestOptions = {},
 ): Promise<Response> {
   const { replayableBody, ...init } = options;
-  const canReplay = replayableBody ?? isReplayable(init.body);
+  const canRetry = isIdempotent(init.method) && (replayableBody ?? isReplayable(init.body));
 
   try {
     return await fetch(url, init);
@@ -46,11 +45,12 @@ export async function httpRequest(
     if (init.signal?.aborted) {
       throw abortError(error, init.signal);
     }
-    if (!canReplay) {
+    if (!canRetry) {
       throw networkError(error, url);
     }
 
-    // One retry: the connection failed and the body can be sent again unchanged.
+    // A fetch rejection cannot prove whether a mutating request reached the
+    // platform. Only idempotent methods are safe to repeat here.
     try {
       return await fetch(url, init);
     } catch (retryError) {
@@ -60,6 +60,10 @@ export async function httpRequest(
       throw networkError(retryError, url);
     }
   }
+}
+
+function isIdempotent(method: string | undefined): boolean {
+  return ['GET', 'HEAD', 'OPTIONS', 'PUT', 'DELETE'].includes((method ?? 'GET').toUpperCase());
 }
 
 /**
@@ -86,7 +90,8 @@ function networkError(cause: unknown, url: string): PlatformError {
 }
 
 function abortError(cause: unknown, signal: AbortSignal): PlatformError {
-  const timedOut = (signal.reason as { code?: ErrorCode })?.code === ErrorCode.TIMEOUT_ERROR;
+  const reason = signal.reason as { code?: ErrorCode; name?: string } | undefined;
+  const timedOut = reason?.code === ErrorCode.TIMEOUT_ERROR || reason?.name === 'TimeoutError';
   return new PlatformError(
     timedOut ? 'Request timed out' : 'Request aborted',
     timedOut ? ErrorCode.TIMEOUT_ERROR : ErrorCode.NETWORK_ERROR,

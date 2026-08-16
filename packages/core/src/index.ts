@@ -111,7 +111,11 @@ export type {
   CapabilityValidation,
   CapabilityValidationOptions,
 } from './validation/capability-validator.js';
-export { previewFromCapabilities, renderBody } from './validation/capability-preview.js';
+export {
+  previewFromCapabilities,
+  renderBody,
+  resolveBodyTargetFormat,
+} from './validation/capability-preview.js';
 export { detectPostType } from './validation/detect-post-type.js';
 export {
   convertBody,

@@ -30,4 +30,13 @@ export interface MediaInputObject {
    * For media[] arrays this overrides auto-detection by URL extension
    */
   type?: MediaType;
+
+  /** Media duration in seconds, when known before upload. */
+  durationSecs?: number;
+
+  /** Pixel width, paired with `height` for aspect-ratio validation. */
+  width?: number;
+
+  /** Pixel height, paired with `width` for aspect-ratio validation. */
+  height?: number;
 }

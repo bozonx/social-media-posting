@@ -149,6 +149,7 @@ describe('TelegramPlatform', () => {
       expect(botApi.lastPayload('sendMessage')).toEqual({
         chat_id: 'test-chat-id',
         text: 'Test message',
+        parse_mode: 'HTML',
         disable_notification: false,
       });
     });
@@ -165,6 +166,7 @@ describe('TelegramPlatform', () => {
       expect(botApi.lastPayload('sendMessage')).toEqual({
         chat_id: 'test-chat-id',
         text: body,
+        parse_mode: 'HTML',
         disable_notification: false,
       });
     });
@@ -182,7 +184,7 @@ describe('TelegramPlatform', () => {
       expect(botApi.called('sendMessage')).toBe(false);
     });
 
-    it('should send body as-is without conversion and map bodyFormat to parse_mode', async () => {
+    it('converts Markdown to the same HTML shown by preview', async () => {
       const request: PostRequest = {
         platform: 'telegram',
         body: '**Markdown** text',
@@ -194,13 +196,10 @@ describe('TelegramPlatform', () => {
 
       await platform.publish(request, mockAccountConfig);
 
-      // Body should not be converted
-
-      // parse_mode should be Markdown
       expect(botApi.lastPayload('sendMessage')).toEqual({
         chat_id: 'test-chat-id',
-        text: '**Markdown** text',
-        parse_mode: 'Markdown',
+        text: '<b>Markdown</b> text',
+        parse_mode: 'HTML',
         disable_notification: false,
       });
     });
@@ -315,6 +314,7 @@ describe('TelegramPlatform', () => {
       expect(botApi.lastPayload('sendMessage')).toEqual({
         chat_id: 'test-chat-id',
         text: 'Test message',
+        parse_mode: 'HTML',
         disable_notification: true,
       });
     });
@@ -622,6 +622,7 @@ describe('TelegramPlatform', () => {
         chat_id: 'test-chat-id',
         photo: 'AgACAgIAAxkBAAIC...',
         caption: 'Image caption',
+        parse_mode: 'HTML',
         has_spoiler: false,
         disable_notification: false,
       });
@@ -643,6 +644,7 @@ describe('TelegramPlatform', () => {
         chat_id: 'test-chat-id',
         photo: 'https://example.com/image.jpg',
         caption: 'Spoiler image',
+        parse_mode: 'HTML',
         has_spoiler: true,
         disable_notification: false,
       });
@@ -664,6 +666,7 @@ describe('TelegramPlatform', () => {
         chat_id: 'test-chat-id',
         video: 'https://example.com/video.mp4',
         caption: 'Spoiler video',
+        parse_mode: 'HTML',
         has_spoiler: true,
         disable_notification: false,
       });
@@ -685,6 +688,7 @@ describe('TelegramPlatform', () => {
         chat_id: 'test-chat-id',
         document: 'BQACAgIAAxkBAAIC...',
         caption: 'Document caption',
+        parse_mode: 'HTML',
         disable_notification: false,
       });
     });

@@ -1,8 +1,7 @@
 import { ErrorCode, PlatformError } from '@bozonx/social-posting';
 
 /**
- * The error shape grammY raises for a Bot API failure, plus the fields the Bot
- * API itself returns.
+ * The error shape produced by the fetch transport from a Bot API failure.
  */
 interface TelegramApiError {
   message?: string;

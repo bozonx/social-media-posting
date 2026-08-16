@@ -15,6 +15,7 @@
     "test": "vitest run --project core --project platforms --project server --project example-embedded --project example-custom-platform",
     "test:unit": "vitest run --project core --project platforms --project server --project example-embedded --project example-custom-platform",
     "test:e2e": "vitest run --project e2e",
+    "test:contract": "vitest run packages/platform-*/test/contract.spec.ts",
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",
     "test:workerd": "vitest run --config vitest.workerd.config.ts",

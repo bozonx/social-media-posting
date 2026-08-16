@@ -216,4 +216,31 @@ describe('POST /api/v1/status', () => {
       expect.anything(),
     );
   });
+
+  it('returns a client error when status is unsupported', async () => {
+    const { platformModule } = fakePlatform();
+    const synchronousModule = {
+      ...platformModule,
+      create: (deps: Parameters<typeof platformModule.create>[0]) => {
+        const instance = platformModule.create(deps);
+        instance.checkStatus = undefined;
+        return instance;
+      },
+    };
+    const { app } = createTestApp({ platforms: [synchronousModule], config: { accounts } });
+
+    const { status, body } = await postJson(app, '/api/v1/status', {
+      platform: 'telegram',
+      account: 'test_account',
+      handle: { platform: 'telegram', step: 'done', state: {} },
+    });
+
+    expect(status).toBe(400);
+    expect(body).toMatchObject({
+      error: 'ValidationError',
+      code: ErrorCode.VALIDATION_ERROR,
+      retryable: false,
+    });
+    expect(body.message).toContain('has no status to check');
+  });
 });

@@ -33,7 +33,7 @@ export function previewFromCapabilities(
     return { success: false, data: { valid: false, errors, warnings } };
   }
 
-  const targetFormat = capabilities.targetBodyFormat ?? request.bodyFormat ?? 'text';
+  const targetFormat = resolveBodyTargetFormat(request, capabilities);
   const convertedBody = renderBody(request, capabilities, targetFormat);
 
   return {
@@ -74,4 +74,15 @@ export function renderBody(
   }
 
   return truncateBody(converted, limit, capabilities.bodyLengthRule);
+}
+
+/** Resolve the actual wire format, preserving platform-native dialects. */
+export function resolveBodyTargetFormat(
+  request: PostRequest,
+  capabilities: PlatformCapabilities,
+): string {
+  const input = request.bodyFormat ?? 'text';
+  return capabilities.passthroughBodyFormats?.includes(input)
+    ? input
+    : (capabilities.targetBodyFormat ?? input);
 }

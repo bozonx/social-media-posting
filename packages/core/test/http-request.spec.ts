@@ -34,20 +34,17 @@ describe('httpRequest', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it('retries once when the connection fails and the body can be replayed', async () => {
+  it('does not retry a POST when fetch rejects because the platform may have acted', async () => {
     const fetchMock = vi
       .fn()
       .mockRejectedValueOnce(new TypeError('fetch failed'))
       .mockResolvedValue(new Response('ok'));
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
-    const response = await httpRequest('https://api.example.com/send', {
-      method: 'POST',
-      body: 'payload',
-    });
-
-    expect(response.status).toBe(200);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    await expect(
+      httpRequest('https://api.example.com/send', { method: 'POST', body: 'payload' }),
+    ).rejects.toBeInstanceOf(PlatformError);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it('gives up after the single retry', async () => {
@@ -116,5 +113,18 @@ describe('httpRequest', () => {
       httpRequest('https://api.example.com/send', { signal: controller.signal }),
     ).rejects.toBeInstanceOf(PlatformError);
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('classifies AbortSignal.timeout as a retryable timeout', async () => {
+    const signal = AbortSignal.timeout(1);
+    await new Promise(resolve => setTimeout(resolve, 5));
+    globalThis.fetch = vi.fn().mockRejectedValue(signal.reason) as unknown as typeof fetch;
+
+    const error = (await httpRequest('https://api.example.com/send', { signal }).catch(
+      (thrown: unknown) => thrown,
+    )) as PlatformError;
+
+    expect(error.code).toBe(ErrorCode.TIMEOUT_ERROR);
+    expect(error.retryable).toBe(true);
   });
 });

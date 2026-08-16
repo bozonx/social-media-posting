@@ -15,6 +15,7 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
+      "workerd": "./dist/index.js",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     }
@@ -28,13 +29,23 @@
     "build": "tsc -p tsconfig.build.json",
     "clean": "rm -rf dist *.tsbuildinfo",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run",
-    "test:workerd": "vitest run --config vitest.workerd.config.ts"
+    "test": "pnpm -w exec vitest run --project core",
+    "test:workerd": "pnpm -w exec vitest run --config vitest.workerd.config.ts",
+    "prepack": "pnpm run build"
   },
   "dependencies": {},
   "author": "Ivan K",
   "license": "MIT",
   "engines": {
     "node": ">=24.0.0"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bozonx/social-media-posting.git",
+    "directory": "packages/core"
+  },
+  "bugs": { "url": "https://github.com/bozonx/social-media-posting/issues" },
+  "homepage": "https://github.com/bozonx/social-media-posting/tree/main/packages/core#readme",
+  "publishConfig": { "access": "public", "provenance": true },
+  "sideEffects": false
 }

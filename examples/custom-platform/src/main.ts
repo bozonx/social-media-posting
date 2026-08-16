@@ -2,7 +2,7 @@
  * Register a network the library has never heard of, and publish to it.
  */
 import { createPostingClient } from '@bozonx/social-posting';
-import { pastebin } from './pastebin.platform.js';
+import { pastebin } from './pastebin.platform.ts';
 
 const client = createPostingClient({
   accounts: {

@@ -3,8 +3,7 @@
   "compilerOptions": {
     "baseUrl": ".",
     "noEmit": true,
-    "emitDecoratorMetadata": true,
-    "experimentalDecorators": true,
+    "allowImportingTsExtensions": true,
     "declaration": false,
     "declarationMap": false,
     "types": [

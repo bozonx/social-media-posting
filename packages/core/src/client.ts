@@ -102,7 +102,9 @@ export function createPostingClient(options: PostingClientOptions): PostingClien
   const authValidatorRegistry = new AuthValidatorRegistry();
 
   const register = (platformModule: PlatformModule): void => {
-    platformRegistry.register(platformModule.create({ logger }));
+    platformRegistry.register(
+      platformModule.create({ logger, credentialProvider: options.credentialProvider }),
+    );
     if (platformModule.authValidator) {
       authValidatorRegistry.register(platformModule.authValidator);
     }

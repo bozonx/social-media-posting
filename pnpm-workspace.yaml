@@ -15,13 +15,5 @@ allowBuilds:
 # Transitive vulnerabilities that no direct-dependency upgrade fixes.
 # Each entry names the advisory it closes; drop an entry once the parent ships a fixed range.
 overrides:
-  # Keep a single Fastify instance in the tree. @nestjs/platform-fastify pins an exact
-  # fastify version of its own, which otherwise gives two copies with incompatible types
-  # and breaks plugin registration.
-  fastify: ^5.12.0
-  # critical: JavaScript injection via AST type confusion (via ts-jest)
-  handlebars: ^4.7.9
-  # high: host confusion / path traversal in authority parsing (via fastify)
-  'fast-uri@^3': ^3.1.5
   # high: quadratic CPU consumption via merge-key chains and !!omap
   'js-yaml@^4': ^4.3.1

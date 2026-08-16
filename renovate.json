@@ -31,14 +31,6 @@
       "labels": ["dependencies", "major"]
     },
     {
-      "groupName": "nestjs",
-      "matchPackageNames": ["@nestjs/**"]
-    },
-    {
-      "groupName": "fastify",
-      "matchPackageNames": ["fastify", "@fastify/**"]
-    },
-    {
       "groupName": "hono",
       "matchPackageNames": ["hono", "@hono/**"]
     },
@@ -51,10 +43,6 @@
         "eslint-**",
         "typescript-eslint"
       ]
-    },
-    {
-      "groupName": "jest",
-      "matchPackageNames": ["jest", "@jest/**", "ts-jest", "@types/jest"]
     },
     {
       "groupName": "vitest",

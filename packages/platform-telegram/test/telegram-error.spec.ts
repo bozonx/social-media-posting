@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ErrorCode, PlatformError } from '@bozonx/social-posting';
 import { toPlatformError } from '../src/telegram-error.js';
 
-/** The shape grammY throws for a Bot API failure. */
+/** The raw shape produced for a Bot API failure. */
 function apiError(errorCode: number, description: string, parameters?: Record<string, unknown>) {
   return { error_code: errorCode, description, parameters, message: description };
 }

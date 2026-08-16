@@ -5,6 +5,8 @@ import {
   PostType,
   ValidationError,
   validateAgainstCapabilities,
+  renderBody,
+  resolveBodyTargetFormat,
 } from '@bozonx/social-posting';
 import type {
   AccountConfig,
@@ -41,7 +43,7 @@ export interface TelegramAccountConfig extends AccountConfig {
   auth: AccountConfig['auth'] & { apiKey?: string; chatId?: string | number };
   /** Whether to disable notifications for this account by default */
   disableNotification?: boolean;
-  /** API request timeout in seconds (passed to grammY client as timeoutSeconds) */
+  /** API request timeout in seconds. */
   apiTimeoutSeconds?: number;
 }
 
@@ -284,11 +286,12 @@ export class TelegramPlatform implements IPlatform {
   }
 
   private prepareMessageData(request: PostRequest, accountConfig: TelegramAccountConfig) {
-    const processedBody = request.body;
+    const targetFormat = resolveBodyTargetFormat(request, this.capabilities);
+    const processedBody = renderBody(request, this.capabilities, targetFormat);
 
     // Map bodyFormat to Telegram parse_mode
     let parseMode: string | undefined;
-    const bodyFormat = request.bodyFormat || 'text';
+    const bodyFormat = targetFormat;
 
     // Standard format mappings
     if (bodyFormat === 'html') {

@@ -26,9 +26,9 @@ as a second replica existed, while looking like it did.
 A duplicate becomes possible exactly when the host cannot tell whether an attempt reached the
 platform. The library narrows that window as far as a stateless component can:
 
-- A **connection failure before the request completed** is retried once inside `httpRequest()`.
-  Nothing was acted on, so the repeat is free of risk. This is the only automatic retry anywhere
-  in the library.
+- A failed **idempotent HTTP read** (`GET`, `HEAD`, `OPTIONS`, `PUT` or `DELETE`) with a replayable
+  body is retried once inside `httpRequest()`. A bare `fetch` rejection cannot prove whether a
+  mutating call reached the platform, so `POST` and `PATCH` are never repeated automatically.
 - A **request that was sent and then failed** is never repeated automatically. The platform may
   have applied it. The error says `retryable` and, where the platform stated one, `retryAfterMs` —
   the host decides.

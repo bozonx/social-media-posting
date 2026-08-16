@@ -4,7 +4,8 @@ import { validateMediaUrl } from '../media/media-url.js';
 import { detectPostType } from './detect-post-type.js';
 import { countBodyLength } from '../rendering/body.js';
 import type { PostRequest } from '../types/post-request.js';
-import type { PlatformCapabilities } from '../platforms/capabilities.js';
+import type { MediaConstraints, PlatformCapabilities } from '../platforms/capabilities.js';
+import type { MediaInput, MediaType } from '../types/media-input.js';
 
 /** Every request field that can carry media. */
 const MEDIA_FIELDS = ['cover', 'video', 'audio', 'document', 'media'] as const;
@@ -99,6 +100,7 @@ export function validateAgainstCapabilities(
 
   errors.push(...validateMediaCount(request, detectedType, capabilities));
   errors.push(...validateMediaUrls(request));
+  errors.push(...validateMediaMetadata(request, capabilities));
   errors.push(...validateBody(request, capabilities));
   errors.push(...validateBodyFormat(request, capabilities));
   errors.push(...validateUnsupportedFeatures(request, capabilities, label));
@@ -126,6 +128,61 @@ export function validateAgainstCapabilities(
   }
 
   return { detectedType, errors, warnings, ignoredFields };
+}
+
+function validateMediaMetadata(request: PostRequest, capabilities: PlatformCapabilities): string[] {
+  const entries: Array<[MediaType, MediaInput | undefined]> = [
+    ['image', request.cover],
+    ['video', request.video],
+    ['audio', request.audio],
+    ['document', request.document],
+  ];
+  request.media?.forEach(media => entries.push([media.type ?? 'image', media]));
+
+  return entries.flatMap(([kind, media]) =>
+    media ? validateOneMediaMetadata(kind, media, capabilities.media?.[kind]) : [],
+  );
+}
+
+function validateOneMediaMetadata(
+  kind: MediaType,
+  media: MediaInput,
+  constraints?: MediaConstraints,
+): string[] {
+  if (!constraints) return [];
+  const errors: string[] = [];
+  if (media.durationSecs !== undefined) {
+    if (
+      constraints.minDurationSecs !== undefined &&
+      media.durationSecs < constraints.minDurationSecs
+    ) {
+      errors.push(
+        `${kind} duration ${media.durationSecs}s is below the ${constraints.minDurationSecs}s minimum`,
+      );
+    }
+    if (
+      constraints.maxDurationSecs !== undefined &&
+      media.durationSecs > constraints.maxDurationSecs
+    ) {
+      errors.push(
+        `${kind} duration ${media.durationSecs}s exceeds the ${constraints.maxDurationSecs}s maximum`,
+      );
+    }
+  }
+  if (media.width !== undefined && media.height !== undefined && media.height > 0) {
+    const ratio = media.width / media.height;
+    if (constraints.minAspectRatio !== undefined && ratio < constraints.minAspectRatio) {
+      errors.push(
+        `${kind} aspect ratio ${ratio} is below the ${constraints.minAspectRatio} minimum`,
+      );
+    }
+    if (constraints.maxAspectRatio !== undefined && ratio > constraints.maxAspectRatio) {
+      errors.push(
+        `${kind} aspect ratio ${ratio} exceeds the ${constraints.maxAspectRatio} maximum`,
+      );
+    }
+  }
+  return errors;
 }
 
 function isPresent(request: PostRequest, field: string): boolean {

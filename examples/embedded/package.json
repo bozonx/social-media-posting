@@ -5,8 +5,8 @@
   "description": "Minimal in-process consumer of @bozonx/social-posting",
   "type": "module",
   "scripts": {
-    "start": "node --experimental-strip-types src/main.ts",
-    "verify": "node --experimental-strip-types src/verify-isolation.ts"
+    "start": "node --experimental-transform-types src/main.ts",
+    "verify": "pnpm -w exec vitest run --project example-embedded"
   },
   "dependencies": {
     "@bozonx/social-posting": "workspace:*",

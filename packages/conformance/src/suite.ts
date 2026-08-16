@@ -67,13 +67,10 @@ export function describePlatformContract(options: PlatformContractOptions): void
         );
       });
 
-      it('validates its own credential shape when it has a validator', () => {
-        if (!platformModule.authValidator) {
-          return;
-        }
-        expect(platformModule.authValidator.providerName.toLowerCase()).toBe(
-          platformModule.name.toLowerCase(),
-        );
+      const authValidator = platformModule.authValidator;
+      const authValidatorIt = authValidator ? it : it.skip;
+      authValidatorIt('validates its own credential shape when it has a validator', () => {
+        expect(authValidator?.providerName.toLowerCase()).toBe(platformModule.name.toLowerCase());
       });
     });
 
@@ -128,16 +125,17 @@ export function describePlatformContract(options: PlatformContractOptions): void
         expect(harness.callCount()).toBe(0);
       });
 
-      it('enforces a declared limit locally rather than through the API', async () => {
-        if (!options.overLimitRequest) {
-          return;
-        }
-
+      const overLimitRequest = options.overLimitRequest;
+      const overLimitIt = overLimitRequest ? it : it.skip;
+      overLimitIt('enforces a declared limit locally rather than through the API', async () => {
         harness.respondSuccess();
 
         await expect(
-          harness.platform.publish(options.overLimitRequest.request, harness.accountConfig),
-        ).rejects.toThrow(options.overLimitRequest.expectedError);
+          harness.platform.publish(
+            overLimitRequest?.request ?? firstRequest(options),
+            harness.accountConfig,
+          ),
+        ).rejects.toThrow(overLimitRequest?.expectedError);
         expect(harness.callCount()).toBe(0);
       });
     });
@@ -180,12 +178,9 @@ export function describePlatformContract(options: PlatformContractOptions): void
         expect(harness.callCount()).toBe(0);
       });
 
-      it('stops a publication aborted mid-flight', async () => {
-        if (!harness.respondNever) {
-          return;
-        }
-
-        harness.respondNever();
+      const abortMidFlightIt = options.createHarness().respondNever ? it : it.skip;
+      abortMidFlightIt('stops a publication aborted mid-flight', async () => {
+        harness.respondNever?.();
         const controller = new AbortController();
 
         const inFlight = harness.platform.publish(firstRequest(options), harness.accountConfig, {
@@ -256,11 +251,10 @@ export function describePlatformContract(options: PlatformContractOptions): void
     });
 
     describe('resumable publication', () => {
-      it('continues from a resume handle instead of starting over', async () => {
-        const scenario = options.resumable;
-        if (!scenario) {
-          return;
-        }
+      const resumable = options.resumable;
+      const resumableIt = resumable ? it : it.skip;
+      resumableIt('continues from a resume handle instead of starting over', async () => {
+        const scenario = resumable ?? missingScenario();
 
         scenario.arrangeInterruption(harness);
         const failure = (await harness.platform
@@ -288,6 +282,10 @@ export function describePlatformContract(options: PlatformContractOptions): void
       });
     });
   });
+}
+
+function missingScenario(): never {
+  throw new Error('Resumable contract test ran without a resumable scenario');
 }
 
 /** Any valid request, for tests that only need "a publishable post". */

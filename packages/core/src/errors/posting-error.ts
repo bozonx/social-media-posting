@@ -13,8 +13,8 @@ export class PostingError extends Error {
   /**
    * Whether repeating the same call could succeed.
    *
-   * This library never retries on the caller's behalf (beyond a single
-   * transport-level retry before any bytes of a request body are sent). The
+   * This library never retries a publication on the caller's behalf (the HTTP
+   * helper may repeat an idempotent read once). The
    * flag exists so the host's own backoff has something to key on.
    */
   readonly retryable: boolean;

@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- Prevented duplicate publications by limiting the HTTP micro-retry to idempotent methods;
+  mutating `POST` and `PATCH` requests are never replayed after an ambiguous fetch failure.
+- Telegram preview and publish now share the body renderer, including Markdown-to-HTML
+  conversion, truncation and native MarkdownV2 passthrough.
+- Account timeouts are classified as retryable `TIMEOUT_ERROR`s, and `/status` returns 400 for
+  library validation errors instead of hiding them behind a 500.
+- Platform factories now receive the host credential provider, enabling OAuth refresh and token
+  rotation through the documented extension seam.
+- Completed core package metadata, repaired package/example scripts, added `test:contract`, made
+  scaffolded packages include their license, enforced media duration/aspect constraints, and
+  hardened bearer-token comparison.
+
 ### 2.0.0 — Phase 9: conformance harness
 
 Adding a network is now "implement the interface and run the suite".

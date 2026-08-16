@@ -63,6 +63,8 @@ export interface PlatformCapabilities {
   supportedBodyFormats?: string[];
   /** The format bodies are converted to before being sent. */
   targetBodyFormat?: string;
+  /** Platform-native dialects that must pass through instead of being converted. */
+  passthroughBodyFormats?: string[];
 
   /** Constraints per media kind. */
   media?: {

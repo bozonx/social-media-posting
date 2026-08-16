@@ -6,6 +6,7 @@ import type { ILogger } from '../src/logger/logger.js';
 import type { IAuthValidator } from '../src/platforms/auth-validator.interface.js';
 import type { IPlatform } from '../src/platforms/platform.interface.js';
 import type { PlatformModule } from '../src/platforms/platform-module.js';
+import type { CredentialProvider } from '../src/auth/credentials.js';
 
 type FakePlatform = IPlatform & {
   publish: ReturnType<typeof vi.fn>;
@@ -59,6 +60,22 @@ describe('createPostingClient', () => {
     const client = createPostingClient({ accounts, platforms: [moduleOf(fakePlatform())] });
 
     expect(client.getRegisteredPlatforms()).toEqual(['fake']);
+  });
+
+  it('passes the host credential provider through the platform factory seam', () => {
+    const provider: CredentialProvider = { getCredentials: vi.fn() };
+    const create = vi.fn(() => fakePlatform());
+    const platform = fakePlatform();
+
+    createPostingClient({
+      accounts,
+      credentialProvider: provider,
+      platforms: [{ name: 'fake', capabilities: platform.capabilities, create }],
+    });
+
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({ credentialProvider: provider, logger: expect.anything() }),
+    );
   });
 
   it('ships no platform of its own', async () => {

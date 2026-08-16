@@ -24,12 +24,21 @@ export function bearerAuth(allowedTokens: string[]): MiddlewareHandler {
       return c.json(unauthorized('Invalid authorization format. Expected: Bearer <token>'), 401);
     }
 
-    if (!allowedTokens.includes(token)) {
+    if (!allowedTokens.some(allowed => constantTimeEqual(allowed, token))) {
       return c.json(unauthorized('Invalid Bearer token'), 401);
     }
 
     return next();
   };
+}
+
+function constantTimeEqual(left: string, right: string): boolean {
+  const maxLength = Math.max(left.length, right.length);
+  let difference = left.length ^ right.length;
+  for (let index = 0; index < maxLength; index += 1) {
+    difference |= (left.charCodeAt(index) || 0) ^ (right.charCodeAt(index) || 0);
+  }
+  return difference === 0;
 }
 
 function unauthorized(message: string) {

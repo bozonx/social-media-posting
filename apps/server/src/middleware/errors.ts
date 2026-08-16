@@ -2,6 +2,7 @@ import { HTTPException } from 'hono/http-exception';
 import { ZodError } from 'zod';
 import type { Context, ErrorHandler } from 'hono';
 import type { ILogger } from '@bozonx/social-posting';
+import { PostingError } from '@bozonx/social-posting';
 
 /**
  * Turn anything thrown while handling a request into one JSON error shape.
@@ -26,6 +27,14 @@ export function errorHandler(logger: ILogger): ErrorHandler {
 
     if (error instanceof HTTPException) {
       return respond(c, error.status, error.message, { error: 'HTTPException' });
+    }
+
+    if (error instanceof PostingError) {
+      return respond(c, 400, error.message, {
+        error: error.name,
+        code: error.code,
+        retryable: error.retryable,
+      });
     }
 
     logger.error(

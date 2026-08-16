@@ -83,6 +83,30 @@ describe('validateAgainstCapabilities', () => {
     });
   });
 
+  describe('media metadata constraints', () => {
+    const constrained: PlatformCapabilities = {
+      ...capabilities,
+      media: {
+        video: { minDurationSecs: 2, maxDurationSecs: 60, minAspectRatio: 0.5, maxAspectRatio: 2 },
+      },
+    };
+
+    it('enforces declared duration and aspect-ratio limits', () => {
+      const result = validateAgainstCapabilities(
+        {
+          platform: 'demo',
+          type: PostType.IMAGE,
+          cover: { src: 'https://a/cover.jpg' },
+          video: { src: 'https://a/video.mp4', durationSecs: 61, width: 300, height: 100 },
+        },
+        constrained,
+      );
+
+      expect(result.errors.join(' ')).toContain('duration 61s exceeds');
+      expect(result.errors.join(' ')).toContain('aspect ratio 3 exceeds');
+    });
+  });
+
   describe('body rules', () => {
     it('rejects a body over the platform limit', () => {
       expect(check({ body: 'a'.repeat(101) }).errors.join(' ')).toContain(

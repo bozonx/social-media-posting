@@ -2,6 +2,7 @@ import type { ILogger } from '../logger/logger.js';
 import type { IAuthValidator } from './auth-validator.interface.js';
 import type { IPlatform } from './platform.interface.js';
 import type { PlatformCapabilities } from './capabilities.js';
+import type { CredentialProvider } from '../auth/credentials.js';
 
 /**
  * What the client hands a platform when it builds one.
@@ -12,6 +13,8 @@ import type { PlatformCapabilities } from './capabilities.js';
 export interface PlatformDeps {
   /** Logger this platform instance writes to. */
   logger: ILogger;
+  /** Host-owned credential store, available to OAuth-capable platforms. */
+  credentialProvider?: CredentialProvider;
 }
 
 /**

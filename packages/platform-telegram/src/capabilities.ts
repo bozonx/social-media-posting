@@ -44,14 +44,27 @@ export const telegramCapabilities: PlatformCapabilities = {
   // stricter of the two is the safe generic limit, and the platform hook
   // refines it per type.
   maxBodyLength: 4096,
+  bodyLengthRule: {},
 
   supportedBodyFormats: ['text', 'html', 'md', 'MarkdownV2'],
-  targetBodyFormat: 'text',
+  targetBodyFormat: 'html',
+  passthroughBodyFormats: ['MarkdownV2'],
 
   // Telegram downloads media from a public URL itself, so bytes never have to
   // pass through this process. That is what makes a Workers deployment viable.
   supportsUrlPassthrough: true,
   requiresByteUpload: false,
+
+  media: {
+    image: { maxBytes: 10 * 1024 * 1024, mimeTypes: ['image/jpeg', 'image/png', 'image/webp'] },
+    video: { maxBytes: 50 * 1024 * 1024 },
+    audio: { maxBytes: 50 * 1024 * 1024 },
+    document: { maxBytes: 50 * 1024 * 1024 },
+  },
+
+  rateLimits: {
+    note: 'Bot API limits depend on chat type; hosts must honour retry_after from 429 responses.',
+  },
 
   supportsNativeScheduling: false,
   supportsDraft: false,
