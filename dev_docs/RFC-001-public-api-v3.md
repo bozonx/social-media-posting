@@ -86,9 +86,7 @@ export interface PostRequest {
 }
 
 /** Standard audiences, plus any value a platform declares. */
-export type Visibility =
-  | 'public' | 'unlisted' | 'followers' | 'private' | 'direct'
-  | (string & {});
+export type Visibility = 'public' | 'unlisted' | 'followers' | 'private' | 'direct' | (string & {});
 
 export interface PlatformObjectRef {
   /** Platform-native object identifier. */
@@ -119,15 +117,15 @@ the type forbids it. `repostOf` implies the detected `repost` type when `type` i
 
 ### Renames (no aliases kept)
 
-| v2 | v3 | Reason |
-| --- | --- | --- |
-| `channelId` | `target` | X/Mastodon/Bluesky have no channel; Reddit has a board, LinkedIn an org URN |
-| `cover` | `thumbnail` | A preview asset is distinct from publishable media. |
-| `disableNotification` | `silent` | Telegram vocabulary in a core type |
-| `postLanguage` | `language` | Redundant prefix inside `PostRequest` |
-| `maxBody` | `maxBodyLength` | Matches `capabilities.maxBodyLength` |
-| `options` | `extra` | Was confusable with call options; now paired with `capabilities.extraFields` |
-| `MediaInput.hasSpoiler` | `MediaInput.sensitive` | Telegram vocabulary; aligns with post-level `sensitive` |
+| v2                      | v3                     | Reason                                                                       |
+| ----------------------- | ---------------------- | ---------------------------------------------------------------------------- |
+| `channelId`             | `target`               | X/Mastodon/Bluesky have no channel; Reddit has a board, LinkedIn an org URN  |
+| `cover`                 | `thumbnail`            | A preview asset is distinct from publishable media.                          |
+| `disableNotification`   | `silent`               | Telegram vocabulary in a core type                                           |
+| `postLanguage`          | `language`             | Redundant prefix inside `PostRequest`                                        |
+| `maxBody`               | `maxBodyLength`        | Matches `capabilities.maxBodyLength`                                         |
+| `options`               | `extra`                | Was confusable with call options; now paired with `capabilities.extraFields` |
+| `MediaInput.hasSpoiler` | `MediaInput.sensitive` | Telegram vocabulary; aligns with post-level `sensitive`                      |
 
 `AccountConfig.channelId` → `AccountConfig.target`, `AccountConfig.maxBody` →
 `AccountConfig.maxBodyLength` for the same reasons. `maxBodyLength` is removed from
@@ -342,6 +340,7 @@ Also:
     allowsMixedMedia?: boolean;
   }
   ```
+
 ```ts
 export interface MediaConstraints {
   /** At least one source kind is required for each declared media type. */
@@ -368,9 +367,22 @@ export interface MediaConstraints {
 
 ```ts
 export type RequestField =
-  | 'body' | 'title' | 'description' | 'tags' | 'media' | 'thumbnail'
-  | 'visibility' | 'contentWarning' | 'sensitive' | 'commentsEnabled'
-  | 'inReplyTo' | 'repostOf' | 'poll' | 'location' | 'scheduledAt' | 'mode';
+  | 'body'
+  | 'title'
+  | 'description'
+  | 'tags'
+  | 'media'
+  | 'thumbnail'
+  | 'visibility'
+  | 'contentWarning'
+  | 'sensitive'
+  | 'commentsEnabled'
+  | 'inReplyTo'
+  | 'repostOf'
+  | 'poll'
+  | 'location'
+  | 'scheduledAt'
+  | 'mode';
 ```
 
 `RequestField` is deliberately closed: descriptors cannot use unchecked arbitrary dotted paths.
@@ -475,10 +487,19 @@ parts while a publication is processing; callers persist it rather than reconstr
 
 ```ts
 export type StatusResult =
-  | { success: true; data: { status: 'published' | 'processing' | 'failed'; postId?: string;
-        url?: string; ref?: PostRef; checkAfterMs?: number;
+  | {
+      success: true;
+      data: {
+        status: 'published' | 'processing' | 'failed';
+        postId?: string;
+        url?: string;
+        ref?: PostRef;
+        checkAfterMs?: number;
         /** Why the platform rejected it, when status is 'failed'. */
-        reason?: ErrorPayload; raw?: JsonValue } }
+        reason?: ErrorPayload;
+        raw?: JsonValue;
+      };
+    }
   | { success: false; error: ErrorPayload };
 ```
 
@@ -490,18 +511,21 @@ that are actually fine (`packages/core/src/services/post.service.ts:162`).
 
 ```ts
 export type PreviewResult =
-  | { success: true; data: {
-        valid: boolean;               // whether it could be published
+  | {
+      success: true;
+      data: {
+        valid: boolean; // whether it could be published
         detectedType: PostType;
-        issues: Issue[];              // blocking, when valid is false
+        issues: Issue[]; // blocking, when valid is false
         warnings: Issue[];
         ignoredFields: RequestField[]; // computed today and thrown away
         convertedBody?: string;
         convertedBodyLength?: number;
         targetFormat?: string;
-        truncated?: boolean;          // conversion overflowed the limit
-      } }
-  | { success: false; error: ErrorPayload };  // preview itself could not run
+        truncated?: boolean; // conversion overflowed the limit
+      };
+    }
+  | { success: false; error: ErrorPayload }; // preview itself could not run
 ```
 
 `success` now means the same thing in `post()`, `preview()`, `checkStatus()` and `delete()`.
@@ -577,6 +601,7 @@ reference, partial-result and state semantics will be designed when their APIs a
 
   Today one entry point exports ~60 symbols, most of which only an adapter author needs, and every
   internal helper is semver-bound to the host API.
+
 - **`PlatformDeps` gains `fetch?: typeof fetch`** so an adapter can be pointed at a regional
   endpoint or a proxy, and so the conformance harness can inject a transport without patching
   globals.
@@ -666,12 +691,12 @@ note.
 The core library never stores these values. It may create or consume them within a request, but a
 host must persist them if work continues after the call returns.
 
-| Case | Why it crosses requests | Owner | Core behaviour |
-| --- | --- | --- | --- |
-| Retry after an uncertain publish result | A sent mutation may have succeeded despite a lost response. | Host job record/idempotency store. | Returns classification and any `ResumeHandle`; never retries mutations itself. |
-| Resumable multi-step upload/publish | Upload/container progress must survive a failed call. | Host job record. | Emits/accepts JSON-serializable `ResumeHandle`. |
-| Deferred processing status checks | Polling later requires a scheduler and durable job. | Host scheduler/job record. | Returns a handle and `checkAfterMs`; never polls. |
-| Partial deletion retry | Some parts may be deleted before another part fails or becomes unknown. | Host job record. | Returns per-part outcomes and a resumable handle when available. |
-| OAuth redirect callback | OAuth `state`, nonce and PKCE verifier must survive browser redirect. | Host session/store. | Provides auth hints and token-refresh helpers only; no universal connect flow. |
-| Application-level deduplication | Only the caller knows whether two business jobs are the same publication. | Host database/idempotency store. | Forwards an idempotency key only where the platform supports it. |
-| Native scheduled post lifecycle | A platform may materialize or reject a scheduled post later. | Platform; host stores its `PostRef` if it needs follow-up. | Makes one API call and returns the platform result. |
+| Case                                    | Why it crosses requests                                                   | Owner                                                      | Core behaviour                                                                 |
+| --------------------------------------- | ------------------------------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| Retry after an uncertain publish result | A sent mutation may have succeeded despite a lost response.               | Host job record/idempotency store.                         | Returns classification and any `ResumeHandle`; never retries mutations itself. |
+| Resumable multi-step upload/publish     | Upload/container progress must survive a failed call.                     | Host job record.                                           | Emits/accepts JSON-serializable `ResumeHandle`.                                |
+| Deferred processing status checks       | Polling later requires a scheduler and durable job.                       | Host scheduler/job record.                                 | Returns a handle and `checkAfterMs`; never polls.                              |
+| Partial deletion retry                  | Some parts may be deleted before another part fails or becomes unknown.   | Host job record.                                           | Returns per-part outcomes and a resumable handle when available.               |
+| OAuth redirect callback                 | OAuth `state`, nonce and PKCE verifier must survive browser redirect.     | Host session/store.                                        | Provides auth hints and token-refresh helpers only; no universal connect flow. |
+| Application-level deduplication         | Only the caller knows whether two business jobs are the same publication. | Host database/idempotency store.                           | Forwards an idempotency key only where the platform supports it.               |
+| Native scheduled post lifecycle         | A platform may materialize or reject a scheduled post later.              | Platform; host stores its `PostRef` if it needs follow-up. | Makes one API call and returns the platform result.                            |
