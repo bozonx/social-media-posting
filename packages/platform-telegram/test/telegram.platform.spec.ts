@@ -799,4 +799,59 @@ describe('TelegramPlatform', () => {
       }
     });
   });
+
+  describe('edge cases in publish', () => {
+    it('throws non-retryable PlatformError when signal is already aborted', async () => {
+      const controller = new AbortController();
+      controller.abort();
+
+      const request: PostRequest = {
+        platform: 'telegram',
+        body: 'Hello',
+        type: PostType.POST,
+      };
+
+      await expect(
+        platform.publish(request, mockAccountConfig, { signal: controller.signal }),
+      ).rejects.toMatchObject({
+        message: 'Request aborted before publishing',
+        retryable: false,
+      });
+    });
+
+    it('throws ValidationError when channelId is completely missing from both request and account', async () => {
+      const accountWithoutChannel = { ...mockAccountConfig, channelId: '' };
+      const request: PostRequest = {
+        platform: 'telegram',
+        body: 'Hello',
+        type: PostType.POST,
+      };
+
+      await expect(platform.publish(request, accountWithoutChannel)).rejects.toThrow(
+        /Field "channelId" is required for Telegram/,
+      );
+    });
+
+    it('logs warnings when request contains ignored fields', async () => {
+      const warnSpy = vi.fn();
+      const platformWithLogging = new TelegramPlatform({
+        logger: { ...silentLogger, warn: warnSpy },
+      });
+      botApi.reply('sendMessage', { message_id: 100, chat: { id: 100 } });
+
+      const request: PostRequest = {
+        platform: 'telegram',
+        body: 'Hello',
+        title: 'Ignored Title',
+        type: PostType.POST,
+      };
+
+      await platformWithLogging.publish(request, mockAccountConfig);
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Warnings during publish'),
+        'TelegramPlatform',
+      );
+    });
+  });
 });

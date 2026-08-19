@@ -87,11 +87,11 @@ describe('validateAgainstCapabilities', () => {
     const constrained: PlatformCapabilities = {
       ...capabilities,
       media: {
-        video: { minDurationSecs: 2, maxDurationSecs: 60, minAspectRatio: 0.5, maxAspectRatio: 2 },
+        video: { minDurationSecs: 5, maxDurationSecs: 60, minAspectRatio: 0.5, maxAspectRatio: 2 },
       },
     };
 
-    it('enforces declared duration and aspect-ratio limits', () => {
+    it('enforces declared duration and aspect-ratio limits (maximum exceeded)', () => {
       const result = validateAgainstCapabilities(
         {
           platform: 'demo',
@@ -102,8 +102,44 @@ describe('validateAgainstCapabilities', () => {
         constrained,
       );
 
-      expect(result.errors.join(' ')).toContain('duration 61s exceeds');
-      expect(result.errors.join(' ')).toContain('aspect ratio 3 exceeds');
+      expect(result.errors.join(' ')).toContain('duration 61s exceeds the 60s maximum');
+      expect(result.errors.join(' ')).toContain('aspect ratio 3 exceeds the 2 maximum');
+    });
+
+    it('enforces declared duration and aspect-ratio limits (below minimum)', () => {
+      const result = validateAgainstCapabilities(
+        {
+          platform: 'demo',
+          type: PostType.IMAGE,
+          cover: { src: 'https://a/cover.jpg' },
+          video: { src: 'https://a/video.mp4', durationSecs: 2, width: 100, height: 300 },
+        },
+        constrained,
+      );
+
+      expect(result.errors.join(' ')).toContain('duration 2s is below the 5s minimum');
+      expect(result.errors.join(' ')).toContain(
+        'aspect ratio 0.3333333333333333 is below the 0.5 minimum',
+      );
+    });
+  });
+
+  describe('media URL validation', () => {
+    it('validates URLs in all media fields (cover, video, audio, document, media array)', () => {
+      const result = validateAgainstCapabilities(
+        {
+          platform: 'demo',
+          type: PostType.ALBUM,
+          cover: { src: 'invalid-url' },
+          video: { src: 'ftp://files.example.com/video.mp4' },
+          audio: { src: 'javascript:alert(1)' },
+          document: { src: 'data:text/plain,hello' },
+          media: [{ src: 'blob:https://example.com/uuid' }],
+        } as PostRequest,
+        capabilities,
+      );
+
+      expect(result.errors.length).toBeGreaterThan(0);
     });
   });
 

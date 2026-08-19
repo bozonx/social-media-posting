@@ -115,6 +115,27 @@ describe('httpRequest', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it('detects abortion when signal is aborted during the retry attempt', async () => {
+    const controller = new AbortController();
+    let callCount = 0;
+    const fetchMock = vi.fn().mockImplementation(() => {
+      callCount += 1;
+      if (callCount === 2) {
+        controller.abort();
+      }
+      return Promise.reject(new TypeError('fetch failed'));
+    });
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const error = await httpRequest('https://api.example.com/send', {
+      signal: controller.signal,
+    }).catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(PlatformError);
+    expect((error as PlatformError).message).toBe('Request aborted');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it('classifies AbortSignal.timeout as a retryable timeout', async () => {
     const signal = AbortSignal.timeout(1);
     await new Promise(resolve => setTimeout(resolve, 5));
@@ -126,5 +147,15 @@ describe('httpRequest', () => {
 
     expect(error.code).toBe(ErrorCode.TIMEOUT_ERROR);
     expect(error.retryable).toBe(true);
+  });
+
+  it('uses fallback host name in error message when URL is invalid', async () => {
+    globalThis.fetch = vi
+      .fn()
+      .mockRejectedValue(new TypeError('fetch failed')) as unknown as typeof fetch;
+
+    const error = (await httpRequest('not-a-valid-url').catch((e: unknown) => e)) as PlatformError;
+
+    expect(error.message).toContain('the platform');
   });
 });

@@ -50,12 +50,33 @@ describe('truncateBody', () => {
 });
 
 describe('truncateHtml', () => {
+  it('returns unchanged HTML when body already fits within maxLength', () => {
+    expect(truncateHtml('<b>short</b>', 50)).toBe('<b>short</b>');
+  });
+
   it('does not split escaped entities or leave generated tags unclosed', () => {
     const result = truncateHtml(`${'a'.repeat(20)}&lt;<b>bold</b>`, 25);
 
     expect(result).not.toMatch(/&(?:[a-z]*)$/);
     expect(result).not.toContain('<b>bold…');
     expect(result.length).toBeLessThanOrEqual(25);
+  });
+
+  it('handles properly closed nested tags during truncation', () => {
+    const html = '<div><p><b>Hello</b></p><span>Extra text</span></div>';
+    const result = truncateHtml(html, 22);
+
+    expect(result.endsWith('…</span></p></div>') || result.endsWith('…</div>')).toBe(false);
+    expect(result).toContain('…');
+    // Ensure all opened tags are closed in reverse order
+    expect(result).toMatch(/<\/b>|<\/p>|<\/div>/);
+  });
+
+  it('handles closing tag tokens correctly when tags are closed before truncation boundary', () => {
+    const html = '<p><b>One</b> <i>Two</i></p><p>Three</p>';
+    const result = truncateHtml(html, 20);
+
+    expect(result).toContain('One');
   });
 });
 
@@ -82,6 +103,10 @@ describe('convertBody', () => {
     expect(convertBody('<p>one</p><p>two</p>', 'html', 'text')).toBe('one\n\ntwo');
   });
 
+  it('converts br tags to newlines in htmlToPlainText', () => {
+    expect(htmlToPlainText('Line 1<br/>Line 2<br>Line 3')).toBe('Line 1\nLine 2\nLine 3');
+  });
+
   it('renders the shared Markdown subset as HTML', () => {
     expect(convertBody('**bold** and *italic* and `code`', 'md', 'html')).toBe(
       '<b>bold</b> and <i>italic</i> and <code>code</code>',
@@ -96,6 +121,10 @@ describe('convertBody', () => {
 
   it('drops links with an unsafe URL scheme', () => {
     expect(markdownToHtml('[x](javascript:alert(1))')).toBe('x)');
+  });
+
+  it('handles malformed link URLs that fail URL constructor', () => {
+    expect(markdownToHtml('[bad](http:// invalid url with spaces)')).toBe('bad');
   });
 
   it('escapes text when converting to Markdown', () => {

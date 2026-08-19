@@ -35,7 +35,41 @@ describe('readRuntimeOptions', () => {
       includeRawResponses: true,
       maxRequestBodyBytes: 2048,
     });
+    expect(readRuntimeOptions({ ALLOW_INLINE_AUTH: 'false' }).allowInlineAuth).toBe(false);
     expect(readRuntimeOptions({ ALLOW_INLINE_AUTH: 'yes' }).allowInlineAuth).toBe(false);
+  });
+
+  it('falls back to default maxRequestBodyBytes when value is out of bounds', () => {
+    // Below 1024
+    expect(readRuntimeOptions({ MAX_REQUEST_BODY_BYTES: '500' }).maxRequestBodyBytes).toBe(
+      1_048_576,
+    );
+    // Above 10_485_760
+    expect(readRuntimeOptions({ MAX_REQUEST_BODY_BYTES: '20000000' }).maxRequestBodyBytes).toBe(
+      1_048_576,
+    );
+  });
+
+  it('reads and trims service name and version, falling back when empty or whitespace', () => {
+    expect(
+      readRuntimeOptions({
+        SERVICE_NAME: ' custom-service ',
+        SERVICE_VERSION: ' 2.0.0 ',
+      }),
+    ).toMatchObject({
+      serviceName: 'custom-service',
+      serviceVersion: '2.0.0',
+    });
+
+    expect(
+      readRuntimeOptions({
+        SERVICE_NAME: '   ',
+        SERVICE_VERSION: '',
+      }),
+    ).toMatchObject({
+      serviceName: 'social-posting-server',
+      serviceVersion: 'dev',
+    });
   });
 
   it('splits and trims the bearer token list', () => {

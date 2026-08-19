@@ -3,6 +3,7 @@ import { MediaFetcher } from '../src/media/media-fetcher.js';
 import { requiresByteUpload, toMediaSource } from '../src/media/media-source.js';
 import { mediaKindOf, sniffMimeType } from '../src/media/mime-sniffer.js';
 import { ValidationError } from '../src/errors/posting-error.js';
+import { PlatformError } from '../src/errors/platform-error.js';
 import { PostType } from '../src/types/post-type.js';
 import type { PlatformCapabilities } from '../src/platforms/capabilities.js';
 
@@ -119,6 +120,54 @@ describe('MediaFetcher', () => {
     expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ method: 'HEAD' });
   });
 
+  it('probes non-URL sources directly without network calls', async () => {
+    const fetcher = new MediaFetcher();
+
+    const bytesMeta = await fetcher.probe({
+      kind: 'bytes',
+      bytes: new Uint8Array(256),
+      mimeType: 'image/png',
+      fileName: 'test.png',
+    });
+    expect(bytesMeta).toEqual({
+      mimeType: 'image/png',
+      sizeBytes: 256,
+      fileName: 'test.png',
+      kind: 'image',
+    });
+
+    const blobMeta = await fetcher.probe({
+      kind: 'blob',
+      blob: new Blob(['data'], { type: 'image/jpeg' }),
+      fileName: 'photo.jpg',
+    });
+    expect(blobMeta).toEqual({
+      mimeType: 'image/jpeg',
+      sizeBytes: 4,
+      fileName: 'photo.jpg',
+      kind: 'image',
+    });
+
+    const streamMeta = await fetcher.probe({
+      kind: 'stream',
+      open: async () => new ReadableStream(),
+      sizeBytes: 500,
+      mimeType: 'video/mp4',
+    });
+    expect(streamMeta).toEqual({
+      mimeType: 'video/mp4',
+      sizeBytes: 500,
+      fileName: undefined,
+      kind: 'video',
+    });
+  });
+
+  it('refuses to probe platform references', async () => {
+    await expect(new MediaFetcher().probe({ kind: 'platformRef', ref: 'ref-123' })).rejects.toThrow(
+      ValidationError,
+    );
+  });
+
   it('refuses an oversized file before paying for the download', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(null, {
@@ -169,6 +218,23 @@ describe('MediaFetcher', () => {
     expect(await drain(opened.stream)).toEqual(JPEG_HEADER);
   });
 
+  it('handles empty stream gracefully during mime sniffing', async () => {
+    const emptyStream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.close();
+      },
+    });
+
+    const opened = await new MediaFetcher().open({
+      kind: 'stream',
+      open: async () => emptyStream,
+      mimeType: 'image/jpeg',
+    });
+
+    expect(opened.mimeType).toBe('image/jpeg');
+    expect(await drain(opened.stream)).toEqual(new Uint8Array([]));
+  });
+
   it('fails an oversized download while it streams, when the origin understated it', async () => {
     const oversized = new Uint8Array(4096);
     oversized.set(JPEG_HEADER, 0);
@@ -205,12 +271,41 @@ describe('MediaFetcher', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it('opens Blob sources', async () => {
+    const blob = new Blob([PNG_HEADER], { type: 'image/png' });
+    const opened = await new MediaFetcher().open({ kind: 'blob', blob }, capabilities);
+
+    expect(opened.mimeType).toBe('image/png');
+    expect(await drain(opened.stream)).toEqual(PNG_HEADER);
+  });
+
+  it('opens Stream sources', async () => {
+    const opened = await new MediaFetcher().open(
+      {
+        kind: 'stream',
+        open: async () => bytesStream(PNG_HEADER),
+        mimeType: 'image/png',
+      },
+      capabilities,
+    );
+
+    expect(opened.mimeType).toBe('image/png');
+    expect(await drain(opened.stream)).toEqual(PNG_HEADER);
+  });
+
   it('reopens a source at an offset, for an upload that resumes', async () => {
     const bytes = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]);
 
     const stream = await new MediaFetcher().openAt({ kind: 'bytes', bytes }, 5);
 
     expect(await drain(stream)).toEqual(new Uint8Array([6, 7, 8]));
+  });
+
+  it('reopens a blob source at an offset', async () => {
+    const blob = new Blob([new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8])]);
+    const stream = await new MediaFetcher().openAt({ kind: 'blob', blob }, 4);
+
+    expect(await drain(stream)).toEqual(new Uint8Array([5, 6, 7, 8]));
   });
 
   it('asks the origin for a byte range when resuming a URL source', async () => {
@@ -228,5 +323,80 @@ describe('MediaFetcher', () => {
     await expect(new MediaFetcher().open({ kind: 'platformRef', ref: 'file-123' })).rejects.toThrow(
       ValidationError,
     );
+  });
+
+  it('refuses to openAt media the platform already stores', async () => {
+    await expect(
+      new MediaFetcher().openAt({ kind: 'platformRef', ref: 'file-123' }, 10),
+    ).rejects.toThrow(ValidationError);
+  });
+
+  describe('validateUrl hook and redirect limits', () => {
+    it('runs custom validateUrl validator against request URLs', async () => {
+      const validateUrl = vi.fn((url: URL) => {
+        if (url.hostname === 'internal.corp') {
+          throw new ValidationError('Internal URLs are not allowed');
+        }
+      });
+      const fetcher = new MediaFetcher({ validateUrl });
+
+      await expect(
+        fetcher.probe({ kind: 'url', url: 'https://internal.corp/secret.png' }),
+      ).rejects.toThrow('Internal URLs are not allowed');
+      expect(validateUrl).toHaveBeenCalledWith(new URL('https://internal.corp/secret.png'));
+    });
+
+    it('follows redirects and validates every hop', async () => {
+      const validateUrl = vi.fn();
+      const fetcher = new MediaFetcher({ validateUrl });
+
+      globalThis.fetch = vi
+        .fn()
+        .mockResolvedValueOnce(
+          new Response(null, {
+            status: 302,
+            headers: { location: 'https://cdn.example/final.jpg' },
+          }),
+        )
+        .mockResolvedValueOnce(
+          new Response(null, {
+            status: 200,
+            headers: { 'content-type': 'image/jpeg', 'content-length': '200' },
+          }),
+        ) as unknown as typeof fetch;
+
+      const metadata = await fetcher.probe({ kind: 'url', url: 'https://origin.example/init.jpg' });
+
+      expect(metadata.sizeBytes).toBe(200);
+      expect(validateUrl).toHaveBeenCalledWith(new URL('https://origin.example/init.jpg'));
+      expect(validateUrl).toHaveBeenCalledWith(new URL('https://cdn.example/final.jpg'));
+    });
+
+    it('throws ValidationError when exceeding maximum of 5 redirects', async () => {
+      const fetcher = new MediaFetcher();
+
+      globalThis.fetch = vi.fn().mockImplementation(() =>
+        Promise.resolve(
+          new Response(null, {
+            status: 302,
+            headers: { location: 'https://cdn.example/redirect' },
+          }),
+        ),
+      ) as unknown as typeof fetch;
+
+      await expect(
+        fetcher.probe({ kind: 'url', url: 'https://cdn.example/redirect' }),
+      ).rejects.toThrow('Media URL exceeded the maximum of 5 redirects');
+    });
+
+    it('throws PlatformError when remote fetch answers with error status', async () => {
+      globalThis.fetch = vi
+        .fn()
+        .mockResolvedValue(new Response('not found', { status: 404 })) as unknown as typeof fetch;
+
+      await expect(
+        new MediaFetcher().open({ kind: 'url', url: 'https://cdn.example/notfound.jpg' }),
+      ).rejects.toThrow(PlatformError);
+    });
   });
 });

@@ -69,6 +69,16 @@ export default defineConfig({
           testTimeout: 5000,
         },
       },
+      {
+        test: {
+          name: 'conformance',
+          root: './packages/conformance',
+          environment: 'node',
+          include: ['test/**/*.spec.ts'],
+          setupFiles: ['../../test/setup/no-network.ts'],
+          testTimeout: 5000,
+        },
+      },
     ],
   },
 });

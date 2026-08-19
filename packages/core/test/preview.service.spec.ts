@@ -3,6 +3,7 @@ import { PreviewService } from '../src/services/preview.service.js';
 import { PostingConfig } from '../src/config/posting-config.js';
 import { PlatformRegistry } from '../src/platforms/platform-registry.js';
 import { AuthValidatorRegistry } from '../src/platforms/auth-validator-registry.js';
+import { PostType } from '../src/types/post-type.js';
 import type { ILogger } from '../src/logger/logger.js';
 import type { IPlatform } from '../src/platforms/platform.interface.js';
 import type { PostRequest } from '../src/types/post-request.js';
@@ -28,25 +29,37 @@ const previewResult: PreviewResponse = {
   },
 };
 
-function createService(accounts: Record<string, unknown> = { 'test-channel': telegramAccount }) {
+function createService(
+  accounts: Record<string, unknown> = { 'test-channel': telegramAccount },
+  platformOverrides: Partial<IPlatform> = {},
+) {
   const platform = {
     name: 'telegram',
-    capabilities: { name: 'telegram', supportedTypes: [] },
+    capabilities: {
+      name: 'telegram',
+      supportedTypes: [PostType.POST, PostType.IMAGE],
+      maxBodyLength: 4096,
+      targetBodyFormat: 'html',
+    },
     publish: vi.fn(),
     preview: vi.fn().mockResolvedValue(previewResult),
-  } satisfies IPlatform & { preview: ReturnType<typeof vi.fn> };
+    ...platformOverrides,
+  } satisfies IPlatform;
 
   const platformRegistry = new PlatformRegistry();
   platformRegistry.register(platform);
+
+  const warnSpy = vi.fn();
+  const logger: ILogger = { ...silentLogger, warn: warnSpy };
 
   const service = new PreviewService({
     config: new PostingConfig({ accounts: accounts as never }),
     platformRegistry,
     authValidatorRegistry: new AuthValidatorRegistry(),
-    logger: silentLogger,
+    logger,
   });
 
-  return { service, platform };
+  return { service, platform, warnSpy };
 }
 
 describe('PreviewService', () => {
@@ -167,6 +180,50 @@ describe('PreviewService', () => {
         source: 'inline',
       });
       expect(result).toBe(previewResult);
+    });
+
+    it('falls back to capability preview when platform.preview is omitted', async () => {
+      const validateExtra = vi.fn().mockReturnValue([]);
+      const { service } = createService(
+        { 'test-channel': { ...telegramAccount } },
+        {
+          preview: undefined,
+          validateExtra,
+        },
+      );
+
+      const request: PostRequest = {
+        platform: 'telegram',
+        body: 'Hello world',
+        account: 'test-channel',
+      };
+
+      const result = await service.preview(request);
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.valid).toBe(true);
+        expect(result.data.detectedType).toBe(PostType.POST);
+        expect(result.data.targetFormat).toBe('html');
+        expect(result.data.convertedBody).toBe('Hello world');
+      }
+      expect(validateExtra).toHaveBeenCalled();
+    });
+
+    it('logs a warning when preview validation throws an unexpected error', async () => {
+      const { service, warnSpy } = createService();
+
+      const result = await service.preview({
+        platform: 'telegram',
+        body: 'Test message',
+        account: 'non-existent',
+      });
+
+      expect(result.success).toBe(false);
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Preview validation failed for telegram'),
+        'PreviewService',
+      );
     });
   });
 });

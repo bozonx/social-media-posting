@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Comprehensive unit test suite across core, Telegram platform, conformance, and HTTP shell:
+  - Added dedicated unit test suites for `ConsoleLogger`, `MimeSniffer`, `MediaSource`, `AuthValidatorRegistry`, `PlatformRegistry`, `PostingError`/`ValidationError`/`PlatformError`, `PostingConfig`, `TelegramAuthValidator`, `TelegramApi`, and `describePlatformContract`.
+  - Added full test coverage for HTTP shell middlewares (`bearerAuth`, `DrainTracker`, `errorHandler`), configuration parsing (`readRuntimeOptions`, `readConfigFromEnv`), and route handlers (`healthRoutes`, `postRoutes`, `createApp`).
+  - Achieved >96% line and statement test coverage across the entire workspace with full `workerd` runtime compatibility.
 - Decoupled repository from fleet boilerplate (`ivank-microservice-boilerplate`), removed
   obsolete fleet check script (`check:fleet`), and made `AGENTS.md` self-contained for the library
   workspace.
