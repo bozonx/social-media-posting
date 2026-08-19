@@ -53,7 +53,7 @@
       "matchPackageNames": ["@types/**", "@cloudflare/workers-types"]
     },
     {
-      "description": "Keep the fleet package manager current",
+      "description": "Keep the package manager current",
       "groupName": "pnpm",
       "matchManagers": ["npm"],
       "matchDepTypes": ["packageManager"]

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Decoupled repository from fleet boilerplate (`ivank-microservice-boilerplate`), removed
+  obsolete fleet check script (`check:fleet`), and made `AGENTS.md` self-contained for the library
+  workspace.
 - Centralized capability validation in the core publish path, so every platform receives the same
   descriptor checks as preview. Account `maxBody` now takes effect.
 - Fixed Telegram caption limits after HTML conversion, safe HTML truncation, album options, and
