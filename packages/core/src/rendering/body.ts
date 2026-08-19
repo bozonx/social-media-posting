@@ -76,13 +76,13 @@ export function truncateHtml(body: string, maxLength: number, rule?: BodyLengthR
   for (const token of tokens) {
     const opening = token.match(/^<([a-z][\w-]*)(?:\s[^>]*)?>$/i);
     const closing = token.match(/^<\/([a-z][\w-]*)\s*>$/i);
-    if (opening) {
+    if (opening?.[1]) {
       if (!fits(token)) break;
       output.push(token);
       openTags.push(opening[1].toLowerCase());
       continue;
     }
-    if (closing) {
+    if (closing?.[1]) {
       if (!fits(token)) break;
       output.push(token);
       const index = openTags.lastIndexOf(closing[1].toLowerCase());
@@ -174,15 +174,15 @@ export function convertBody(body: string, from: string, to: string): string {
     return body;
   }
 
-  if (to === BodyFormat.TEXT) {
-    return from === BodyFormat.HTML ? htmlToPlainText(body) : markdownToPlainText(body);
+  if (to === (BodyFormat.TEXT as string)) {
+    return from === (BodyFormat.HTML as string) ? htmlToPlainText(body) : markdownToPlainText(body);
   }
 
-  if (to === BodyFormat.HTML) {
-    return from === BodyFormat.MARKDOWN ? markdownToHtml(body) : escapeHtml(body);
+  if (to === (BodyFormat.HTML as string)) {
+    return from === (BodyFormat.MARKDOWN as string) ? markdownToHtml(body) : escapeHtml(body);
   }
 
   // Converting *into* Markdown would have to guess at the author's intent, so
   // the text is emitted literally with its Markdown characters escaped.
-  return from === BodyFormat.HTML ? htmlToPlainText(body) : escapeMarkdownV2(body);
+  return from === (BodyFormat.HTML as string) ? htmlToPlainText(body) : escapeMarkdownV2(body);
 }

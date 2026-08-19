@@ -17,12 +17,26 @@ interface BotApiResponse<T> {
  * Not a `PlatformError` yet: this is the raw platform vocabulary, and turning
  * it into the library's contract is one clearly separate step.
  */
-export interface TelegramApiFailure {
-  error_code?: number;
-  description?: string;
-  parameters?: BotApiResponse<unknown>['parameters'];
-  payload?: Record<string, unknown>;
-  message: string;
+export class TelegramApiFailure extends Error {
+  readonly error_code?: number;
+  readonly description?: string;
+  readonly parameters?: BotApiResponse<unknown>['parameters'];
+  readonly payload?: Record<string, unknown>;
+
+  constructor(opts: {
+    error_code?: number;
+    description?: string;
+    parameters?: BotApiResponse<unknown>['parameters'];
+    payload?: Record<string, unknown>;
+    message: string;
+  }) {
+    super(opts.message);
+    this.name = 'TelegramApiFailure';
+    this.error_code = opts.error_code;
+    this.description = opts.description;
+    this.parameters = opts.parameters;
+    this.payload = opts.payload;
+  }
 }
 
 /**
@@ -68,13 +82,13 @@ export class TelegramApi {
 
     if (!response.ok || !parsed.ok) {
       const description = parsed.description ?? `Telegram API responded with ${response.status}`;
-      const failure: TelegramApiFailure = {
+      const failure = new TelegramApiFailure({
         error_code: parsed.error_code ?? response.status,
         description,
         parameters: parsed.parameters,
         payload: { method },
         message: description,
-      };
+      });
       throw failure;
     }
 

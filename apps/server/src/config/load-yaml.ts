@@ -28,7 +28,9 @@ export function loadYamlConfig(configPath?: string): ServerConfig {
 
     return serverConfigSchema.parse(substituteEnvVariables(raw));
   } catch (error) {
-    throw new Error(`Failed to load config from ${path}: ${(error as Error).message}`);
+    throw new Error(`Failed to load config from ${path}: ${(error as Error).message}`, {
+      cause: error,
+    });
   }
 }
 

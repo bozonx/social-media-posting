@@ -50,12 +50,13 @@ export class MediaFetcher {
     }
 
     if (source.kind !== 'url') {
-      const mimeType = source.kind === 'blob' ? source.blob.type : source.mimeType;
+      const rawMime = source.kind === 'blob' ? source.blob.type : source.mimeType;
+      const mimeType = rawMime && rawMime.length > 0 ? rawMime : undefined;
       return {
-        mimeType: mimeType || undefined,
+        mimeType,
         sizeBytes: knownSizeBytes(source),
         fileName: source.fileName,
-        kind: mediaKindOf(mimeType || undefined),
+        kind: mediaKindOf(mimeType),
       };
     }
 
@@ -192,7 +193,8 @@ export class MediaFetcher {
 
 function headerMimeType(response: Response): string | undefined {
   const value = response.headers.get('content-type');
-  return value ? value.split(';')[0].trim() : undefined;
+  const mime = value?.split(';')[0]?.trim();
+  return mime && mime.length > 0 ? mime : undefined;
 }
 
 function constraintsFor(
@@ -230,7 +232,9 @@ function assertMimeAllowed(metadata: MediaMetadata, constraints?: MediaConstrain
 }
 
 /**
- * Peek at the first chunk to identify the format, then hand back a stream that
+ * Prefix a stream with a sniffed MIME type without buffering it.
+ *
+ * One small read determines the magic bytes; a prepended `ReadableStream`
  * still yields those bytes. Nothing beyond the first chunk is held.
  */
 async function withSniffedMimeType(
@@ -240,7 +244,7 @@ async function withSniffedMimeType(
   const reader = stream.getReader();
   const first = await reader.read();
 
-  if (first.done || !first.value) {
+  if (first.done) {
     reader.releaseLock();
     return { stream: streamOfBytes(new Uint8Array()), mimeType: declared };
   }
@@ -249,7 +253,7 @@ async function withSniffedMimeType(
 
   const replayed = new ReadableStream<Uint8Array>({
     start(controller) {
-      controller.enqueue(first.value as Uint8Array);
+      controller.enqueue(first.value);
     },
     async pull(controller) {
       const next = await reader.read();

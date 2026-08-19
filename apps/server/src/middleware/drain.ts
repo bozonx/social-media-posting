@@ -58,7 +58,7 @@ export class DrainTracker {
         await next();
       } finally {
         this.inFlight -= 1;
-        if (this.draining && this.inFlight === 0 && this.idle) {
+        if (this.shuttingDown && this.inFlight === 0 && this.idle) {
           this.idle();
           this.idle = undefined;
         }

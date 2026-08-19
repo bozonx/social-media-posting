@@ -61,8 +61,8 @@ export function readRuntimeOptions(env: ServerEnv): RuntimeOptions {
     includeRawResponses: toBoolean(env.INCLUDE_RAW_RESPONSES, false),
     maxRequestBodyBytes: toBoundedInteger(env.MAX_REQUEST_BODY_BYTES, 1_048_576, 1_024, 10_485_760),
     shutdownDrainSeconds: toInteger(env.SHUTDOWN_DRAIN_SECONDS, 5),
-    serviceName: env.SERVICE_NAME?.trim() || 'social-posting-server',
-    serviceVersion: env.SERVICE_VERSION?.trim() || 'dev',
+    serviceName: nonEmpty(env.SERVICE_NAME) ?? 'social-posting-server',
+    serviceVersion: nonEmpty(env.SERVICE_VERSION) ?? 'dev',
   };
 }
 
@@ -84,7 +84,7 @@ export function readConfigFromEnv(env: ServerEnv): ServerConfig | undefined {
   try {
     parsed = JSON.parse(env.CONFIG_JSON);
   } catch (error) {
-    throw new Error(`CONFIG_JSON is not valid JSON: ${(error as Error).message}`);
+    throw new Error(`CONFIG_JSON is not valid JSON: ${(error as Error).message}`, { cause: error });
   }
 
   return serverConfigSchema.parse(parsed);
@@ -121,4 +121,9 @@ function toBoolean(value: string | undefined, fallback: boolean): boolean {
   if (value === 'true') return true;
   if (value === 'false') return false;
   return fallback;
+}
+
+function nonEmpty(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed && trimmed.length > 0 ? trimmed : undefined;
 }

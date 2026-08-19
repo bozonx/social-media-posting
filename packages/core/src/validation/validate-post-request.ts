@@ -161,7 +161,7 @@ export function validatePostRequest(request: PostRequest): string[] {
     }
   }
 
-  if (request.channelId !== undefined && request.channelId !== null) {
+  if (request.channelId !== undefined) {
     const { channelId } = request;
     const validString = typeof channelId === 'string' && channelId.trim().length > 0;
     const validNumber = typeof channelId === 'number' && Number.isInteger(channelId);
@@ -201,7 +201,11 @@ export function validatePostRequest(request: PostRequest): string[] {
     }
   }
 
-  if (request.mode !== undefined && request.mode !== 'publish' && request.mode !== 'draft') {
+  if (
+    request.mode !== undefined &&
+    (request.mode as string) !== 'publish' &&
+    (request.mode as string) !== 'draft'
+  ) {
     errors.push("Field 'mode' must be either 'publish' or 'draft'");
   }
 

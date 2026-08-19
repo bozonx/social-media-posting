@@ -1,4 +1,4 @@
-import { ErrorCode } from './error-code.js';
+import type { ErrorCode } from './error-code.js';
 import { PostingError } from './posting-error.js';
 import type { ResumeHandle } from '../types/resume-handle.js';
 

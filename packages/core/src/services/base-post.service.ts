@@ -110,7 +110,7 @@ export abstract class BasePostService {
     platform: IPlatform;
     accountConfig: ResolvedAccountConfig;
   }> {
-    const platformName = request.platform?.toLowerCase();
+    const platformName = request.platform.toLowerCase();
     if (!platformName) {
       throw new ValidationError("Field 'platform' is required");
     }

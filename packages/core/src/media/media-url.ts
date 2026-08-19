@@ -30,7 +30,7 @@ export function validateMediaUrl(url: string): void {
  * @throws ValidationError on the first malformed URL.
  */
 export function validateMediaUrls(urls: string[]): void {
-  if (!urls || urls.length === 0) {
+  if (urls.length === 0) {
     return;
   }
 

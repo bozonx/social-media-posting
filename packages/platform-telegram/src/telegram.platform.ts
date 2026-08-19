@@ -326,7 +326,9 @@ export class TelegramPlatform implements IPlatform {
     const options = telegramOptions(request.options);
 
     // If parse_mode is specified in options, it overrides our mapping
-    if (options.parse_mode !== undefined) {
+    if (typeof options.parse_mode === 'string') {
+      parseMode = options.parse_mode;
+    } else if (typeof options.parse_mode === 'number' || typeof options.parse_mode === 'boolean') {
       parseMode = String(options.parse_mode);
     }
 
@@ -467,7 +469,7 @@ export class TelegramPlatform implements IPlatform {
       const url = MediaInputHelper.getUrl(item);
       const fileId = MediaInputHelper.getPlatformRef(item);
       const explicitType = MediaInputHelper.getType(item);
-      const mediaInput = fileId || url;
+      const mediaInput = fileId ?? url;
 
       if (!mediaInput) {
         throw new ValidationError(`Media item at index ${index} must have either url or fileId`);
@@ -578,7 +580,7 @@ function resolveChatId(
 ): string | number | undefined {
   const finalId = request.channelId ?? accountConfig.channelId;
 
-  if (finalId === undefined || finalId === null || finalId === '') {
+  if (finalId === undefined || finalId === '') {
     return undefined;
   }
   if (typeof finalId !== 'string' && typeof finalId !== 'number') {

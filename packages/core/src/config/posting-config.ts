@@ -58,12 +58,14 @@ export class PostingConfig {
   constructor(input: PostingConfigInput) {
     const errors: string[] = [];
 
-    if (typeof input !== 'object' || input === null) {
+    const rawInput = input as unknown;
+    if (typeof rawInput !== 'object' || rawInput === null) {
       throw new Error('Posting config validation error: config must be an object');
     }
 
     const accounts = input.accounts;
-    if (typeof accounts !== 'object' || accounts === null || Array.isArray(accounts)) {
+    const rawAccounts = accounts as unknown;
+    if (typeof rawAccounts !== 'object' || rawAccounts === null || Array.isArray(rawAccounts)) {
       errors.push('accounts must be an object keyed by account name');
     } else {
       for (const [name, account] of Object.entries(accounts)) {
@@ -71,7 +73,7 @@ export class PostingConfig {
       }
     }
 
-    this.accounts = freezeAccounts((accounts ?? {}) as Record<string, AccountConfig>);
+    this.accounts = freezeAccounts(accounts);
     this.requestTimeoutSecs = requireInteger(
       input.requestTimeoutSecs,
       'requestTimeoutSecs',
@@ -148,7 +150,12 @@ function validateAccount(name: string, account: unknown): string[] {
   if (typeof platform !== 'string' || platform.trim().length === 0) {
     errors.push(`${prefix}: platform must be a non-empty string`);
   }
-  if (auth !== undefined && (typeof auth !== 'object' || auth === null || Array.isArray(auth))) {
+
+  const rawAuth = auth as unknown;
+  if (
+    rawAuth !== undefined &&
+    (typeof rawAuth !== 'object' || rawAuth === null || Array.isArray(rawAuth))
+  ) {
     errors.push(`${prefix}: auth must be an object`);
   }
   if (channelId !== undefined && typeof channelId !== 'string' && typeof channelId !== 'number') {

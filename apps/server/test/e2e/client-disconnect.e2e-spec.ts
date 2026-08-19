@@ -58,7 +58,7 @@ describe('client disconnect', () => {
       body: JSON.stringify(request),
     });
 
-    const options = platform.publish.mock.calls[0][2] as { signal?: AbortSignal };
+    const options = (platform.publish.mock.calls[0]?.[2] ?? {}) as { signal?: AbortSignal };
     expect(options.signal).toBeInstanceOf(AbortSignal);
     expect(options.signal?.aborted).toBe(false);
   });

@@ -22,7 +22,6 @@ requestTimeoutSecs: 60
 accounts:
   # Company Telegram channel
   company_telegram:
-
     # Platform name
     # Must match one of the supported platforms (currently: telegram)
     platform: telegram

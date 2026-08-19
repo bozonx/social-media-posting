@@ -1,8 +1,7 @@
 import eslint from '@eslint/js';
-import tseslint from '@typescript-eslint/eslint-plugin';
-import tsparser from '@typescript-eslint/parser';
-import prettier from 'eslint-plugin-prettier';
+import globals from 'globals';
 import prettierConfig from 'eslint-config-prettier';
+import tseslint from 'typescript-eslint';
 
 /**
  * Node built-ins that must never appear in a published package.
@@ -13,59 +12,116 @@ import prettierConfig from 'eslint-config-prettier';
  * running under `workerd` (`pnpm test:workerd`).
  */
 const NODE_BUILTINS = [
-  'assert', 'async_hooks', 'buffer', 'child_process', 'cluster', 'console', 'constants',
-  'crypto', 'dgram', 'diagnostics_channel', 'dns', 'domain', 'events', 'fs', 'http', 'http2',
-  'https', 'inspector', 'module', 'net', 'os', 'path', 'perf_hooks', 'process', 'punycode',
-  'querystring', 'readline', 'repl', 'stream', 'string_decoder', 'timers', 'tls', 'trace_events',
-  'tty', 'url', 'util', 'v8', 'vm', 'worker_threads', 'zlib',
+  'assert',
+  'async_hooks',
+  'buffer',
+  'child_process',
+  'cluster',
+  'console',
+  'constants',
+  'crypto',
+  'dgram',
+  'diagnostics_channel',
+  'dns',
+  'domain',
+  'events',
+  'fs',
+  'http',
+  'http2',
+  'https',
+  'inspector',
+  'module',
+  'net',
+  'os',
+  'path',
+  'perf_hooks',
+  'process',
+  'punycode',
+  'querystring',
+  'readline',
+  'repl',
+  'stream',
+  'string_decoder',
+  'timers',
+  'tls',
+  'trace_events',
+  'tty',
+  'url',
+  'util',
+  'v8',
+  'vm',
+  'worker_threads',
+  'zlib',
 ];
 
 const WEB_STANDARD_MESSAGE =
   'Published packages target web standards. Use fetch, Web Crypto, WHATWG streams and friends instead of Node built-ins.';
 
-export default [
-  { ignores: ['**/dist/', 'node_modules/', 'coverage/', '**/*.js'] },
+export default tseslint.config(
+  {
+    ignores: ['**/dist/', 'node_modules/', 'coverage/', '**/*.js', '**/*.mjs'],
+  },
+
   eslint.configs.recommended,
+  ...tseslint.configs.recommendedTypeChecked,
+
   {
     files: ['**/*.ts'],
     languageOptions: {
-      parser: tsparser,
+      parser: tseslint.parser,
       parserOptions: {
-        project: ['./tsconfig.json'],
+        projectService: true,
         tsconfigRootDir: import.meta.dirname,
-        sourceType: 'module',
-        ecmaVersion: 2022,
       },
       globals: {
-        process: 'readonly',
-        console: 'readonly',
-        setTimeout: 'readonly',
-        clearTimeout: 'readonly',
-        crypto: 'readonly',
-        fetch: 'readonly',
-        AbortController: 'readonly',
-        AbortSignal: 'readonly',
-        URL: 'readonly',
+        ...globals.node,
+        ...globals.es2022,
       },
     },
-    plugins: { '@typescript-eslint': tseslint, prettier },
+    plugins: {
+      '@typescript-eslint': tseslint.plugin,
+    },
     rules: {
-      'prettier/prettier': 'error',
       'no-unused-vars': 'off',
       '@typescript-eslint/no-unused-vars': [
-        'warn',
-        { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' },
+        'error',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
+        },
       ],
+      '@typescript-eslint/explicit-function-return-type': 'off',
+      '@typescript-eslint/explicit-module-boundary-types': 'off',
+      '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/no-non-null-assertion': 'error',
+
+      // Type-aware rules. These catch mistakes a reviewer misses.
+      '@typescript-eslint/no-deprecated': 'error',
+      '@typescript-eslint/prefer-nullish-coalescing': 'error',
+      '@typescript-eslint/prefer-optional-chain': 'error',
       '@typescript-eslint/no-floating-promises': 'error',
+      '@typescript-eslint/await-thenable': 'error',
       '@typescript-eslint/no-misused-promises': 'error',
-      '@typescript-eslint/consistent-type-imports': 'off',
-      '@typescript-eslint/no-explicit-any': 'warn',
-      '@typescript-eslint/no-non-null-assertion': 'warn',
+      '@typescript-eslint/require-await': 'error',
+      '@typescript-eslint/no-unnecessary-type-assertion': 'error',
+      '@typescript-eslint/no-unnecessary-condition': 'error',
+      '@typescript-eslint/prefer-as-const': 'error',
+      '@typescript-eslint/consistent-type-imports': [
+        'error',
+        { prefer: 'type-imports', fixStyle: 'inline-type-imports' },
+      ],
+      '@typescript-eslint/consistent-type-exports': 'error',
+      '@typescript-eslint/no-import-type-side-effects': 'error',
+
+      'no-console': 'error',
       'no-debugger': 'error',
-      'no-undef': 'off',
-      'preserve-caught-error': 'off',
+      'prefer-const': 'error',
+      'no-var': 'error',
+      eqeqeq: ['error', 'smart'],
     },
   },
+
   {
     // Published packages only. `apps/server` is a deployment artefact, never an
     // npm package, so it may use whatever its runtime provides.
@@ -90,17 +146,62 @@ export default [
       ],
     },
   },
+
   {
     // Repository tooling runs on Node by definition, and is never published.
     files: ['scripts/**/*.mjs'],
     languageOptions: {
-      globals: { process: 'readonly', console: 'readonly' },
+      globals: {
+        ...globals.node,
+      },
     },
-    rules: { 'no-undef': 'off' },
+    rules: {
+      'no-undef': 'off',
+      'no-console': 'off',
+    },
   },
+
   {
-    files: ['**/test/**/*.ts', '**/*.spec.ts'],
-    rules: { '@typescript-eslint/no-explicit-any': 'off', 'no-console': 'off' },
+    files: ['examples/**/*.ts'],
+    rules: {
+      'no-console': 'off',
+    },
   },
+
+  {
+    files: ['packages/core/src/logger/logger.ts', 'apps/server/src/logger.ts'],
+    rules: {
+      'no-console': 'off',
+    },
+  },
+
+  {
+    files: [
+      '**/test/**/*.ts',
+      '**/*.spec.ts',
+      '**/*.e2e-spec.ts',
+      'test/**/*.ts',
+      'packages/conformance/src/**/*.ts',
+    ],
+    rules: {
+      // Tests and test-harness utilities reach into internals and build partial doubles on purpose.
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-non-null-assertion': 'off',
+      '@typescript-eslint/no-unnecessary-condition': 'off',
+      '@typescript-eslint/no-unnecessary-type-assertion': 'off',
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-unsafe-return': 'off',
+      '@typescript-eslint/no-unsafe-argument': 'off',
+      '@typescript-eslint/require-await': 'off',
+      '@typescript-eslint/no-base-to-string': 'off',
+      '@typescript-eslint/unbound-method': 'off',
+      '@typescript-eslint/consistent-type-imports': 'off',
+      'no-console': 'off',
+    },
+  },
+
+  // Must stay last: switches off every rule Prettier owns.
   prettierConfig,
-];
+);

@@ -40,7 +40,7 @@ export class PreviewService extends BasePostService {
           : undefined,
       });
     } catch (error) {
-      const message = (error as Error)?.message ?? 'Unknown error';
+      const message = error instanceof Error ? error.message : 'Unknown error';
       this.logger.warn(
         `Preview validation failed for ${request.platform}: ${message}`,
         LOG_CONTEXT,

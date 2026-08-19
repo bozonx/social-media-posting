@@ -39,7 +39,7 @@ const mediaInputSchema = z
     src: z.string().min(1).max(MAX_MEDIA_SRC_LENGTH),
     hasSpoiler: z.boolean().optional(),
     type: z.enum(['image', 'video', 'audio', 'document']).optional(),
-    durationSecs: z.number().finite().nonnegative().optional(),
+    durationSecs: z.number().nonnegative().optional(),
     width: z.number().int().positive().optional(),
     height: z.number().int().positive().optional(),
   })
@@ -65,7 +65,7 @@ export const resumeHandleSchema = z.object({
 export const postRequestSchema = z.object({
   platform: z.string().min(1),
   body: z.string().max(MAX_BODY_LIMIT).optional(),
-  type: z.nativeEnum(PostType).optional(),
+  type: z.enum(PostType).optional(),
   bodyFormat: z.string().max(50).optional(),
   title: z.string().max(MAX_TITLE_LENGTH).optional(),
   description: z.string().max(MAX_DESCRIPTION_LENGTH).optional(),

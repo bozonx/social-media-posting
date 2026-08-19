@@ -1,0 +1,6 @@
+# Generated or vendored — never hand-formatted.
+dist/
+coverage/
+node_modules/
+pnpm-lock.yaml
+*.tsbuildinfo

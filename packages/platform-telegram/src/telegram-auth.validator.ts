@@ -19,15 +19,12 @@ export class TelegramAuthValidator implements IAuthValidator {
   validate(auth: Record<string, unknown>): AuthValidation {
     const errors: string[] = [];
 
-    if (!auth) {
-      return { errors: ['Auth object is required for Telegram'] };
-    }
-
-    if (!auth.apiKey) {
+    const apiKey = auth.apiKey;
+    if (!apiKey) {
       errors.push("Field 'apiKey' is required for Telegram auth");
-    } else if (typeof auth.apiKey !== 'string') {
+    } else if (typeof apiKey !== 'string') {
       errors.push("Field 'apiKey' must be a string");
-    } else if (!isValidBotToken(auth.apiKey)) {
+    } else if (!isValidBotToken(apiKey)) {
       errors.push("Field 'apiKey' has invalid format (expected: 123456789:ABC-DEF...)");
     }
 

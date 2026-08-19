@@ -9,6 +9,13 @@ on:
     # Advisories appear after a commit lands, so re-check on a schedule too.
     - cron: '0 6 * * 1'
 
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   secrets:
     name: Secret scan

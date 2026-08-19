@@ -116,7 +116,7 @@ describe('MediaFetcher', () => {
     });
 
     expect(metadata).toMatchObject({ mimeType: 'image/jpeg', sizeBytes: 512, kind: 'image' });
-    expect(fetchMock.mock.calls[0][1]).toMatchObject({ method: 'HEAD' });
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ method: 'HEAD' });
   });
 
   it('refuses an oversized file before paying for the download', async () => {
@@ -221,7 +221,7 @@ describe('MediaFetcher', () => {
 
     await new MediaFetcher().openAt({ kind: 'url', url: 'https://cdn.example/a.jpg' }, 1024);
 
-    expect(fetchMock.mock.calls[0][1].headers).toMatchObject({ range: 'bytes=1024-' });
+    expect(fetchMock.mock.calls[0]?.[1]?.headers).toMatchObject({ range: 'bytes=1024-' });
   });
 
   it('refuses to fetch media the platform already stores', async () => {

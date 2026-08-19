@@ -1,4 +1,4 @@
-import { PostType } from '../types/post-type.js';
+import type { PostType } from '../types/post-type.js';
 import { MediaInputHelper } from '../media/media-input.helper.js';
 import { validateMediaUrl } from '../media/media-url.js';
 import { detectPostType } from './detect-post-type.js';

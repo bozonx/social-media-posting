@@ -2,18 +2,10 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
-    "lib": [
-      "ES2023",
-      "DOM"
-    ],
-    "types": [
-      "node"
-    ],
+    "lib": ["ES2023", "DOM"],
+    "types": ["node"],
     "declaration": false,
     "declarationMap": false
   },
-  "include": [
-    "src/**/*",
-    "test/**/*"
-  ]
+  "include": ["src/**/*", "test/**/*"]
 }

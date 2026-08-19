@@ -44,7 +44,7 @@ export class MediaInputHelper {
    * Type guard for a media input object.
    * @param input - MediaInput to check.
    */
-  static isObject(input: MediaInput): input is MediaInputObject {
+  static isObject(input: unknown): input is MediaInputObject {
     return typeof input === 'object' && input !== null;
   }
 
@@ -128,6 +128,6 @@ export class MediaInputHelper {
    * @param input - Optional MediaInput to check.
    */
   static isDefined(input?: MediaInput): boolean {
-    return input !== undefined && input !== null && this.isValidShape(input);
+    return input !== undefined && this.isValidShape(input);
   }
 }

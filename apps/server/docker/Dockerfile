@@ -6,6 +6,7 @@ WORKDIR /app
 RUN corepack enable
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages/core/package.json packages/core/
+COPY packages/conformance/package.json packages/conformance/
 COPY packages/platform-telegram/package.json packages/platform-telegram/
 COPY apps/server/package.json apps/server/
 COPY examples/embedded/package.json examples/embedded/

@@ -82,8 +82,9 @@ function isReplayable(body: BodyInit | null | undefined): boolean {
  * the host repeating.
  */
 function networkError(cause: unknown, url: string): PlatformError {
+  const message = cause instanceof Error ? cause.message : 'network error';
   return new PlatformError(
-    `Request to ${safeHost(url)} failed: ${(cause as Error)?.message ?? 'network error'}`,
+    `Request to ${safeHost(url)} failed: ${message}`,
     ErrorCode.NETWORK_ERROR,
     { retryable: true, cause },
   );

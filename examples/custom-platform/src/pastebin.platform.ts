@@ -98,17 +98,17 @@ class PastebinPlatform implements IPlatform {
     return { status: 'published', postId: created.id, url: created.url };
   }
 
-  async preview(request: PostRequest): Promise<PreviewResult> {
+  preview(request: PostRequest): Promise<PreviewResult> {
     const errors: string[] = [];
     if (!request.body?.trim()) {
       errors.push("Field 'body' is required for pastebin");
     }
 
     if (errors.length > 0) {
-      return { success: false, data: { valid: false, errors, warnings: [] } };
+      return Promise.resolve({ success: false, data: { valid: false, errors, warnings: [] } });
     }
 
-    return {
+    return Promise.resolve({
       success: true,
       data: {
         valid: true,
@@ -118,7 +118,7 @@ class PastebinPlatform implements IPlatform {
         convertedBodyLength: request.body?.length,
         warnings: request.tags?.length ? ['pastebin ignores tags'] : [],
       },
-    };
+    });
   }
 }
 

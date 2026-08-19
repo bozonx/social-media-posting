@@ -1,12 +1,7 @@
 import { Hono } from 'hono';
 import { ValidationError } from '@bozonx/social-posting';
 import { postRequestSchema, statusRequestSchema } from '../config/schema.js';
-import type {
-  PostRequest,
-  PostService,
-  PreviewService,
-  ResumeHandle,
-} from '@bozonx/social-posting';
+import type { PostService, PreviewService, ResumeHandle } from '@bozonx/social-posting';
 
 /** What the post routes need to do their job. */
 export interface PostRouteDeps {
@@ -33,7 +28,7 @@ export function postRoutes(deps: PostRouteDeps): Hono {
 
     // The client hung up: stop the platform call rather than finishing a
     // publish nobody will hear the result of.
-    const result = await deps.postService.publish(request as PostRequest, {
+    const result = await deps.postService.publish(request, {
       signal: c.req.raw.signal,
       resume: resume as ResumeHandle | undefined,
       includeRaw: deps.includeRawResponses,
@@ -45,7 +40,7 @@ export function postRoutes(deps: PostRouteDeps): Hono {
   routes.post('/preview', async c => {
     const { resume: _resume, ...request } = postRequestSchema.parse(await c.req.json());
     rejectInlineAuth(request.auth, deps.allowInlineAuth);
-    return c.json(await deps.previewService.preview(request as PostRequest));
+    return c.json(await deps.previewService.preview(request));
   });
 
   routes.post('/status', async c => {

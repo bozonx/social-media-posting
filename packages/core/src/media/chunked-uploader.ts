@@ -89,7 +89,7 @@ export function readResumePosition(
   handle: ResumeHandle | undefined,
   platform: string,
 ): ResumePosition | undefined {
-  if (!handle || handle.platform !== platform || handle.step !== UPLOAD_STEP) {
+  if (handle?.platform !== platform || handle.step !== UPLOAD_STEP) {
     return undefined;
   }
   const offsetBytes = handle.state.offsetBytes;
@@ -235,11 +235,12 @@ function withResumeHandle(error: unknown, resumeHandle: ResumeHandle): PlatformE
     });
   }
 
-  return new PlatformError(
-    (error as Error)?.message ?? 'Chunked upload failed',
-    ErrorCode.PLATFORM_ERROR,
-    { retryable: true, cause: error, resumeHandle },
-  );
+  const message = error instanceof Error ? error.message : 'Chunked upload failed';
+  return new PlatformError(message, ErrorCode.PLATFORM_ERROR, {
+    retryable: true,
+    cause: error,
+    resumeHandle,
+  });
 }
 
 function concat(

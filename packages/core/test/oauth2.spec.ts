@@ -140,8 +140,10 @@ describe('OAuth2TokenRefresher', () => {
       { refreshToken: 'r1' },
     );
 
-    const [url, init] = (fetchMock as unknown as { mock: { calls: [string, RequestInit][] } }).mock
+    const firstCall = (fetchMock as unknown as { mock: { calls: [string, RequestInit][] } }).mock
       .calls[0];
+    expect(firstCall).toBeDefined();
+    const [url, init] = firstCall!;
     const body = new URLSearchParams(String(init.body));
 
     expect(url).toBe(config.tokenEndpoint);

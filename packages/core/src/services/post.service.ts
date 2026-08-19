@@ -129,7 +129,7 @@ export class PostService extends BasePostService {
     signal?: AbortSignal,
   ): Promise<StatusResult> {
     try {
-      const { platform, accountConfig } = await this.validateRequest(request as PostRequest);
+      const { platform, accountConfig } = await this.validateRequest(request);
       const checkStatus = platform.checkStatus?.bind(platform);
       if (!checkStatus) {
         throw new ValidationError(
@@ -169,11 +169,12 @@ export class PostService extends BasePostService {
     requestId: string,
     includeRaw: boolean,
   ): ErrorResponse {
-    const message = (error as Error)?.message ?? 'Unknown error';
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    const stack = error instanceof Error ? error.stack : undefined;
 
     this.logger.error(
       `Failed to publish to ${request.platform}: ${message} (requestId: ${requestId})`,
-      (error as Error)?.stack,
+      stack,
       LOG_CONTEXT,
     );
 

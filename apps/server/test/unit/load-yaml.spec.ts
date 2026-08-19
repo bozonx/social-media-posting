@@ -49,7 +49,7 @@ accounts:
       apiKey: \${TEST_BOT_TOKEN}
 `);
 
-    expect(loadYamlConfig(path).accounts.main.auth).toEqual({ apiKey: 'from-env' });
+    expect(loadYamlConfig(path).accounts.main?.auth).toEqual({ apiKey: 'from-env' });
   });
 
   it('fails loudly when a referenced variable is missing', () => {

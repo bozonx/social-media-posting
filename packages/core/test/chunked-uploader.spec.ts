@@ -85,7 +85,7 @@ describe('runChunkedUpload', () => {
       platform: 'demo',
     });
 
-    expect(driver.received[0].size).toBe(DEFAULT_CHUNK_SIZE_BYTES);
+    expect(driver.received[0]?.size).toBe(DEFAULT_CHUNK_SIZE_BYTES);
   });
 
   describe('failure and resume', () => {

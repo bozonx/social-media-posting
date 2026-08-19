@@ -51,12 +51,12 @@ export interface CredentialProvider {
 export class StaticCredentialProvider implements CredentialProvider {
   constructor(private readonly accounts: Record<string, ResolvedCredentials>) {}
 
-  async getCredentials(accountRef: string): Promise<ResolvedCredentials> {
+  getCredentials(accountRef: string): Promise<ResolvedCredentials> {
     const credentials = this.accounts[accountRef];
     if (!credentials) {
-      throw new Error(`Account "${accountRef}" not found in configuration`);
+      return Promise.reject(new Error(`Account "${accountRef}" not found in configuration`));
     }
-    return credentials;
+    return Promise.resolve(credentials);
   }
 }
 

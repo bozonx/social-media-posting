@@ -11,7 +11,7 @@ describe('JsonLogger', () => {
 
     new JsonLogger('debug', 'posting').warn('something happened', 'PostService');
 
-    expect(JSON.parse(spy.mock.calls[0][0] as string)).toMatchObject({
+    expect(JSON.parse((spy.mock.calls[0]?.[0] ?? '{}') as string)).toMatchObject({
       level: 'warn',
       service: 'posting',
       context: 'PostService',
@@ -54,6 +54,6 @@ describe('JsonLogger', () => {
 
     new JsonLogger('debug').error('boom', 'Error: boom\n  at somewhere');
 
-    expect(JSON.parse(spy.mock.calls[0][0] as string).trace).toContain('at somewhere');
+    expect(JSON.parse((spy.mock.calls[0]?.[0] ?? '{}') as string).trace).toContain('at somewhere');
   });
 });

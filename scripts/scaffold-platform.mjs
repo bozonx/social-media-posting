@@ -92,7 +92,6 @@ SOFTWARE.
   'tsconfig.json': `{
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "baseUrl": "../..",
     "noEmit": true,
     "lib": ["ES2023", "DOM"],
     "types": []

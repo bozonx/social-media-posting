@@ -3,9 +3,7 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "target": "ES2022",
-    "lib": [
-      "ES2023"
-    ],
+    "lib": ["ES2023"],
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
@@ -18,6 +16,7 @@
     "strict": true,
     "noImplicitOverride": true,
     "useUnknownInCatchVariables": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true
   }
 }

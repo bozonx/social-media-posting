@@ -13,7 +13,7 @@ const GRACEFUL_SHUTDOWN_TIMEOUT_MS = 25_000;
  * The Workers deployment (`entry/worker.ts`) shares every line of `createApp`
  * and differs only here, in how the process is started and configured.
  */
-async function main(): Promise<void> {
+function main(): void {
   const env = process.env as Record<string, string | undefined>;
   const config = readConfigFromEnv(env) ?? loadYamlConfig();
   const { app, drain, logger, options } = createApp({ config, env });
