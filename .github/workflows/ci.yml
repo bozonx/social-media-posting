@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   verify:
-    name: Check
+    name: Validate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
