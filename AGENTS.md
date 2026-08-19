@@ -32,7 +32,7 @@
 ### Practices & workflows
 
 - **Environment variables:** `.env.example` is the source of truth. There is exactly one other env file, `.env`, and it is git-ignored and for local development only.
-- **Verification:** Run `pnpm check` (typecheck, lint, format check, unit tests). When touching packages, also verify `pnpm test:workerd`, `pnpm check:deps`, `pnpm check:publish`, and `pnpm test:e2e`.
+- **Verification:** Run `pnpm validate` before declaring work finished. CI runs `pnpm validate:all`; `pnpm check` on its own is static analysis only.
 - **Dependencies:** Dependency ranges use caret (`^`). Never pin an exact version in package manifests.
 - **Changelog:** Update `docs/CHANGELOG.md` for significant changes.
 - **Language:** README, documentation, JSDoc, log messages, and user-facing strings are written in English.

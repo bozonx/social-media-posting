@@ -22,7 +22,7 @@ a token into the YAML file or bake one into the image.
 cd apps/server
 wrangler secret put CONFIG_JSON          # the same structure as config.yaml, as JSON
 wrangler secret put AUTH_BEARER_TOKENS
-pnpm deploy:workers
+pnpm deploy:worker
 ```
 
 A Worker has no filesystem, so configuration arrives as JSON in a secret rather than as a file.

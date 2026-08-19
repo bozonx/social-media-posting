@@ -111,10 +111,8 @@ anything.
 ## The gate
 
 ```bash
-pnpm test                 # every package, on Node
-pnpm test:workerd         # every package, inside workerd
-pnpm check:deps           # no runtime dependencies
-pnpm check                # typecheck, lint, format, unit tests
+pnpm validate             # check + unit tests
+pnpm validate:all         # full verification before opening a PR
 ```
 
 The contract suite checks the things that actually go wrong:

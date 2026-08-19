@@ -154,11 +154,9 @@ See [`apps/server/README.md`](apps/server/README.md) for the API, and
 ```bash
 pnpm install
 pnpm build            # every package
-pnpm check            # typecheck, lint, format, unit tests — what CI runs
-pnpm test:e2e         # the HTTP shell end to end
-pnpm test:workerd     # every published package, inside workerd
-pnpm check:deps       # no runtime dependencies in published packages
-pnpm check:publish    # publint and are-the-types-wrong
+pnpm check            # static analysis only (typecheck, lint, format check)
+pnpm validate         # check + unit tests
+pnpm validate:all     # full verification — static analysis, deps, build, strict types, unit, e2e, workerd, publish checks
 pnpm platform <name>  # scaffold a new network package
 ```
 

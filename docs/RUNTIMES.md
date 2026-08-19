@@ -67,7 +67,7 @@ A Worker has no filesystem, so it cannot read `config.yaml`:
 # Workers
 wrangler secret put CONFIG_JSON     # the same structure as config.yaml, as JSON
 wrangler secret put AUTH_BEARER_TOKENS
-pnpm --filter @bozonx/social-posting-server deploy:workers
+pnpm --filter @bozonx/social-posting-server deploy:worker
 
 # Docker
 pnpm docker:build && pnpm docker:up

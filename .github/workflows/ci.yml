@@ -33,31 +33,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # A rule nobody checks is not a rule: a published package with a runtime
-      # dependency fails here rather than in a consumer's bundle.
-      - name: Zero-dependency policy
-        run: pnpm check:deps
-
-      - name: Build every package
-        run: pnpm build
-
-      - name: Typecheck, lint, format, unit tests
-        run: pnpm check
-
-      - name: Typecheck each package under its own stricter config
-        run: pnpm typecheck:packages
-
-      - name: End-to-end tests
-        run: pnpm test:e2e
-
-      # Lint catches a Node built-in typed by hand; this catches one arriving
-      # through a transitive dependency.
-      - name: Core suite under workerd
-        run: pnpm test:workerd
-
-      # Broken ESM/type resolution is invisible here and obvious to consumers.
-      - name: publint and are-the-types-wrong
-        run: pnpm check:publish
+      - name: Validate
+        run: pnpm validate:all
 
   image:
     name: Docker image

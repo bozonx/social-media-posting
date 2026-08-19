@@ -46,14 +46,8 @@ jobs:
             fi
           done
 
-      - name: Zero-dependency policy
-        run: pnpm check:deps
-
-      - run: pnpm build
-      - run: pnpm check
-      - run: pnpm test:e2e
-      - run: pnpm test:workerd
-      - run: pnpm check:publish
+      - name: Validate
+        run: pnpm validate:all
 
       - name: Publish
         run: pnpm -r --filter "./packages/*" publish --access public --no-git-checks

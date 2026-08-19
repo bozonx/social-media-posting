@@ -14,18 +14,14 @@ pnpm build
 ```bash
 pnpm test             # every package, on Node
 pnpm test:watch
-pnpm check            # typecheck, lint, format, unit tests — what CI runs
-pnpm test:e2e         # the HTTP shell end to end
+pnpm check            # static analysis only (typecheck, lint, format check)
+pnpm validate         # check + unit tests — what you run before calling work finished
 ```
 
 ## Before submitting
 
 ```bash
-pnpm check
-pnpm test:e2e
-pnpm test:workerd     # every published package, inside workerd
-pnpm check:deps       # no runtime dependencies in published packages
-pnpm check:publish    # publint and are-the-types-wrong
+pnpm validate:all     # full verification — static analysis, deps, build, strict types, unit, e2e, workerd, publish checks (what CI runs)
 ```
 
 `pnpm test:workerd` is not optional when touching `packages/**`: it is what catches a Node built-in

@@ -11,8 +11,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "start": "node --enable-source-maps dist/entry/node.js",
     "dev": "NODE_ENV=development node --enable-source-maps --watch dist/entry/node.js",
-    "deploy:workers": "wrangler deploy",
-    "dev:workers": "wrangler dev",
+    "deploy:worker": "wrangler deploy",
+    "dev:worker": "wrangler dev",
     "test": "vitest run"
   },
   "dependencies": {

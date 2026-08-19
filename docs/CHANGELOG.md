@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Standardized workspace scripts according to fleet standards:
+  - `check` is now strictly static analysis (`typecheck && lint && format:check`).
+  - Added `validate` (`check && test:unit`) as developer definition-of-done.
+  - Added `validate:all` (`check && check:deps && build && typecheck:packages && test:unit && test:e2e && test:workerd && check:publish`) and updated CI/Release workflows to run it.
+  - Aligned Cloudflare Workers scripts to standard singular form (`dev:worker`, `deploy:worker`) in `apps/server` and root delegations.
 - Comprehensive unit test suite across core, Telegram platform, conformance, and HTTP shell:
   - Added dedicated unit test suites for `ConsoleLogger`, `MimeSniffer`, `MediaSource`, `AuthValidatorRegistry`, `PlatformRegistry`, `PostingError`/`ValidationError`/`PlatformError`, `PostingConfig`, `TelegramAuthValidator`, `TelegramApi`, and `describePlatformContract`.
   - Added full test coverage for HTTP shell middlewares (`bearerAuth`, `DrainTracker`, `errorHandler`), configuration parsing (`readRuntimeOptions`, `readConfigFromEnv`), and route handlers (`healthRoutes`, `postRoutes`, `createApp`).

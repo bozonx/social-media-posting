@@ -13,7 +13,7 @@ capabilities — and exactly the same responsibilities — as an in-process one.
 
 ```bash
 pnpm docker:build && pnpm docker:up          # Docker
-pnpm --filter @bozonx/social-posting-server deploy:workers   # Cloudflare Workers
+pnpm --filter @bozonx/social-posting-server deploy:worker   # Cloudflare Workers
 ```
 
 |                | Node / Docker                                        | Workers                  |
