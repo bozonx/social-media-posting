@@ -20,6 +20,7 @@
     "test:cov": "vitest run --coverage",
     "test:workerd": "vitest run --config vitest.workerd.config.ts",
     "check": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test:unit",
+    "check:fleet": "node scripts/check-fleet.mjs",
     "docker:build": "docker compose -f apps/server/docker/docker-compose.yml build",
     "docker:up": "docker compose -f apps/server/docker/docker-compose.yml up -d",
     "docker:down": "docker compose -f apps/server/docker/docker-compose.yml down",

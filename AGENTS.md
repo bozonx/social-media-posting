@@ -29,8 +29,10 @@
   file, `.env`, and it is git-ignored and for local development only.
 - Service name and version come from `src/config/service-info.ts`, never from importing
   `package.json` at runtime.
-- Run `pnpm check` before declaring work finished — it is what CI runs. Before a release also run
-  `pnpm check:deps`, `pnpm test:workerd` and `pnpm check:publish`.
+- Run `pnpm validate` before declaring work finished. CI runs `pnpm validate:all`; `pnpm check`
+  on its own is static analysis only.
+- Files shared across the fleet are changed in `ivank-microservice-boilerplate` and rolled out.
+  `pnpm check:fleet` lists them and reports drift.
 - Dependency ranges use caret (`^`). Never pin an exact version in the manifest.
 - Update `docs/CHANGELOG.md` for significant changes.
 - README, all documentation, JSDoc, log messages and user-facing strings are written in English.
