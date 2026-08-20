@@ -16,31 +16,30 @@ modest memory ceiling and a cap on request body size, and neither is negotiable 
 Worker. So the question for any given network is: **do the media bytes have to pass through this
 process?**
 
-That is exactly what a platform's capability descriptor states, which is why the table below is
-derived from code rather than maintained by hand:
+That is declared in each platform's capability descriptor under `media[type].acceptedSources`:
 
-| Descriptor field               | Meaning                                            | Consequence on Workers                                               |
-| ------------------------------ | -------------------------------------------------- | -------------------------------------------------------------------- |
-| `supportsUrlPassthrough: true` | The network fetches media itself from a public URL | Bytes never enter the Worker. Fine at any media size.                |
-| `requiresByteUpload: false`    | No byte upload is needed for the normal path       | Fine.                                                                |
-| `requiresByteUpload: true`     | The library must move the bytes                    | Fine for images of a few MB; a large video will exhaust the isolate. |
+| `acceptedSources` includes | Meaning                                            | Consequence on Workers                                               |
+| -------------------------- | -------------------------------------------------- | -------------------------------------------------------------------- |
+| `'url'`                    | The network fetches media itself from a public URL | Bytes never enter the Worker. Fine at any media size.                |
+| `'bytes'` / `'blob'`       | The library must move the bytes                    | Fine for images of a few MB; a large video will exhaust the isolate. |
 
-Read a network's own answer at runtime rather than trusting a table in a document:
+Read a network's own answer at runtime:
 
 ```ts
-const { supportsUrlPassthrough, requiresByteUpload } = client.getCapabilities('telegram');
+const capabilities = client.getCapabilities('telegram');
+const acceptsUrl = capabilities.media?.image?.acceptedSources.includes('url');
 ```
 
 ## Suitability by content type
 
 Structurally, and independent of any specific limit numbers:
 
-| Content                                                         | Workers       | Node |
-| --------------------------------------------------------------- | ------------- | ---- |
-| Text posts, links                                               | yes           | yes  |
-| Media by public URL, on a network with `supportsUrlPassthrough` | yes           | yes  |
-| Images pushed as bytes, a few MB                                | yes           | yes  |
-| Large video, chunked upload of hundreds of MB                   | no — use Node | yes  |
+| Content                                                | Workers       | Node |
+| ------------------------------------------------------ | ------------- | ---- |
+| Text posts, links, polls                               | yes           | yes  |
+| Media by public URL, on a network that accepts `'url'` | yes           | yes  |
+| Images pushed as bytes, a few MB                       | yes           | yes  |
+| Large video, chunked upload of hundreds of MB          | no — use Node | yes  |
 
 Cloudflare's exact limits change, and vary by plan. This document deliberately states the _shape_
 of the constraint rather than a number that will silently go stale; check

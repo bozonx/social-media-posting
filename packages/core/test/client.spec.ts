@@ -215,7 +215,7 @@ describe('createPostingClient', () => {
     const platform = fakePlatform();
     const client = createPostingClient({ accounts, platforms: [moduleOf(platform)] });
 
-    const result = await client.delete('1', { platform: 'fake', account: 'main' });
+    const result = await client.delete({ platform: 'fake', account: 'main' }, { postId: '1' });
 
     expect(result.success).toBe(true);
     if (result.success) {

@@ -51,7 +51,7 @@ accounts:
     platform: telegram
     auth:
       apiKey: ${TELEGRAM_BOT_TOKEN} # resolved from the environment, never written here
-    channelId: '@my_channel'
+    target: '@my_channel'
 ```
 
 There is deliberately no retry or idempotency setting.
@@ -103,6 +103,20 @@ result, not an HTTP error, so a caller reads `success` in one place:
 
 Store `error.resumeHandle` when present and send it back as `resume` on the next attempt: without
 it, a retry of a multi-step publication uploads a second file and creates a second post.
+
+### `POST /delete`
+
+Deletes a published post by reference.
+
+```bash
+curl -X POST localhost:8080/api/v1/delete \
+  -H 'content-type: application/json' \
+  -d '{
+    "platform": "telegram",
+    "account": "company_telegram",
+    "ref": { "postId": "12345" }
+  }'
+```
 
 ### `POST /preview`
 

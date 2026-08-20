@@ -5,25 +5,21 @@
  * knows this file exists. If this compiles and passes the same contract tests
  * the built-in platforms do, the extension seam is real rather than nominal.
  */
-import {
-  ErrorCode,
-  MediaInputHelper,
-  PlatformError,
-  PostType,
-  ValidationError,
-  httpRequest,
-} from '@bozonx/social-posting';
+import { ErrorCode, PlatformError, PostType, ValidationError } from '@bozonx/social-posting';
+import { MediaInputHelper, httpRequest } from '@bozonx/social-posting/platform';
 import type {
   ILogger,
-  IPlatform,
   PlatformCapabilities,
   PlatformModule,
-  PlatformPublishResponse,
   PostRequest,
   PreviewResult,
-  PublishOptions,
   ResolvedAccountConfig,
 } from '@bozonx/social-posting';
+import type {
+  IPlatform,
+  PlatformPublishResponse,
+  PublishOptions,
+} from '@bozonx/social-posting/platform';
 
 /** What this imaginary network accepts, stated as data. */
 export const pastebinCapabilities: PlatformCapabilities = {

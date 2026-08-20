@@ -1,6 +1,6 @@
 {
   "name": "@bozonx/social-posting",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "Framework-free core for publishing posts to social networks",
   "keywords": [
     "social-media",
@@ -18,6 +18,12 @@
       "workerd": "./dist/index.js",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./platform": {
+      "types": "./dist/platform.d.ts",
+      "workerd": "./dist/platform.js",
+      "import": "./dist/platform.js",
+      "default": "./dist/platform.js"
     }
   },
   "files": [

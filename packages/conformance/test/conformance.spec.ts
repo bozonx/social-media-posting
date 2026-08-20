@@ -1,20 +1,17 @@
-import {
-  ErrorCode,
-  PlatformError,
-  PostType,
-  ValidationError,
-  validateAgainstCapabilities,
-} from '@bozonx/social-posting';
+import { ErrorCode, PlatformError, PostType, ValidationError } from '@bozonx/social-posting';
 import type {
-  IAuthValidator,
-  IPlatform,
   PlatformCapabilities,
   PlatformModule,
-  PlatformPublishResponse,
   PostRequest,
   ResolvedAccountConfig,
   ResumeHandle,
 } from '@bozonx/social-posting';
+import { validateAgainstCapabilities } from '@bozonx/social-posting/platform';
+import type {
+  IAuthValidator,
+  IPlatform,
+  PlatformPublishResponse,
+} from '@bozonx/social-posting/platform';
 
 import { describePlatformContract } from '../src/suite.js';
 import type {

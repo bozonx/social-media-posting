@@ -1,4 +1,4 @@
-import { httpRequest } from '@bozonx/social-posting';
+import { httpRequest } from '@bozonx/social-posting/platform';
 
 const API_ROOT = 'https://api.telegram.org';
 
@@ -49,10 +49,12 @@ export class TelegramApiFailure extends Error {
 export class TelegramApi {
   private readonly token: string;
   private readonly timeoutMs?: number;
+  private readonly fetch?: typeof fetch;
 
-  constructor(token: string, timeoutSeconds?: number) {
+  constructor(token: string, timeoutSeconds?: number, customFetch?: typeof fetch) {
     this.token = token;
     this.timeoutMs = timeoutSeconds === undefined ? undefined : timeoutSeconds * 1000;
+    this.fetch = customFetch;
   }
 
   /**
@@ -76,6 +78,7 @@ export class TelegramApi {
       headers: { 'content-type': 'application/json' },
       body,
       signal: this.withTimeout(signal),
+      fetch: this.fetch,
     });
 
     const parsed = (await response.json().catch(() => ({}))) as BotApiResponse<T>;

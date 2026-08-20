@@ -54,7 +54,7 @@ SOFTWARE.
 `,
   'package.json': `{
   "name": "@bozonx/social-posting-${name}",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "${Display} platform for @bozonx/social-posting",
   "keywords": ["social-media", "posting", "${name}"],
   "type": "module",
@@ -126,12 +126,10 @@ export const ${name.replace(/-./g, m => m[1].toUpperCase())}Capabilities: Platfo
   name: '${name}',
   displayName: '${Display}',
 
-  supportedTypes: [PostType.AUTO, PostType.POST],
-
   postTypes: {
     [PostType.POST]: {
       requiredFields: ['body'],
-      forbiddenFields: ['cover', 'video', 'audio', 'document', 'media'],
+      forbiddenFields: ['media', 'poll'],
     },
   },
 
@@ -140,12 +138,9 @@ export const ${name.replace(/-./g, m => m[1].toUpperCase())}Capabilities: Platfo
   supportedBodyFormats: ['text'],
   targetBodyFormat: 'text',
 
-  // These two decide whether this network works on Workers. State both.
-  supportsUrlPassthrough: false,
-  requiresByteUpload: true,
-
   supportsNativeScheduling: false,
   supportsDraft: false,
+  supportsDeletion: false,
 
   // Fields the request shape accepts that this network has nowhere to put.
   ignoredFields: [],
@@ -173,7 +168,7 @@ export { ${Pascal}AuthValidator } from './${name}-auth.validator.js';
 export { ${name.replace(/-./g, m => m[1].toUpperCase())}Capabilities } from './capabilities.js';
 `,
 
-  [`src/${name}-auth.validator.ts`]: `import type { AuthValidation, IAuthValidator } from '@bozonx/social-posting';
+  [`src/${name}-auth.validator.ts`]: `import type { AuthValidation, IAuthValidator } from '@bozonx/social-posting/platform';
 
 /**
  * Validates the shape of ${Display} credentials.
@@ -200,24 +195,30 @@ export class ${Pascal}AuthValidator implements IAuthValidator {
   ErrorCode,
   PlatformError,
   ValidationError,
+} from '@bozonx/social-posting';
+import {
   httpRequest,
   validateAgainstCapabilities,
+} from '@bozonx/social-posting/platform';
+import type {
+  Issue,
+  PostRequest,
+  PostType,
+  ResolvedAccountConfig,
 } from '@bozonx/social-posting';
 import type {
   CapabilityValidationOptions,
   ILogger,
   IPlatform,
   PlatformPublishResponse,
-  PostRequest,
-  PostType,
   PublishOptions,
-  ResolvedAccountConfig,
-} from '@bozonx/social-posting';
+} from '@bozonx/social-posting/platform';
 import { ${name.replace(/-./g, m => m[1].toUpperCase())}Capabilities } from './capabilities.js';
 
 /** Collaborators this platform needs, passed explicitly. */
 export interface ${Pascal}PlatformDeps {
   logger: ILogger;
+  fetch?: typeof fetch;
 }
 
 const LOG_CONTEXT = '${Pascal}Platform';
@@ -227,9 +228,11 @@ export class ${Pascal}Platform implements IPlatform {
   readonly capabilities = ${name.replace(/-./g, m => m[1].toUpperCase())}Capabilities;
 
   private readonly logger: ILogger;
+  private readonly fetch?: typeof fetch;
 
   constructor(deps: ${Pascal}PlatformDeps) {
     this.logger = deps.logger;
+    this.fetch = deps.fetch;
   }
 
   async publish(
@@ -245,13 +248,13 @@ export class ${Pascal}Platform implements IPlatform {
       });
     }
 
-    const { errors } = validateAgainstCapabilities(
+    const { issues } = validateAgainstCapabilities(
       request,
       this.capabilities,
       this.validationHooks(accountConfig),
     );
-    if (errors.length > 0) {
-      throw new ValidationError(errors);
+    if (issues.length > 0) {
+      throw new ValidationError(issues);
     }
 
     // TODO: call the ${Display} API. Use httpRequest() so a connection that
@@ -264,6 +267,7 @@ export class ${Pascal}Platform implements IPlatform {
       },
       body: JSON.stringify({ text: request.body }),
       signal,
+      fetch: this.fetch,
     });
 
     if (!response.ok) {
@@ -273,7 +277,13 @@ export class ${Pascal}Platform implements IPlatform {
     const created = (await response.json()) as { id: string; url?: string };
     this.logger.log(\`Published \${created.id}\`, LOG_CONTEXT);
 
-    return { status: 'published', postId: created.id, url: created.url };
+    return {
+      status: 'published',
+      postId: created.id,
+      url: created.url,
+      parts: [{ id: created.id, url: created.url }],
+      ref: { postId: created.id },
+    };
   }
 
   /** Rules the capability descriptor cannot express. */
@@ -281,7 +291,7 @@ export class ${Pascal}Platform implements IPlatform {
     _request: PostRequest,
     _accountConfig: ResolvedAccountConfig,
     _type: PostType,
-  ): string[] {
+  ): Issue[] {
     return [];
   }
 

@@ -1,8 +1,5 @@
 /**
  * `@bozonx/social-posting` — the framework-free core of the posting library.
- *
- * Two audiences: hosts that publish posts, and packages that implement a new
- * social network. Both are served from this single entry point.
  */
 
 // Client
@@ -14,25 +11,7 @@ export type {
   PublishCallOptions,
 } from './client.js';
 
-// Services (for hosts assembling their own composition root)
-export { PostService } from './services/post.service.js';
-export { PreviewService } from './services/preview.service.js';
-export { BasePostService } from './services/base-post.service.js';
-export type { PostServiceDeps } from './services/base-post.service.js';
-
-// Extension contract
-export type {
-  IPlatform,
-  PlatformPublishResponse,
-  PlatformStatusResponse,
-  PublishOptions,
-  DeleteOptions,
-} from './platforms/platform.interface.js';
-export type {
-  IAuthValidator,
-  AuthValidation,
-  AuthValidationContext,
-} from './platforms/auth-validator.interface.js';
+// Platform module descriptor (read-only / registration types)
 export type { PlatformModule, PlatformDeps } from './platforms/platform-module.js';
 export type {
   PlatformCapabilities,
@@ -44,9 +23,6 @@ export type {
   ExtraFieldSpec,
   RateLimits,
 } from './platforms/capabilities.js';
-export { validateCapabilities } from './platforms/capabilities.js';
-export { PlatformRegistry } from './platforms/platform-registry.js';
-export { AuthValidatorRegistry } from './platforms/auth-validator-registry.js';
 
 // Request and result types
 export type {
@@ -96,69 +72,13 @@ export type { PlatformErrorOptions } from './errors/platform-error.js';
 // Credentials and OAuth2
 export { StaticCredentialProvider, isAccessTokenExpired } from './auth/credentials.js';
 export type { CredentialProvider, ResolvedCredentials } from './auth/credentials.js';
-export { OAuth2TokenRefresher } from './auth/oauth2.js';
-export type { OAuth2Config } from './auth/oauth2.js';
 
 // Configuration
 export { PostingConfig } from './config/posting-config.js';
 export type { PostingConfigInput, LogLevel } from './config/posting-config.js';
 
-// Media pipeline
-export { MediaFetcher } from './media/media-fetcher.js';
-export type { MediaMetadata, OpenedMedia, MediaFetcherOptions } from './media/media-fetcher.js';
-export { toMediaSource, requiresByteUpload, knownSizeBytes } from './media/media-source.js';
-export type {
-  MediaSource,
-  UrlMediaSource,
-  BytesMediaSource,
-  BlobMediaSource,
-  StreamMediaSource,
-  PlatformRefMediaSource,
-} from './media/media-source.js';
-export { sniffMimeType, mediaKindOf, SNIFF_BYTES } from './media/mime-sniffer.js';
-export type { MediaKind } from './media/mime-sniffer.js';
+// Validation sanity bounds
 export {
-  runChunkedUpload,
-  readResumePosition,
-  DEFAULT_CHUNK_SIZE_BYTES,
-  UPLOAD_STEP,
-} from './media/chunked-uploader.js';
-export type {
-  ChunkedUploadDriver,
-  ChunkedUploadOptions,
-  ChunkContext,
-  ResumePosition,
-} from './media/chunked-uploader.js';
-
-// Helpers available to platform packages
-export { MediaInputHelper } from './media/media-input.helper.js';
-export { detectPrimaryMediaField } from './media/media-priority.js';
-export { validateMediaUrl } from './media/media-url.js';
-export { validateAgainstCapabilities } from './validation/capability-validator.js';
-export type {
-  CapabilityValidation,
-  CapabilityValidationOptions,
-} from './validation/capability-validator.js';
-export {
-  previewFromCapabilities,
-  renderBody,
-  renderBodyWithTruncation,
-  resolveBodyTargetFormat,
-} from './validation/capability-preview.js';
-export { detectPostType } from './validation/detect-post-type.js';
-export {
-  convertBody,
-  countBodyLength,
-  truncateBody,
-  escapeHtml,
-  escapeMarkdownV2,
-  htmlToPlainText,
-  markdownToHtml,
-  markdownToPlainText,
-} from './rendering/body.js';
-export {
-  validatePostRequest,
-  assertValidPostRequest,
   MAX_BODY_LIMIT,
   MAX_MEDIA_SRC_LENGTH,
   MAX_TAGS,
@@ -166,10 +86,6 @@ export {
   MAX_TITLE_LENGTH,
   MAX_DESCRIPTION_LENGTH,
 } from './validation/validate-post-request.js';
-
-// HTTP transport shared by platform packages
-export { httpRequest } from './http/http-request.js';
-export type { HttpRequestOptions } from './http/http-request.js';
 
 // Logging
 export type { ILogger } from './logger/logger.js';

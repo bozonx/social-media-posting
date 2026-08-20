@@ -129,6 +129,7 @@ export const telegramCapabilities: PlatformCapabilities = {
   supportsNativeScheduling: false,
   supportsDraft: false,
   supportsIdempotencyKey: false,
+  supportsDeletion: true,
 
   ignoredFields: ['title', 'description', 'language', 'tags'],
 };

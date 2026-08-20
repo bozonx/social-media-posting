@@ -1,6 +1,5 @@
 import type {
   ErrorCode,
-  IPlatform,
   PlatformModule,
   PostRequest,
   PostType,
@@ -8,6 +7,7 @@ import type {
   ResolvedAccountConfig,
   ResumeHandle,
 } from '@bozonx/social-posting';
+import type { IPlatform } from '@bozonx/social-posting/platform';
 
 /**
  * A response recorded from a real platform API.

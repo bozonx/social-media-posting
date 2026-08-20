@@ -34,16 +34,15 @@ accounts:
       # API key (for Telegram: bot token from @BotFather)
       apiKey: your_bot_token_here
 
-    # Channel/chat ID (platform-specific identifier)
+    # Target destination (platform-specific identifier)
     # For Telegram: channel username (with @ prefix) or numeric chat ID
     # Examples: '@your_channel_username' or '-100123456789'
-    channelId: '@your_channel_username'
+    target: '@your_channel_username'
 
     # Maximum body length for this account (characters)
-    # Request maxBody may only make this limit stricter.
     # If not set, the platform descriptor supplies the limit.
-    maxBody: 100000
+    maxBodyLength: 100000
 
-    # Disable notifications by default
-    # If true, posts will be sent silently without notifying subscribers
-    disableNotification: false
+    # Send silently by default
+    # If true, posts will be sent without notifying subscribers
+    silent: false

@@ -15,6 +15,8 @@ export interface PlatformDeps {
   logger: ILogger;
   /** Host-owned credential store, available to OAuth-capable platforms. */
   credentialProvider?: CredentialProvider;
+  /** Custom fetch implementation for tests, proxies or regional endpoints. */
+  fetch?: typeof fetch;
 }
 
 /**

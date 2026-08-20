@@ -16,7 +16,7 @@ describe('client disconnect', () => {
     let observed: AbortSignal | undefined;
 
     platform.publish.mockImplementation(
-      async (_req, _account, options) =>
+      async (_req: unknown, _account: unknown, options?: { signal?: AbortSignal }) =>
         new Promise((_resolve, reject) => {
           observed = options?.signal;
           options?.signal?.addEventListener('abort', () => {

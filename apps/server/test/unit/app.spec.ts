@@ -8,7 +8,7 @@ describe('createApp', () => {
       tg: {
         platform: 'telegram',
         auth: { apiKey: '123456789:ABC-DEF1234ghIkl-zyx57W2v1u123ew11' },
-        channelId: '@my_channel',
+        target: '@my_channel',
       },
     },
     requestTimeoutSecs: 30,

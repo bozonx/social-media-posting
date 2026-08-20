@@ -18,7 +18,7 @@ const client = createPostingClient({
     myChannel: {
       platform: 'telegram',
       auth: { apiKey: process.env.TELEGRAM_BOT_TOKEN! },
-      channelId: '@my_channel',
+      target: '@my_channel',
     },
   },
   platforms: [telegram],
@@ -27,15 +27,15 @@ const client = createPostingClient({
 
 ## Account configuration
 
-| Field                 | Type             | Meaning                                            |
-| --------------------- | ---------------- | -------------------------------------------------- |
-| `auth.apiKey`         | string           | Bot token, `123456789:ABC-DEF…`                    |
-| `channelId`           | string \| number | `@channel`, `-1001234567890`, or a numeric chat id |
-| `disableNotification` | boolean          | Send silently by default                           |
-| `apiTimeoutSeconds`   | number           | Per-call Bot API timeout                           |
-| `maxBody`             | number           | A stricter body limit than Telegram's own          |
+| Field               | Type             | Meaning                                            |
+| ------------------- | ---------------- | -------------------------------------------------- |
+| `auth.apiKey`       | string           | Bot token, `123456789:ABC-DEF…`                    |
+| `target`            | string \| number | `@channel`, `-1001234567890`, or a numeric chat id |
+| `silent`            | boolean          | Send silently by default                           |
+| `apiTimeoutSeconds` | number           | Per-call Bot API timeout                           |
+| `maxBodyLength`     | number           | A stricter body limit than Telegram's own          |
 
-The target chat is resolved from `request.channelId`, then the account's `channelId`.
+The target chat is resolved from `request.target`, then the account's `target`.
 
 ## Post types
 
@@ -47,22 +47,16 @@ The target chat is resolved from `request.channelId`, then the account's `channe
 | `audio`    | `sendAudio`      |
 | `document` | `sendDocument`   |
 | `album`    | `sendMediaGroup` |
+| `poll`     | `sendPoll`       |
 
 ### Automatic detection
 
-With `type` omitted or `auto`, the first field present decides:
+With `type` omitted or `auto`, the first matching shape decides:
 
-| Priority | Field      | Type       |
-| -------- | ---------- | ---------- |
-| 1        | `media[]`  | `album`    |
-| 2        | `document` | `document` |
-| 3        | `audio`    | `audio`    |
-| 4        | `video`    | `video`    |
-| 5        | `cover`    | `image`    |
-| 6        | —          | `post`     |
-
-Telegram cannot combine a cover with other media, so a lower-priority field present alongside a
-higher-priority one comes back as a preview warning naming it.
+- `poll` present → `poll`
+- `media[]` with multiple items → `album`
+- `media[]` with 1 item → matching kind (`image`, `video`, `audio`, `document`)
+- `body` only → `post`
 
 ## Body formatting
 
@@ -80,7 +74,7 @@ The body is sent **as written**. `bodyFormat` only picks the Bot API's `parse_mo
 { "body": "*Hello* _world_\\!", "bodyFormat": "MarkdownV2" }
 ```
 
-`options.parse_mode` always wins over `bodyFormat`.
+`extra.parse_mode` always wins over `bodyFormat`.
 
 ## Limits
 
@@ -89,31 +83,26 @@ The body is sent **as written**. `bodyFormat` only picks the Bot API's `parse_mo
 | Text message  | 4096 characters |
 | Media caption | 1024 characters |
 | Album items   | 1–10            |
+| Poll options  | 2–10            |
 
-Both limits are declared in the capability descriptor, so an over-long body is refused locally
+Limits are declared in the capability descriptor, so an over-long body or excess media is refused locally
 rather than after a round trip. Read them at runtime with `client.getCapabilities('telegram')`.
 
 ## Media
 
-`src` is either a public URL, which Telegram fetches itself, or a `file_id` for media Telegram
-already stores. Nothing passes through your process either way — which is what makes a Workers
-deployment viable here.
+`src` can be a URL string, raw bytes (`Uint8Array`), `Blob`, `ReadableStream`, or a `file_id` for media Telegram already stores.
 
 ```json
-{ "video": { "src": "BAACAgIAAxkBAAIC4mF9…" } }
-{ "cover": { "src": "https://example.com/image.jpg", "hasSpoiler": true } }
+{ "media": [{ "src": "https://example.com/image.jpg", "sensitive": true }] }
 ```
 
-In an album, an item given by `file_id` must also state its `type`: there is no URL extension left
-to infer it from.
+## Extra fields
 
-## Platform options
-
-`options` accepts safe Bot API customizations using Telegram's own field names:
+`extra` accepts safe Bot API customizations using Telegram's own field names:
 
 ```json
 {
-  "options": {
+  "extra": {
     "reply_markup": {
       "inline_keyboard": [[{ "text": "Visit", "url": "https://example.com" }]]
     },
@@ -125,12 +114,17 @@ to infer it from.
 ```
 
 Destination and content fields (`chat_id`, `text`, `photo`, `video`, `audio`, `document`,
-`caption`, and `disable_notification`) cannot be supplied through `options`. Use the corresponding
+`caption`, and `disable_notification`) cannot be supplied through `extra`. Use the corresponding
 top-level request fields so validation, audit logs, and the actual Bot API call remain aligned.
+
+## Deletion
+
+Telegram supports message deletion via `client.delete(request, ref)`. Telegram messages can be deleted
+up to 48 hours after posting.
 
 ## Fields Telegram ignores
 
-`title`, `description`, `postLanguage`, `tags` are accepted and reported as ignored in a preview
+`title`, `description`, `language`, `tags` are accepted and reported as ignored in a preview
 warning.
 
 `scheduledAt` and `mode: 'draft'` are **rejected**: Telegram schedules nothing and has no drafts,

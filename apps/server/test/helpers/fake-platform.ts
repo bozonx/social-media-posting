@@ -1,6 +1,7 @@
 import { vi, type Mock } from 'vitest';
 import { PostType } from '@bozonx/social-posting';
-import type { IPlatform, PlatformCapabilities, PlatformModule } from '@bozonx/social-posting';
+import type { PlatformCapabilities, PlatformModule } from '@bozonx/social-posting';
+import type { IPlatform } from '@bozonx/social-posting/platform';
 
 export type FakePlatform = IPlatform & {
   publish: Mock<IPlatform['publish']>;

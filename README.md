@@ -50,7 +50,7 @@ const client = createPostingClient({
     myChannel: {
       platform: 'telegram',
       auth: { apiKey: process.env.TELEGRAM_BOT_TOKEN! },
-      channelId: '@my_channel',
+      target: '@my_channel',
     },
   },
   platforms: [telegram],

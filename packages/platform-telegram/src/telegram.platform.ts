@@ -1,29 +1,28 @@
-import {
-  ErrorCode,
-  PlatformError,
-  PostType,
-  ValidationError,
-  validateAgainstCapabilities,
-  renderBody,
-  resolveBodyTargetFormat,
-} from '@bozonx/social-posting';
+import { ErrorCode, PlatformError, PostType, ValidationError } from '@bozonx/social-posting';
 import type {
   AccountConfig,
   ILogger,
-  IPlatform,
   MediaInput,
   ThumbnailInput,
-  PlatformPublishResponse,
   PostRequest,
+  PostPart,
+  PostRef,
+  Issue,
+} from '@bozonx/social-posting';
+import {
+  validateAgainstCapabilities,
+  renderBody,
+  resolveBodyTargetFormat,
+} from '@bozonx/social-posting/platform';
+import type {
+  IPlatform,
+  PlatformPublishResponse,
   PublishOptions,
   DeleteOptions,
   DeleteOutcome,
   DeletePartResult,
-  PostPart,
-  PostRef,
-  Issue,
   CapabilityValidationOptions,
-} from '@bozonx/social-posting';
+} from '@bozonx/social-posting/platform';
 import { toTelegramInput } from './telegram-media.js';
 import { toPlatformError } from './telegram-error.js';
 import { TelegramApi } from './telegram-api.js';
@@ -35,6 +34,8 @@ import { MAX_CAPTION_LENGTH, MAX_MEDIA_GROUP_SIZE, telegramCapabilities } from '
 export interface TelegramPlatformDeps {
   /** Logger the platform writes to. */
   logger: ILogger;
+  /** Custom fetch implementation for tests, regional endpoints or proxies. */
+  fetch?: typeof fetch;
 }
 
 /**
@@ -56,8 +57,11 @@ export class TelegramPlatform implements IPlatform {
   readonly capabilities = telegramCapabilities;
 
   private readonly logger: ILogger;
+  private readonly fetch?: typeof fetch;
+
   constructor(deps: TelegramPlatformDeps) {
     this.logger = deps.logger;
+    this.fetch = deps.fetch;
   }
 
   async publish(
@@ -89,7 +93,7 @@ export class TelegramPlatform implements IPlatform {
 
     if (warnings.length > 0) {
       this.logger.warn(
-        `Warnings during publish (type: ${actualType}): ${warnings.map(w => w.message).join('; ')}`,
+        `Warnings during publish (type: ${actualType}): ${warnings.map((w: Issue) => w.message).join('; ')}`,
         LOG_CONTEXT,
       );
     }
@@ -97,6 +101,7 @@ export class TelegramPlatform implements IPlatform {
     const api = new TelegramApi(
       accountConfig.auth.apiKey as string,
       accountConfig.apiTimeoutSeconds,
+      this.fetch,
     );
     const chatId = requireChatId(request, accountConfig);
 
@@ -363,6 +368,7 @@ export class TelegramPlatform implements IPlatform {
     const api = new TelegramApi(
       accountConfig.auth.apiKey as string,
       accountConfig.apiTimeoutSeconds,
+      this.fetch,
     );
 
     const chatId = ref.target ?? accountConfig.target;
@@ -499,7 +505,8 @@ export class TelegramPlatform implements IPlatform {
   /** The hooks bundled the way the generic validator wants them. */
   private validationHooks(accountConfig: TelegramAccountConfig): CapabilityValidationOptions {
     return {
-      validateExtra: (request, type) => this.validateExtra(request, accountConfig, type),
+      validateExtra: (request: PostRequest, type: PostType) =>
+        this.validateExtra(request, accountConfig, type),
     };
   }
 

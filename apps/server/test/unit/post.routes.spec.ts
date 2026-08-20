@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { Hono } from 'hono';
 import { PostType } from '@bozonx/social-posting';
-import type { PostService, PreviewService, StatusResult } from '@bozonx/social-posting';
+import type { StatusResult } from '@bozonx/social-posting';
+import type { PostService, PreviewService } from '@bozonx/social-posting/platform';
 import { postRoutes } from '../../src/routes/post.routes.js';
 import { errorHandler } from '../../src/middleware/errors.js';
 
@@ -22,6 +23,13 @@ describe('postRoutes', () => {
           postId: '12345',
           platform: 'telegram',
           type: PostType.POST,
+        },
+      }),
+      delete: vi.fn().mockResolvedValue({
+        success: true,
+        data: {
+          status: 'deleted',
+          parts: [{ id: '12345', status: 'deleted' }],
         },
       }),
       checkStatus: vi.fn().mockResolvedValue({
@@ -271,6 +279,45 @@ describe('postRoutes', () => {
       const data = (await res.json()) as { success: boolean; data: { raw?: unknown } };
       expect(data.success).toBe(true);
       expect(data.data.raw).toEqual({ telegram_id: 123 });
+    });
+  });
+
+  describe('POST /delete', () => {
+    it('deletes a post by reference', async () => {
+      const { postService, previewService } = createMockServices();
+      const app = new Hono();
+      app.onError(errorHandler(silentLogger));
+      app.route(
+        '/',
+        postRoutes({
+          postService,
+          previewService,
+          allowInlineAuth: false,
+          includeRawResponses: false,
+        }),
+      );
+
+      const res = await app.request('/delete', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          platform: 'telegram',
+          account: 'main',
+          ref: { postId: '12345' },
+        }),
+      });
+
+      expect(res.status).toBe(200);
+      const data = await res.json();
+      expect(data).toMatchObject({
+        success: true,
+        data: { status: 'deleted' },
+      });
+      expect(postService.delete).toHaveBeenCalledWith(
+        { platform: 'telegram', account: 'main', auth: undefined },
+        { postId: '12345' },
+        expect.objectContaining({ includeRaw: false }),
+      );
     });
   });
 });

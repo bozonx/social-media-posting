@@ -1,6 +1,6 @@
 {
   "name": "@bozonx/social-posting-conformance",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "Contract test suite every @bozonx/social-posting platform must pass",
   "keywords": [
     "social-media",

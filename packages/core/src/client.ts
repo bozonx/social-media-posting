@@ -36,6 +36,10 @@ export interface PostingClientOptions extends PostingConfigInput {
    * Where credentials come from, and where rotated ones go back to.
    */
   credentialProvider?: CredentialProvider;
+  /**
+   * Custom fetch implementation for tests, regional endpoints or proxies.
+   */
+  fetch?: typeof fetch;
 }
 
 /**
@@ -50,11 +54,16 @@ export interface PostingClient {
   post(request: PostRequest, options?: PublishCallOptions): Promise<PostResult>;
 
   /**
-   * Delete a published post by its reference or ID.
-   * @param target - PostRef or postId to delete.
-   * @param options - Platform/account options, abort signal, and optional resume handle.
+   * Delete a published post by reference.
+   * @param request - Platform, account, auth and target information.
+   * @param ref - PostRef identifying the post and its parts to delete.
+   * @param options - Abort signal, resume handle and includeRaw.
    */
-  delete(target: PostRef | string | number, options?: DeleteCallOptions): Promise<DeleteResult>;
+  delete(
+    request: Pick<PostRequest, 'platform' | 'account' | 'auth' | 'target'>,
+    ref: PostRef,
+    options?: DeleteCallOptions,
+  ): Promise<DeleteResult>;
 
   /**
    * Check on a post that `post()` left in `processing`.
@@ -98,7 +107,7 @@ export interface PostingClient {
  * The client owns nothing global: two clients can coexist in one process with
  * different accounts and different loggers.
  *
- * @param options - Accounts, tuning knobs, platforms and an optional logger.
+ * @param options - Accounts, tuning knobs, platforms, fetch and an optional logger.
  * @returns A ready-to-use client.
  * @throws Error if the configuration is invalid.
  */
@@ -111,7 +120,11 @@ export function createPostingClient(options: PostingClientOptions): PostingClien
 
   const register = (platformModule: PlatformModule): void => {
     platformRegistry.register(
-      platformModule.create({ logger, credentialProvider: options.credentialProvider }),
+      platformModule.create({
+        logger,
+        credentialProvider: options.credentialProvider,
+        fetch: options.fetch,
+      }),
     );
     if (platformModule.authValidator) {
       authValidatorRegistry.register(platformModule.authValidator);
@@ -137,8 +150,12 @@ export function createPostingClient(options: PostingClientOptions): PostingClien
       return postService.publish(request, options);
     },
 
-    delete(target: PostRef | string | number, options?: DeleteCallOptions): Promise<DeleteResult> {
-      return postService.delete(target, options);
+    delete(
+      request: Pick<PostRequest, 'platform' | 'account' | 'auth' | 'target'>,
+      ref: PostRef,
+      options?: DeleteCallOptions,
+    ): Promise<DeleteResult> {
+      return postService.delete(request, ref, options);
     },
 
     checkStatus(

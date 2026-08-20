@@ -459,10 +459,10 @@ describe('PostService', () => {
       });
       (platform as unknown as { delete: unknown }).delete = deleteMock;
 
-      const result = await service.delete('12345', {
-        platform: 'telegram',
-        account: 'test-channel',
-      });
+      const result = await service.delete(
+        { platform: 'telegram', account: 'test-channel' },
+        { postId: '12345' },
+      );
 
       expect(result.success).toBe(true);
       if (result.success) {

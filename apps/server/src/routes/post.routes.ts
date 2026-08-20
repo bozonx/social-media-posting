@@ -9,14 +9,13 @@ import {
 } from '../config/schema.js';
 import type { z } from 'zod';
 import type {
-  PostService,
-  PreviewService,
   ResumeHandle,
   PostRequest,
   MediaInput,
   ThumbnailInput,
   PostRef,
 } from '@bozonx/social-posting';
+import type { PostService, PreviewService } from '@bozonx/social-posting/platform';
 
 /** What the post routes need to do their job. */
 export interface PostRouteDeps {
@@ -116,14 +115,17 @@ export function postRoutes(deps: PostRouteDeps): Hono {
     const { ref, resume, platform, account, auth } = deleteRequestSchema.parse(await c.req.json());
     rejectInlineAuth(auth, deps.allowInlineAuth);
 
-    const result = await deps.postService.delete(ref as PostRef | string | number, {
-      platform,
-      account,
-      auth,
-      signal: c.req.raw.signal,
-      resume: resume as ResumeHandle | undefined,
-      includeRaw: deps.includeRawResponses,
-    });
+    const postRef: PostRef = typeof ref === 'object' ? (ref as PostRef) : { postId: String(ref) };
+
+    const result = await deps.postService.delete(
+      { platform: platform ?? '', account, auth },
+      postRef,
+      {
+        signal: c.req.raw.signal,
+        resume: resume as ResumeHandle | undefined,
+        includeRaw: deps.includeRawResponses,
+      },
+    );
 
     return c.json(result);
   });

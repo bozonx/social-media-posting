@@ -39,12 +39,6 @@ export interface PublishCallOptions {
  * Options for a deletion call.
  */
 export interface DeleteCallOptions {
-  /** Target platform name. */
-  platform?: string;
-  /** Account name. */
-  account?: string;
-  /** Inline credentials. */
-  auth?: Record<string, unknown>;
   /** Aborts the operation. */
   signal?: AbortSignal;
   /** Resume from an earlier partial deletion. */
@@ -146,21 +140,21 @@ export class PostService extends BasePostService {
   /**
    * Delete a post by reference.
    *
-   * @param target - PostRef or postId.
-   * @param options - Platform/account options and signals.
+   * @param request - Platform, account, auth and optional target.
+   * @param ref - PostRef identifying the post and its parts to delete.
+   * @param options - Abort signal, resume handle and includeRaw.
    */
   async delete(
-    target: PostRef | string | number,
+    request: Pick<PostRequest, 'platform' | 'account' | 'auth' | 'target'>,
+    ref: PostRef,
     options: DeleteCallOptions = {},
   ): Promise<DeleteResult> {
     const requestId = crypto.randomUUID();
     try {
-      const ref: PostRef = typeof target === 'object' ? target : { postId: String(target) };
-
       const { platform, accountConfig } = await this.validateRequest({
-        platform: options.platform ?? '',
-        account: options.account,
-        auth: options.auth,
+        platform: request.platform,
+        account: request.account,
+        auth: request.auth,
       });
 
       const deleteFn = platform.delete?.bind(platform);
@@ -177,13 +171,18 @@ export class PostService extends BasePostService {
         throw new ValidationError('Resume handle has expired');
       }
 
+      const effectiveRef: PostRef = {
+        ...ref,
+        target: ref.target ?? request.target ?? accountConfig.target,
+      };
+
       this.logger.log(
-        `Deleting post on ${platform.name} (postId: ${ref.postId ?? 'unknown'}, requestId: ${requestId})`,
+        `Deleting post on ${platform.name} (postId: ${effectiveRef.postId ?? 'unknown'}, requestId: ${requestId})`,
         LOG_CONTEXT,
       );
 
       const result = await this.withRequestTimeout(
-        signal => deleteFn(ref, accountConfig, { signal, resume: options.resume }),
+        signal => deleteFn(effectiveRef, accountConfig, { signal, resume: options.resume }),
         options.signal,
       );
 
@@ -199,7 +198,7 @@ export class PostService extends BasePostService {
       const message = error instanceof Error ? error.message : 'Unknown error';
       const stack = error instanceof Error ? error.stack : undefined;
       this.logger.error(
-        `Failed to delete on ${options.platform ?? 'unknown platform'}: ${message} (requestId: ${requestId})`,
+        `Failed to delete on ${request.platform}: ${message} (requestId: ${requestId})`,
         stack,
         LOG_CONTEXT,
       );

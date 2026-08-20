@@ -16,6 +16,8 @@ export interface HttpRequestOptions extends RequestInit {
    * `URLSearchParams`, `Blob`, typed array) and false for a `ReadableStream`.
    */
   replayableBody?: boolean;
+  /** Custom fetch implementation for tests, regional endpoints or proxies. */
+  fetch?: typeof fetch;
 }
 
 /**
@@ -36,11 +38,12 @@ export async function httpRequest(
   url: string,
   options: HttpRequestOptions = {},
 ): Promise<Response> {
-  const { replayableBody, ...init } = options;
+  const { replayableBody, fetch: customFetch, ...init } = options;
+  const fetchFn = customFetch ?? fetch;
   const canRetry = isIdempotent(init.method) && (replayableBody ?? isReplayable(init.body));
 
   try {
-    return await fetch(url, init);
+    return await fetchFn(url, init);
   } catch (error) {
     if (init.signal?.aborted) {
       throw abortError(error, init.signal);
@@ -52,7 +55,7 @@ export async function httpRequest(
     // A fetch rejection cannot prove whether a mutating request reached the
     // platform. Only idempotent methods are safe to repeat here.
     try {
-      return await fetch(url, init);
+      return await fetchFn(url, init);
     } catch (retryError) {
       if (init.signal?.aborted) {
         throw abortError(retryError, init.signal);

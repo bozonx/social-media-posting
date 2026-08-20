@@ -30,12 +30,12 @@ accounts:
     platform: telegram
     auth:
       apiKey: static-token
-    channelId: '@channel'
+    target: '@channel'
 `);
 
     expect(loadYamlConfig(path)).toMatchObject({
       requestTimeoutSecs: 30,
-      accounts: { main: { platform: 'telegram', channelId: '@channel' } },
+      accounts: { main: { platform: 'telegram', target: '@channel' } },
     });
   });
 

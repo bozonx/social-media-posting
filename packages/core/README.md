@@ -19,7 +19,7 @@ import { telegram } from '@bozonx/social-posting-telegram';
 
 const client = createPostingClient({
   accounts: {
-    myChannel: { platform: 'telegram', auth: { apiKey: '…' }, channelId: '@my_channel' },
+    myChannel: { platform: 'telegram', auth: { apiKey: '…' }, target: '@my_channel' },
   },
   requestTimeoutSecs: 60,
   platforms: [telegram],
@@ -36,6 +36,7 @@ const client = createPostingClient({
 | `logger`             | An `ILogger`; defaults to a console logger at `logLevel`   |
 | `logLevel`           | `debug` \| `info` \| `warn` \| `error` (default `warn`)    |
 | `credentialProvider` | Where credentials come from and where rotated ones go back |
+| `fetch`              | Custom `fetch` function (for proxies or testing)           |
 
 There is deliberately no retry setting. One call makes one attempt.
 
@@ -43,6 +44,7 @@ There is deliberately no retry setting. One call makes one attempt.
 
 ```ts
 client.post(request, { signal?, resume?, includeRaw? }); // publish once
+client.delete(request, ref, { signal?, resume?, includeRaw? }); // delete a post
 client.preview(request);                      // validate without publishing
 client.checkStatus(request, handle, signal?); // follow up a 'processing' publication
 client.registerPlatform(platformModule);      // add a network at runtime
@@ -57,32 +59,33 @@ interface PostRequest {
   platform: string; // 'telegram'
   account?: string; // a named account …
   auth?: Record<string, unknown>; // … or inline credentials
-  channelId?: string | number;
+  target?: string | number; // chat ID, channel username, board, etc.
 
   body?: string;
-  bodyFormat?: string; // 'text' | 'html' | 'md' | a platform dialect
+  bodyFormat?: BodyFormat; // 'text' | 'html' | 'md' | 'MarkdownV2'
   type?: PostType; // omit for auto-detection
   title?: string;
   description?: string;
 
-  cover?: MediaInput; // { src, hasSpoiler?, type? }
-  video?: MediaInput;
-  audio?: MediaInput;
-  document?: MediaInput;
-  media?: MediaInput[];
+  media?: MediaInput[]; // array of MediaInput items
+  thumbnail?: ThumbnailInput; // dedicated preview asset
 
   tags?: string[];
-  postLanguage?: string;
+  language?: string;
   scheduledAt?: string; // rejected where the network cannot schedule
   mode?: 'publish' | 'draft'; // rejected where the network has no drafts
-  disableNotification?: boolean;
-  options?: Record<string, unknown>; // passed straight to the platform API
-  maxBody?: number; // only ever stricter than the platform's own limit
+  silent?: boolean;
+  visibility?: Visibility; // 'public' | 'unlisted' | 'private' | 'direct'
+  replyTo?: PlatformObjectRef;
+  repostOf?: PlatformObjectRef;
+  quoteOf?: PlatformObjectRef;
+  poll?: PollInput;
+  location?: LocationInput;
+  extra?: Record<string, unknown>; // platform-specific extra payload
 }
 ```
 
-`src` is either a public URL or an identifier for media the platform already stores (a Telegram
-`file_id`, for instance).
+`media.src` can be a URL string, raw bytes (`Uint8Array`), `Blob`, `ReadableStream`, or a platform reference (a Telegram `file_id`, for instance).
 
 A field a network cannot honour is **rejected**, not silently dropped. A field it accepts and
 ignores comes back as a preview warning naming it.
@@ -97,6 +100,8 @@ type PostResult =
         status: 'published' | 'processing';
         postId?: string;
         url?: string;
+        parts?: PostPart[];
+        ref?: PostRef;
         handle?: ResumeHandle;
         checkAfterMs?: number;
         platform: string;
@@ -116,6 +121,7 @@ type PostResult =
         httpStatus?: number;
         platformCode?: string;
         resumeHandle?: ResumeHandle;
+        issues?: Issue[];
         details?: Record<string, unknown>;
         raw?: unknown; // only when includeRaw is true
         requestId: string;
@@ -123,7 +129,7 @@ type PostResult =
     };
 ```
 
-`post()` never throws for an expected failure, so branching on `success` replaces a try/catch
+`post()` and `delete()` never throw for an expected failure, so branching on `success` replaces a try/catch
 around every call.
 
 Raw platform payloads are diagnostic and may contain sensitive content. They are omitted by
@@ -148,6 +154,9 @@ have seen is never repeated automatically.
 ## Implementing a network
 
 ```ts
+import type { PlatformModule } from '@bozonx/social-posting';
+import type { IPlatform } from '@bozonx/social-posting/platform';
+
 export const mastodon: PlatformModule = {
   name: 'mastodon',
   capabilities: mastodonCapabilities, // types, limits, formats, transport traits
@@ -156,11 +165,9 @@ export const mastodon: PlatformModule = {
 };
 ```
 
-The core exports everything that takes: `IPlatform`, `PlatformCapabilities`, `PlatformError`,
+The core exports adapter utilities via `@bozonx/social-posting/platform`: `IPlatform`, `PlatformCapabilities`, `PlatformError`,
 `ResumeHandle`, `validateAgainstCapabilities()`, `previewFromCapabilities()`, `httpRequest()`,
 `MediaFetcher`, `runChunkedUpload()`, `OAuth2TokenRefresher`, and the body-rendering helpers.
-The media-fetching, chunked-upload and OAuth helpers are experimental extension points until a
-published platform uses byte uploads; their API may change in a minor release.
 
 Run [`@bozonx/social-posting-conformance`](https://www.npmjs.com/package/@bozonx/social-posting-conformance)
 against it, and see `CONTRIBUTING-PLATFORMS.md`.

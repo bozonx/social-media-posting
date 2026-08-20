@@ -1,4 +1,4 @@
-import type { AuthValidation, IAuthValidator } from '@bozonx/social-posting';
+import type { AuthValidation, IAuthValidator } from '@bozonx/social-posting/platform';
 
 /**
  * Validates the shape of Telegram credentials: a bot token must be present and

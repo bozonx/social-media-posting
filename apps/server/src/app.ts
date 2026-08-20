@@ -1,14 +1,15 @@
 import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
+import { PostingConfig } from '@bozonx/social-posting';
+import type { ILogger, PlatformModule } from '@bozonx/social-posting';
 import {
   AuthValidatorRegistry,
   PlatformRegistry,
   PostService,
-  PostingConfig,
   PreviewService,
-} from '@bozonx/social-posting';
+} from '@bozonx/social-posting/platform';
+import type { PostServiceDeps } from '@bozonx/social-posting/platform';
 import { telegram } from '@bozonx/social-posting-telegram';
-import type { ILogger, PlatformModule, PostServiceDeps } from '@bozonx/social-posting';
 import { JsonLogger } from './logger.js';
 import { DrainTracker } from './middleware/drain.js';
 import { bearerAuth } from './middleware/auth.js';

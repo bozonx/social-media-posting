@@ -39,15 +39,16 @@ fetches media itself. Fill each field from the network's own documentation.
 Where the network documents no limit, **leave the field out** rather than guessing. An invented
 limit rejects posts the network would have accepted, and nobody will ever suspect the descriptor.
 
-Two fields are not optional in practice:
+Declare supported media types and accepted sources:
 
 ```ts
-supportsUrlPassthrough: true,   // the network fetches media from a public URL itself
-requiresByteUpload: false,      // …so nothing has to pass through this process
+media: {
+  image: { acceptedSources: ['url', 'bytes', 'blob', 'stream', 'platformRef'] },
+  video: { acceptedSources: ['url', 'bytes', 'blob', 'stream', 'platformRef'] },
+}
 ```
 
-They decide whether the network works on a memory-limited runtime, and `docs/RUNTIMES.md` is
-derived from them. The contract suite fails a descriptor that states neither.
+This specifies whether the network accepts URLs directly or requires binary upload.
 
 ### 2. `publish()` translates, and classifies
 

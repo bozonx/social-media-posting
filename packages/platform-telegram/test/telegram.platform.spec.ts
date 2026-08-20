@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { PostType, previewFromCapabilities } from '@bozonx/social-posting';
-import type { ILogger, PostRequest } from '@bozonx/social-posting';
+import { PostType } from '@bozonx/social-posting';
+import type { ILogger, PostRequest, Issue } from '@bozonx/social-posting';
+import { previewFromCapabilities } from '@bozonx/social-posting/platform';
 
 type BotApiCall = { method: string; payload: Record<string, unknown> };
 
@@ -736,7 +737,8 @@ describe('TelegramPlatform', () => {
   describe('preview', () => {
     const preview = (request: PostRequest) =>
       previewFromCapabilities(request, platform.capabilities, {
-        validateExtra: (r, type) => platform.validateExtra(r, mockAccountConfig, type),
+        validateExtra: (r: PostRequest, type: PostType) =>
+          platform.validateExtra(r, mockAccountConfig, type),
       });
 
     it('should return invalid preview result when validation fails', async () => {
@@ -751,7 +753,9 @@ describe('TelegramPlatform', () => {
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data.valid).toBe(false);
-        expect(result.data.issues.some(i => i.code === 'POST_TYPE_UNSUPPORTED')).toBe(true);
+        expect(result.data.issues.some((i: Issue) => i.code === 'POST_TYPE_UNSUPPORTED')).toBe(
+          true,
+        );
       }
     });
 
@@ -828,7 +832,7 @@ describe('TelegramPlatform', () => {
     });
 
     it('throws ValidationError when target is completely missing from both request and account', async () => {
-      const accountWithoutTarget = { ...mockAccountConfig, target: '', channelId: '' };
+      const accountWithoutTarget = { ...mockAccountConfig, target: '' };
       const request: PostRequest = {
         platform: 'telegram',
         body: 'Hello',

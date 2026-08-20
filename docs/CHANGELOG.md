@@ -21,6 +21,9 @@
 - **Standardized Result Structures**:
   - Replaced bare error strings with structured `Issue` objects (`{ code, field, message, params }`).
   - Updated `PreviewResult` to report `{ valid, detectedType, issues, ignoredFields, truncated, ... }`.
+- **Subpath Exports & Extension Seams**:
+  - Split core exports into consumer-facing `@bozonx/social-posting` and adapter-facing `@bozonx/social-posting/platform`.
+  - Added optional `fetch?: typeof fetch` to `PlatformDeps` and `PostingClientOptions` for isolated network testing and custom proxies.
 - **Server HTTP Shell Updates**:
   - Added base64 byte array decoding for JSON payload transport of `kind: 'bytes'`.
   - Added `POST /delete` route to `apps/server`.

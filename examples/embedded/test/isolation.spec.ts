@@ -14,10 +14,10 @@ function recordingLogger(): ILogger & { lines: string[] } {
   };
 }
 
-function clientWith(logger: ILogger, apiKey: string, channelId: string) {
+function clientWith(logger: ILogger, apiKey: string, target: string) {
   return createPostingClient({
     accounts: {
-      main: { platform: 'telegram', auth: { apiKey }, channelId },
+      main: { platform: 'telegram', auth: { apiKey }, target },
     },
     logger,
     platforms: [telegram],

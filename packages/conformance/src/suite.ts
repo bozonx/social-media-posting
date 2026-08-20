@@ -1,11 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { PlatformError, PostType } from '@bozonx/social-posting';
 import {
-  PlatformError,
-  PostType,
   previewFromCapabilities,
   validateAgainstCapabilities,
   validateCapabilities,
-} from '@bozonx/social-posting';
+} from '@bozonx/social-posting/platform';
 import type { PostRequest, ResumeHandle } from '@bozonx/social-posting';
 import type { ContractHarness, PlatformContractOptions } from './types.js';
 
