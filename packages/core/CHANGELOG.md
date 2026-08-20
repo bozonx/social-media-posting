@@ -1,5 +1,11 @@
 # @bozonx/social-posting
 
+## 0.5.1
+
+### Patch Changes
+
+- 3353925: Fix deploy
+
 ## 0.5.0
 
 ### Minor Changes
