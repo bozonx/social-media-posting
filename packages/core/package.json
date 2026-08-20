@@ -1,6 +1,6 @@
 {
   "name": "@bozonx/social-posting",
-  "version": "3.0.0",
+  "version": "0.3.0",
   "description": "Framework-free core for publishing posts to social networks",
   "keywords": [
     "social-media",

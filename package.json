@@ -1,6 +1,6 @@
 {
   "name": "social-posting-workspace",
-  "version": "3.0.0",
+  "version": "0.3.0",
   "description": "Web-standard library for publishing to social networks, plus an HTTP shell",
   "private": true,
   "type": "module",
