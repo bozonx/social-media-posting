@@ -1,0 +1,18 @@
+{
+  "$schema": "https://unpkg.com/@changesets/config/schema.json",
+  "changelog": "@changesets/cli/changelog",
+  "commit": false,
+  "fixed": [
+    [
+      "@bozonx/social-posting",
+      "@bozonx/social-posting-telegram",
+      "@bozonx/social-posting-conformance",
+      "@bozonx/social-posting-server"
+    ]
+  ],
+  "linked": [],
+  "access": "public",
+  "baseBranch": "main",
+  "updateInternalDependencies": "patch",
+  "ignore": ["example-embedded", "example-custom-platform", "social-posting-workspace"]
+}

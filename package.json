@@ -37,10 +37,14 @@
     "docker:down": "docker compose -f apps/server/docker/docker-compose.yml down",
     "docker:logs": "docker compose -f apps/server/docker/docker-compose.yml logs -f",
     "rebuild": "pnpm clean && pnpm build",
-    "platform": "node scripts/scaffold-platform.mjs"
+    "platform": "node scripts/scaffold-platform.mjs",
+    "changeset": "changeset",
+    "release:version": "changeset version && pnpm install --lockfile-only",
+    "release:publish": "changeset publish"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",
+    "@changesets/cli": "^3.0.1",
     "@cloudflare/vitest-pool-workers": "^0.21.3",
     "@eslint/js": "^10.0.1",
     "@types/node": "^26.2.0",

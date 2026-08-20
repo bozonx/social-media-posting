@@ -31,9 +31,15 @@ media fetched by URL are fine; a large chunked video upload needs the Node deplo
 
 ## Releasing
 
-Tag a version and the release workflow publishes the packages to npm with provenance and pushes a
-multi-arch image, after re-running the full gate:
+Releases are managed with [Changesets](https://github.com/changesets/changesets):
 
-```bash
-git tag v2.0.0 && git push origin v2.0.0
-```
+1. Whenever changes are made to packages, create a changeset:
+   ```bash
+   pnpm changeset
+   ```
+2. Merge the changes into `main`. GitHub Actions will automatically open or update the **chore: version packages** PR.
+3. Review and merge the PR. The release workflow will automatically:
+   - Validate the entire workspace (`pnpm validate:all`)
+   - Publish packages to npm with provenance
+   - Push git tags and create GitHub releases
+   - Build and push multi-architecture Docker images (`linux/amd64`, `linux/arm64`) to GHCR

@@ -21,6 +21,7 @@ pnpm validate         # check + unit tests — what you run before calling work 
 ## Before submitting
 
 ```bash
+pnpm changeset        # declare version bump & changelog message for touched packages
 pnpm validate:all     # full verification — static analysis, deps, build, strict types, unit, e2e, workerd, publish checks (what CI runs)
 ```
 
