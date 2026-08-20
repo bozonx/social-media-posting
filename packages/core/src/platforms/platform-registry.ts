@@ -1,5 +1,6 @@
 import type { IPlatform } from './platform.interface.js';
 import type { PlatformCapabilities } from './capabilities.js';
+import { validateCapabilities } from './capabilities.js';
 import { ValidationError } from '../errors/posting-error.js';
 
 /**
@@ -10,9 +11,11 @@ export class PlatformRegistry {
 
   /**
    * Register a platform instance, replacing any platform of the same name.
+   * Validates the platform capabilities descriptor on registration.
    * @param platform - Platform instance to register.
    */
   register(platform: IPlatform): void {
+    validateCapabilities(platform.capabilities);
     this.platforms.set(platform.name.toLowerCase(), platform);
   }
 

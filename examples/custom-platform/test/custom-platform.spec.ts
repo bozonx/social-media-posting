@@ -47,7 +47,6 @@ describe('a platform registered from outside the library', () => {
 
     expect(client.getCapabilities('pastebin')).toMatchObject({
       name: 'pastebin',
-      supportsUrlPassthrough: false,
       rateLimits: { postsPerDay: 100 },
     });
   });

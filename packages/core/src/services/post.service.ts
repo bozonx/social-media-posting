@@ -7,10 +7,13 @@ import { detectPostType } from '../validation/detect-post-type.js';
 import { validateAgainstCapabilities } from '../validation/capability-validator.js';
 import type { PostRequest } from '../types/post-request.js';
 import type {
+  ErrorPayload,
   ErrorResponse,
   PostResponse,
   PostResult,
   StatusResult,
+  DeleteResult,
+  PostRef,
 } from '../types/post-response.js';
 import type { ResumeHandle } from '../types/resume-handle.js';
 
@@ -33,21 +36,32 @@ export interface PublishCallOptions {
 }
 
 /**
- * Publishes a post through the platform that owns the requested network.
- *
- * Exactly one attempt is made. Retrying — with whatever backoff, budget and
- * dead-lettering the host runs — is the host's job, and every error carries the
- * `retryable`, `retryAfterMs` and `resumeHandle` it needs to do that.
+ * Options for a deletion call.
+ */
+export interface DeleteCallOptions {
+  /** Target platform name. */
+  platform?: string;
+  /** Account name. */
+  account?: string;
+  /** Inline credentials. */
+  auth?: Record<string, unknown>;
+  /** Aborts the operation. */
+  signal?: AbortSignal;
+  /** Resume from an earlier partial deletion. */
+  resume?: ResumeHandle;
+  /** Include the platform's diagnostic payload in the result. Defaults to false. */
+  includeRaw?: boolean;
+}
+
+/**
+ * Publishes and manages posts across social networks.
  */
 export class PostService extends BasePostService {
   /**
    * Publish a post.
    *
-   * Never throws for an expected failure: the outcome is always a result object
-   * so a host can branch on `success` without a try/catch around every call.
-   *
    * @param request - Post request with platform, content and media.
-   * @param options - Abort signal and optional resume handle.
+   * @param options - Abort signal, includeRaw and optional resume handle.
    * @returns Success payload, or an error payload describing what went wrong.
    */
   async publish(request: PostRequest, options: PublishCallOptions = {}): Promise<PostResult> {
@@ -57,16 +71,26 @@ export class PostService extends BasePostService {
       assertValidPostRequest(request);
 
       const { platform, accountConfig } = await this.validateRequest(request);
-      const effectiveRequest = withAccountBodyLimit(request, accountConfig.maxBody);
+      const effectiveCapabilities =
+        accountConfig.maxBodyLength !== undefined
+          ? {
+              ...platform.capabilities,
+              maxBodyLength:
+                platform.capabilities.maxBodyLength !== undefined
+                  ? Math.min(platform.capabilities.maxBodyLength, accountConfig.maxBodyLength)
+                  : accountConfig.maxBodyLength,
+            }
+          : platform.capabilities;
+
       const validateExtra = platform.validateExtra?.bind(platform);
-      const validation = validateAgainstCapabilities(effectiveRequest, platform.capabilities, {
+      const validation = validateAgainstCapabilities(request, effectiveCapabilities, {
         detectType: platform.detectType?.bind(platform) ?? detectPostType,
         validateExtra: validateExtra
           ? (candidate, detectedType) => validateExtra(candidate, accountConfig, detectedType)
           : undefined,
       });
-      if (validation.errors.length > 0) {
-        throw new ValidationError(validation.errors);
+      if (validation.issues.length > 0) {
+        throw new ValidationError(validation.issues);
       }
       const postType = validation.detectedType;
 
@@ -87,8 +111,7 @@ export class PostService extends BasePostService {
       );
 
       const result = await this.withRequestTimeout(
-        signal =>
-          platform.publish(effectiveRequest, accountConfig, { signal, resume: options.resume }),
+        signal => platform.publish(request, accountConfig, { signal, resume: options.resume }),
         options.signal,
       );
 
@@ -98,6 +121,12 @@ export class PostService extends BasePostService {
           status: result.status,
           postId: result.postId,
           url: result.url,
+          parts: result.parts,
+          ref: result.ref ?? {
+            postId: result.postId,
+            target: request.target,
+            parts: result.parts,
+          },
           handle: result.handle,
           checkAfterMs: result.checkAfterMs,
           platform: request.platform,
@@ -115,9 +144,71 @@ export class PostService extends BasePostService {
   }
 
   /**
-   * Check on a post that `publish()` left in `processing`.
+   * Delete a post by reference.
    *
-   * The host decides when to call this; nothing here polls on its own.
+   * @param target - PostRef or postId.
+   * @param options - Platform/account options and signals.
+   */
+  async delete(
+    target: PostRef | string | number,
+    options: DeleteCallOptions = {},
+  ): Promise<DeleteResult> {
+    const requestId = crypto.randomUUID();
+    try {
+      const ref: PostRef = typeof target === 'object' ? target : { postId: String(target) };
+
+      const { platform, accountConfig } = await this.validateRequest({
+        platform: options.platform ?? '',
+        account: options.account,
+        auth: options.auth,
+      });
+
+      const deleteFn = platform.delete?.bind(platform);
+      if (!deleteFn) {
+        throw new ValidationError(`Platform "${platform.name}" does not support deletion`);
+      }
+
+      if (options.resume && options.resume.platform !== platform.name) {
+        throw new ValidationError(
+          `Resume handle belongs to platform "${options.resume.platform}", not "${platform.name}"`,
+        );
+      }
+      if (options.resume?.expiresAt && Date.parse(options.resume.expiresAt) <= Date.now()) {
+        throw new ValidationError('Resume handle has expired');
+      }
+
+      this.logger.log(
+        `Deleting post on ${platform.name} (postId: ${ref.postId ?? 'unknown'}, requestId: ${requestId})`,
+        LOG_CONTEXT,
+      );
+
+      const result = await this.withRequestTimeout(
+        signal => deleteFn(ref, accountConfig, { signal, resume: options.resume }),
+        options.signal,
+      );
+
+      return {
+        success: true,
+        data: {
+          status: result.status,
+          parts: result.parts,
+          handle: result.handle,
+        },
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      const stack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(
+        `Failed to delete on ${options.platform ?? 'unknown platform'}: ${message} (requestId: ${requestId})`,
+        stack,
+        LOG_CONTEXT,
+      );
+      return { success: false, error: errorPayload(error, requestId, options.includeRaw ?? false) };
+    }
+  }
+
+  /**
+   * Check on a post that `publish()` left in `processing`.
    *
    * @param request - Enough of a request to resolve the platform and credentials.
    * @param handle - The handle `publish()` returned.
@@ -151,15 +242,19 @@ export class PostService extends BasePostService {
       );
 
       return {
-        status: result.status,
-        postId: result.postId,
-        url: result.url,
-        checkAfterMs: result.checkAfterMs,
-        error: result.error ? errorPayload(result.error, crypto.randomUUID(), false) : undefined,
-        raw: result.raw,
+        success: true,
+        data: {
+          status: result.status,
+          postId: result.postId,
+          url: result.url,
+          ref: result.ref,
+          checkAfterMs: result.checkAfterMs,
+          reason: result.error ? errorPayload(result.error, crypto.randomUUID(), false) : undefined,
+          raw: result.raw,
+        },
       };
     } catch (error) {
-      return { status: 'failed', error: errorPayload(error, crypto.randomUUID(), false) };
+      return { success: false, error: errorPayload(error, crypto.randomUUID(), false) };
     }
   }
 
@@ -228,25 +323,10 @@ export class PostService extends BasePostService {
   }
 }
 
-function withAccountBodyLimit(
-  request: PostRequest,
-  accountMaxBody: number | undefined,
-): PostRequest {
-  if (accountMaxBody === undefined) return request;
-  return { ...request, maxBody: Math.min(request.maxBody ?? accountMaxBody, accountMaxBody) };
-}
-
 /**
  * Flatten an error into the payload shape hosts read.
- *
- * Platforms classify their own failures, so this only has to unpack a
- * {@link PlatformError} or fall back for a failure raised by the core itself.
  */
-function errorPayload(
-  error: unknown,
-  requestId: string,
-  includeRaw = true,
-): ErrorResponse['error'] {
+function errorPayload(error: unknown, requestId: string, includeRaw = true): ErrorPayload {
   if (error instanceof PlatformError) {
     return {
       code: error.code,
@@ -266,7 +346,10 @@ function errorPayload(
       code: error.code,
       message: error.message,
       retryable: error.retryable,
-      details: error instanceof ValidationError ? { errors: error.errors } : undefined,
+      details:
+        error instanceof ValidationError
+          ? { issues: error.issues, errors: error.errors }
+          : undefined,
       raw: includeRaw ? error.cause : undefined,
       requestId,
     };
@@ -276,7 +359,6 @@ function errorPayload(
   return {
     code: ErrorCode.INTERNAL_ERROR,
     message: err.message ?? 'Unknown error',
-    // An error the platform did not classify is not something to retry blindly.
     retryable: false,
     raw: includeRaw ? error : undefined,
     requestId,

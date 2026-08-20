@@ -2,11 +2,13 @@
  * Supported body content formats for post text
  * Used for content conversion and platform-specific formatting
  */
-export enum BodyFormat {
+export const BodyFormat = {
   /** HTML markup */
-  HTML = 'html',
+  HTML: 'html',
   /** Markdown syntax */
-  MARKDOWN = 'md',
+  MARKDOWN: 'md',
   /** Plain text without formatting */
-  TEXT = 'text',
-}
+  TEXT: 'text',
+} as const;
+
+export type BodyFormat = (typeof BodyFormat)[keyof typeof BodyFormat] | (string & {});

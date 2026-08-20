@@ -8,12 +8,14 @@ import {
 import type {
   IAuthValidator,
   IPlatform,
+  PlatformCapabilities,
   PlatformModule,
   PlatformPublishResponse,
   PostRequest,
   ResolvedAccountConfig,
   ResumeHandle,
 } from '@bozonx/social-posting';
+
 import { describePlatformContract } from '../src/suite.js';
 import type {
   ContractHarness,
@@ -24,10 +26,17 @@ import type {
 
 class MockPlatform implements IPlatform {
   readonly name = 'mock-network';
-  readonly capabilities = {
+  readonly capabilities: PlatformCapabilities = {
     name: 'mock-network',
-    supportedTypes: [PostType.POST, PostType.IMAGE],
-    supportsUrlPassthrough: true,
+    postTypes: {
+      [PostType.POST]: {
+        requiredFields: ['body'],
+        forbiddenFields: ['media'],
+      },
+      [PostType.IMAGE]: {
+        requiredFields: ['media'],
+      },
+    },
     maxBodyLength: 50,
   };
 
@@ -65,8 +74,8 @@ class MockPlatform implements IPlatform {
     }
 
     const validation = validateAgainstCapabilities(request, this.capabilities);
-    if (validation.errors.length > 0) {
-      throw new ValidationError(validation.errors);
+    if (validation.issues.length > 0) {
+      throw new ValidationError(validation.issues);
     }
 
     this.calls += 1;
@@ -113,8 +122,15 @@ const mockModule: PlatformModule = {
   name: 'mock-network',
   capabilities: {
     name: 'mock-network',
-    supportedTypes: [PostType.POST, PostType.IMAGE],
-    supportsUrlPassthrough: true,
+    postTypes: {
+      [PostType.POST]: {
+        requiredFields: ['body'],
+        forbiddenFields: ['media'],
+      },
+      [PostType.IMAGE]: {
+        requiredFields: ['media'],
+      },
+    },
     maxBodyLength: 50,
   },
   authValidator: mockAuthValidator,
@@ -165,16 +181,20 @@ const contractOptions: PlatformContractOptions = {
   module: mockModule,
   createHarness: createMockHarness,
   requests: {
-    [PostType.POST]: { platform: 'mock-network', body: 'Hello post' },
-    [PostType.IMAGE]: { platform: 'mock-network', cover: { src: 'https://a.com/b.jpg' } },
+    [PostType.POST]: { platform: 'mock-network', body: 'Hello post', type: PostType.POST },
+    [PostType.IMAGE]: {
+      platform: 'mock-network',
+      media: [{ source: { kind: 'url', url: 'https://a.com/b.jpg' } }],
+      type: PostType.IMAGE,
+    },
   },
   errorCases,
   overLimitRequest: {
-    request: { platform: 'mock-network', body: 'a'.repeat(60) },
+    request: { platform: 'mock-network', body: 'a'.repeat(60), type: PostType.POST },
     expectedError: /exceeds the 50 characters/,
   },
   resumable: {
-    request: { platform: 'mock-network', body: 'Resumable post' },
+    request: { platform: 'mock-network', body: 'Resumable post', type: PostType.POST },
     completedStepsBeforeInterruption: 1,
     arrangeInterruption(harness) {
       harness.respondWith({ status: 500, body: {} });

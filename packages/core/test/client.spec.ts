@@ -11,15 +11,25 @@ import type { CredentialProvider } from '../src/auth/credentials.js';
 type FakePlatform = IPlatform & {
   publish: ReturnType<typeof vi.fn>;
   preview: ReturnType<typeof vi.fn>;
+  delete: ReturnType<typeof vi.fn>;
 };
 
 function fakePlatform(name = 'fake'): FakePlatform {
   return {
     name,
-    capabilities: { name, supportedTypes: [PostType.AUTO, PostType.POST] },
-    publish: vi
-      .fn()
-      .mockResolvedValue({ status: 'published', postId: '1', url: `https://${name}/1` }),
+    capabilities: {
+      name,
+      postTypes: {
+        [PostType.POST]: { requiredFields: ['body'] },
+      },
+    },
+    publish: vi.fn().mockResolvedValue({
+      status: 'published',
+      postId: '1',
+      url: `https://${name}/1`,
+      parts: [{ id: '1' }],
+      ref: { postId: '1', parts: [{ id: '1' }] },
+    }),
     preview: vi.fn().mockResolvedValue({
       success: true,
       data: {
@@ -28,8 +38,14 @@ function fakePlatform(name = 'fake'): FakePlatform {
         convertedBody: 'hi',
         targetFormat: 'text',
         convertedBodyLength: 2,
-        warnings: [],
+        issues: [],
+        ignoredFields: [],
+        truncated: false,
       },
+    }),
+    delete: vi.fn().mockResolvedValue({
+      status: 'deleted',
+      parts: [{ id: '1', status: 'deleted' }],
     }),
   };
 }
@@ -45,7 +61,7 @@ function moduleOf(platform: FakePlatform, authValidator?: IAuthValidator): Platf
 }
 
 const accounts = {
-  main: { platform: 'fake', auth: { token: 'secret' }, channelId: '123' },
+  main: { platform: 'fake', auth: { token: 'secret' }, target: '123' },
 };
 
 const request = {
@@ -193,5 +209,18 @@ describe('createPostingClient', () => {
 
     expect(result.success).toBe(true);
     expect(platform.publish).not.toHaveBeenCalled();
+  });
+
+  it('deletes posts through client.delete', async () => {
+    const platform = fakePlatform();
+    const client = createPostingClient({ accounts, platforms: [moduleOf(platform)] });
+
+    const result = await client.delete('1', { platform: 'fake', account: 'main' });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.status).toBe('deleted');
+    }
+    expect(platform.delete).toHaveBeenCalledTimes(1);
   });
 });

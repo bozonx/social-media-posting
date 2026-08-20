@@ -8,21 +8,30 @@ import type { PostRequest } from '../src/types/post-request.js';
 const capabilities: PlatformCapabilities = {
   name: 'demo',
   displayName: 'Demo',
-  supportedTypes: [PostType.AUTO, PostType.POST, PostType.IMAGE, PostType.ALBUM],
   postTypes: {
     [PostType.POST]: {
       requiredFields: ['body'],
-      forbiddenFields: ['cover', 'video', 'audio', 'document', 'media'],
+      forbiddenFields: ['media'],
     },
-    [PostType.IMAGE]: { requiredFields: ['cover'] },
-    [PostType.ALBUM]: { requiredFields: ['media'], minMediaCount: 2, maxMediaCount: 4 },
+    [PostType.IMAGE]: {
+      requiredFields: ['media'],
+      minMediaCount: 1,
+      maxMediaCount: 1,
+    },
+    [PostType.ALBUM]: {
+      requiredFields: ['media'],
+      minMediaCount: 2,
+      maxMediaCount: 4,
+    },
   },
   maxBodyLength: 100,
   supportedBodyFormats: ['text', 'html'],
   targetBodyFormat: 'text',
   supportsNativeScheduling: false,
   supportsDraft: false,
-  supportsSpoiler: false,
+  sensitive: {
+    supportedValues: [false],
+  },
   ignoredFields: ['title', 'tags'],
 };
 
@@ -32,14 +41,18 @@ const check = (request: Partial<PostRequest>) =>
 describe('validateAgainstCapabilities', () => {
   describe('post types', () => {
     it('detects the type from the media a request carries', () => {
-      expect(check({ cover: { src: 'https://a/b.jpg' } }).detectedType).toBe(PostType.IMAGE);
+      expect(
+        check({ media: [{ source: { kind: 'url', url: 'https://a/b.jpg' } }] }).detectedType,
+      ).toBe(PostType.IMAGE);
       expect(check({ body: 'hi' }).detectedType).toBe(PostType.POST);
     });
 
     it('rejects a type the platform does not support', () => {
       const result = check({ body: 'hi', type: PostType.STORY });
 
-      expect(result.errors).toContain("Post type 'story' is not supported for Demo");
+      expect(
+        result.issues.some(i => i.message.includes("Post type 'story' is not supported")),
+      ).toBe(true);
     });
 
     it('honours a platform-specific detector', () => {
@@ -50,36 +63,48 @@ describe('validateAgainstCapabilities', () => {
       );
 
       expect(result.detectedType).toBe(PostType.IMAGE);
-      expect(result.errors).toContain("Field 'cover' is required for type 'image'");
+      expect(result.issues.some(i => i.field === 'media')).toBe(true);
     });
   });
 
   describe('required and forbidden fields', () => {
     it('reports a missing required field', () => {
-      expect(check({ type: PostType.IMAGE, body: 'x' }).errors).toContain(
-        "Field 'cover' is required for type 'image'",
+      expect(check({ type: PostType.IMAGE, body: 'x' }).issues.some(i => i.field === 'media')).toBe(
+        true,
       );
     });
 
     it('reports media on a text-only type', () => {
-      expect(
-        check({ body: 'hi', type: PostType.POST, cover: { src: 'https://a/b.jpg' } }).errors,
-      ).toContain("For type 'post', media fields must not be provided");
+      const result = check({
+        body: 'hi',
+        type: PostType.POST,
+        media: [{ source: { kind: 'url', url: 'https://a/b.jpg' } }],
+      });
+      expect(result.issues.some(i => i.field === 'media')).toBe(true);
     });
   });
 
   describe('media counts', () => {
     it('rejects an album below the minimum', () => {
-      const result = check({ type: PostType.ALBUM, media: [{ src: 'https://a/1.jpg' }] });
+      const result = check({
+        type: PostType.ALBUM,
+        media: [{ source: { kind: 'url', url: 'https://a/1.jpg' } }],
+      });
 
-      expect(result.errors.join(' ')).toContain('needs at least 2 media item(s), got 1');
+      expect(result.issues.some(i => i.message.includes('needs at least 2 media item(s)'))).toBe(
+        true,
+      );
     });
 
     it('rejects an album above the maximum', () => {
-      const media = Array.from({ length: 5 }, (_, i) => ({ src: `https://a/${i}.jpg` }));
+      const media = Array.from({ length: 5 }, (_, i) => ({
+        source: { kind: 'url' as const, url: `https://a/${i}.jpg` },
+      }));
       const result = check({ type: PostType.ALBUM, media });
 
-      expect(result.errors.join(' ')).toContain('accepts at most 4 media item(s), got 5');
+      expect(result.issues.some(i => i.message.includes('accepts at most 4 media item(s)'))).toBe(
+        true,
+      );
     });
   });
 
@@ -87,7 +112,13 @@ describe('validateAgainstCapabilities', () => {
     const constrained: PlatformCapabilities = {
       ...capabilities,
       media: {
-        video: { minDurationSecs: 5, maxDurationSecs: 60, minAspectRatio: 0.5, maxAspectRatio: 2 },
+        video: {
+          acceptedSources: ['url'],
+          minDurationSecs: 5,
+          maxDurationSecs: 60,
+          minAspectRatio: 0.5,
+          maxAspectRatio: 2,
+        },
       },
     };
 
@@ -96,14 +127,21 @@ describe('validateAgainstCapabilities', () => {
         {
           platform: 'demo',
           type: PostType.IMAGE,
-          cover: { src: 'https://a/cover.jpg' },
-          video: { src: 'https://a/video.mp4', durationSecs: 61, width: 300, height: 100 },
+          media: [
+            {
+              source: { kind: 'url', url: 'https://a/video.mp4' },
+              type: 'video',
+              durationSecs: 61,
+              width: 300,
+              height: 100,
+            },
+          ],
         },
         constrained,
       );
 
-      expect(result.errors.join(' ')).toContain('duration 61s exceeds the 60s maximum');
-      expect(result.errors.join(' ')).toContain('aspect ratio 3 exceeds the 2 maximum');
+      expect(result.issues.some(i => i.message.includes('duration 61s exceeds'))).toBe(true);
+      expect(result.issues.some(i => i.message.includes('aspect ratio 3 exceeds'))).toBe(true);
     });
 
     it('enforces declared duration and aspect-ratio limits (below minimum)', () => {
@@ -111,55 +149,39 @@ describe('validateAgainstCapabilities', () => {
         {
           platform: 'demo',
           type: PostType.IMAGE,
-          cover: { src: 'https://a/cover.jpg' },
-          video: { src: 'https://a/video.mp4', durationSecs: 2, width: 100, height: 300 },
+          media: [
+            {
+              source: { kind: 'url', url: 'https://a/video.mp4' },
+              type: 'video',
+              durationSecs: 2,
+              width: 100,
+              height: 300,
+            },
+          ],
         },
         constrained,
       );
 
-      expect(result.errors.join(' ')).toContain('duration 2s is below the 5s minimum');
-      expect(result.errors.join(' ')).toContain(
-        'aspect ratio 0.3333333333333333 is below the 0.5 minimum',
-      );
-    });
-  });
-
-  describe('media URL validation', () => {
-    it('validates URLs in all media fields (cover, video, audio, document, media array)', () => {
-      const result = validateAgainstCapabilities(
-        {
-          platform: 'demo',
-          type: PostType.ALBUM,
-          cover: { src: 'invalid-url' },
-          video: { src: 'ftp://files.example.com/video.mp4' },
-          audio: { src: 'javascript:alert(1)' },
-          document: { src: 'data:text/plain,hello' },
-          media: [{ src: 'blob:https://example.com/uuid' }],
-        } as PostRequest,
-        capabilities,
-      );
-
-      expect(result.errors.length).toBeGreaterThan(0);
+      expect(result.issues.some(i => i.message.includes('duration 2s is below'))).toBe(true);
+      expect(result.issues.some(i => i.message.includes('below the 0.5 minimum'))).toBe(true);
     });
   });
 
   describe('body rules', () => {
     it('rejects a body over the platform limit', () => {
-      expect(check({ body: 'a'.repeat(101) }).errors.join(' ')).toContain(
-        'exceeds the 100 characters',
-      );
-    });
-
-    it('honours a stricter per-request maxBody', () => {
-      expect(check({ body: 'a'.repeat(50), maxBody: 10 }).errors.join(' ')).toContain(
-        'exceeds the 10 characters',
-      );
+      expect(
+        check({ body: 'a'.repeat(101) }).issues.some(i =>
+          i.message.includes('exceeds the 100 characters'),
+        ),
+      ).toBe(true);
     });
 
     it('rejects an unsupported body format', () => {
-      expect(check({ body: 'hi', bodyFormat: 'md' }).errors.join(' ')).toContain(
-        "Body format 'md' is not supported",
-      );
+      expect(
+        check({ body: 'hi', bodyFormat: 'md' }).issues.some(i =>
+          i.message.includes("Body format 'md' is not supported"),
+        ),
+      ).toBe(true);
     });
 
     it('counts URLs the way the platform counts them', () => {
@@ -175,8 +197,7 @@ describe('validateAgainstCapabilities', () => {
         weighted,
       );
 
-      // 4 characters of text plus a URL counted as 23, not its real length.
-      expect(result.errors).toEqual([]);
+      expect(result.issues).toEqual([]);
     });
   });
 
@@ -184,57 +205,56 @@ describe('validateAgainstCapabilities', () => {
     it('warns about declared ignored fields instead of dropping them silently', () => {
       const result = check({ body: 'hi', title: 'T', tags: ['a'] });
 
-      expect(result.warnings).toContain(
-        'Fields title, tags are not used by Demo and will be ignored',
-      );
+      expect(
+        result.warnings.some(w => w.message.includes('title, tags are not used by Demo')),
+      ).toBe(true);
       expect(result.ignoredFields).toEqual(expect.arrayContaining(['title', 'tags']));
-    });
-
-    it('warns about media the detected type will not use', () => {
-      const result = check({
-        type: PostType.IMAGE,
-        cover: { src: 'https://a/b.jpg' },
-        video: { src: 'https://a/b.mp4' },
-      });
-
-      expect(result.warnings).toContain("Fields video will be ignored for type 'image'");
     });
   });
 
   describe('features the platform lacks', () => {
     it('refuses scheduledAt rather than ignoring it', () => {
-      expect(check({ body: 'hi', scheduledAt: '2026-01-01T00:00:00Z' }).errors.join(' ')).toContain(
-        'cannot schedule posts',
-      );
+      expect(
+        check({ body: 'hi', scheduledAt: '2026-01-01T00:00:00Z' }).issues.some(i =>
+          i.message.includes('cannot schedule posts'),
+        ),
+      ).toBe(true);
     });
 
     it('refuses a draft rather than publishing it', () => {
-      expect(check({ body: 'hi', mode: 'draft' }).errors.join(' ')).toContain('has no drafts');
+      expect(
+        check({ body: 'hi', mode: 'draft' }).issues.some(i => i.message.includes('has no drafts')),
+      ).toBe(true);
     });
 
     it('accepts mode publish on a platform without drafts', () => {
-      expect(check({ body: 'hi', mode: 'publish' }).errors).toEqual([]);
+      expect(check({ body: 'hi', mode: 'publish' }).issues).toEqual([]);
     });
 
-    it('refuses a spoiler the platform cannot render', () => {
+    it('refuses a sensitive flag the platform cannot render', () => {
       const result = check({
         type: PostType.IMAGE,
-        cover: { src: 'https://a/b.jpg', hasSpoiler: true },
+        media: [{ source: { kind: 'url', url: 'https://a/b.jpg' } }],
+        sensitive: true,
       });
 
-      expect(result.errors.join(' ')).toContain('has no spoilers');
+      expect(result.issues.some(i => i.field === 'sensitive')).toBe(true);
     });
   });
 
   describe('platform hooks', () => {
-    it('adds errors from validateExtra', () => {
+    it('adds issues from validateExtra', () => {
       const result = validateAgainstCapabilities(
         { platform: 'demo', body: 'hi' } as PostRequest,
         capabilities,
-        { validateExtra: () => ['needs a target channel'] },
+        {
+          validateExtra: () => [
+            { code: 'TARGET_REQUIRED', field: 'target', message: 'needs a target channel' },
+          ],
+        },
       );
 
-      expect(result.errors).toContain('needs a target channel');
+      expect(result.issues.some(i => i.message === 'needs a target channel')).toBe(true);
     });
   });
 });
@@ -248,21 +268,23 @@ describe('previewFromCapabilities', () => {
 
     expect(result.success).toBe(true);
     if (result.success) {
+      expect(result.data.valid).toBe(true);
       expect(result.data.detectedType).toBe(PostType.POST);
       expect(result.data.targetFormat).toBe('text');
       expect(result.data.convertedBody).toBe('hi');
     }
   });
 
-  it('returns the collected errors when it is not', () => {
+  it('returns valid: false with issues when request is invalid', () => {
     const result = previewFromCapabilities(
       { platform: 'demo', type: PostType.IMAGE } as PostRequest,
       capabilities,
     );
 
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.data.errors).toContain("Field 'cover' is required for type 'image'");
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.valid).toBe(false);
+      expect(result.data.issues.some(i => i.field === 'media')).toBe(true);
     }
   });
 

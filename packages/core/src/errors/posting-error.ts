@@ -1,4 +1,5 @@
 import { ErrorCode } from './error-code.js';
+import type { Issue } from '../types/post-response.js';
 
 /**
  * Base class for every error this library throws deliberately.
@@ -36,13 +37,20 @@ export class PostingError extends Error {
  * fails the same way.
  */
 export class ValidationError extends PostingError {
+  /** Structured validation issues. */
+  readonly issues: Issue[];
   /** Individual validation messages, when the failure has more than one cause. */
   readonly errors: string[];
 
-  constructor(errors: string | string[], options?: { cause?: unknown }) {
-    const list = Array.isArray(errors) ? errors : [errors];
-    super(list.join('; '), ErrorCode.VALIDATION_ERROR, { cause: options?.cause });
-    this.errors = list;
+  constructor(issues: string | string[] | Issue | Issue[], options?: { cause?: unknown }) {
+    const list = Array.isArray(issues) ? issues : [issues];
+    const normalizedIssues: Issue[] = list.map(item =>
+      typeof item === 'string' ? { code: 'VALIDATION_ERROR', message: item } : item,
+    );
+    const messages = normalizedIssues.map(i => i.message);
+    super(messages.join('; '), ErrorCode.VALIDATION_ERROR, { cause: options?.cause });
+    this.issues = normalizedIssues;
+    this.errors = messages;
   }
 }
 

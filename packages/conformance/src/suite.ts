@@ -4,18 +4,13 @@ import {
   PostType,
   previewFromCapabilities,
   validateAgainstCapabilities,
+  validateCapabilities,
 } from '@bozonx/social-posting';
 import type { PostRequest, ResumeHandle } from '@bozonx/social-posting';
 import type { ContractHarness, PlatformContractOptions } from './types.js';
 
 /**
  * The suite every network must pass before it ships.
- *
- * Adding a network is meant to be "implement the interface and run this". That
- * only holds if the suite checks the things that actually break in production:
- * the declared capabilities being real, failures classified so a host can act
- * on them, cancellation honoured, no global state touched, and an interrupted
- * multi-step publication resuming rather than duplicating.
  *
  * @param options - The platform, a transport harness, and its fixtures.
  */
@@ -41,30 +36,8 @@ export function describePlatformContract(options: PlatformContractOptions): void
         expect(platformModule.capabilities.name).toBe(platformModule.name);
       });
 
-      it('declares at least one publishable type', () => {
-        const publishable = platformModule.capabilities.supportedTypes.filter(
-          type => type !== PostType.AUTO,
-        );
-
-        expect(publishable.length).toBeGreaterThan(0);
-      });
-
-      it('describes only types it claims to support', () => {
-        const described = Object.keys(platformModule.capabilities.postTypes ?? {});
-
-        for (const type of described) {
-          expect(platformModule.capabilities.supportedTypes).toContain(type as PostType);
-        }
-      });
-
-      it('states how media reaches it', () => {
-        const { supportsUrlPassthrough, requiresByteUpload } = platformModule.capabilities;
-
-        // These two decide whether the network is viable on a memory-limited
-        // runtime, so leaving them unstated is not an option.
-        expect(supportsUrlPassthrough === undefined && requiresByteUpload === undefined).toBe(
-          false,
-        );
+      it('passes validateCapabilities descriptor checks', () => {
+        expect(() => validateCapabilities(platformModule.capabilities)).not.toThrow();
       });
 
       const authValidator = platformModule.authValidator;
@@ -75,15 +48,10 @@ export function describePlatformContract(options: PlatformContractOptions): void
     });
 
     describe('publishing', () => {
-      const declaredTypes = platformModule.capabilities.supportedTypes.filter(
-        type => type !== PostType.AUTO,
-      );
+      const declaredTypes = Object.keys(platformModule.capabilities.postTypes ?? {}) as PostType[];
 
       it('has a sample request for every type it declares', () => {
         const missing = declaredTypes.filter(type => !options.requests[type]);
-
-        // A type a platform claims and cannot demonstrate is a claim, not a
-        // capability.
         expect(missing).toEqual([]);
       });
 
@@ -101,7 +69,6 @@ export function describePlatformContract(options: PlatformContractOptions): void
           if (result.status === 'published') {
             expect(result.postId).toBeTruthy();
           } else {
-            // A deferred result is only useful if the host can follow it up.
             expect(result.handle).toBeDefined();
             expect(harness.platform.checkStatus).toBeTypeOf('function');
           }
@@ -111,7 +78,8 @@ export function describePlatformContract(options: PlatformContractOptions): void
       it('refuses a type it does not declare, without calling the API', async () => {
         const unsupported = Object.values(PostType).find(
           type =>
-            type !== PostType.AUTO && !platformModule.capabilities.supportedTypes.includes(type),
+            type !== PostType.AUTO &&
+            !Object.keys(platformModule.capabilities.postTypes ?? {}).includes(type),
         );
         if (!unsupported) {
           return;
@@ -137,6 +105,22 @@ export function describePlatformContract(options: PlatformContractOptions): void
       });
     });
 
+    if (options.sampleDeleteRef) {
+      describe('deletion', () => {
+        it('deletes a post by reference', async () => {
+          if (harness.platform.delete) {
+            harness.respondSuccess();
+            const outcome = await harness.platform.delete(
+              options.sampleDeleteRef!,
+              harness.accountConfig,
+            );
+            expect(['deleted', 'partial']).toContain(outcome.status);
+            expect(outcome.parts.length).toBeGreaterThan(0);
+          }
+        });
+      });
+    }
+
     describe('error contract', () => {
       for (const errorCase of options.errorCases) {
         it(`maps ${errorCase.name} to ${errorCase.expect.code}`, async () => {
@@ -146,8 +130,6 @@ export function describePlatformContract(options: PlatformContractOptions): void
             .publish(firstRequest(options), harness.accountConfig)
             .catch((thrown: unknown) => thrown)) as PlatformError;
 
-          // Everything a host needs to schedule its own retry has to be on the
-          // error, or the host has nothing to key on.
           expect(error).toBeInstanceOf(PlatformError);
           expect(error.code).toBe(errorCase.expect.code);
           expect(error.retryable).toBe(errorCase.expect.retryable);
@@ -191,10 +173,6 @@ export function describePlatformContract(options: PlatformContractOptions): void
 
     describe('isolation', () => {
       it('mutates no global state while publishing', async () => {
-        // Identity of `console.log` is not comparable across runtimes — workerd
-        // hands back a fresh bound function on every access — so this checks
-        // the properties that are stable everywhere. Whether the platform
-        // hijacks logging is covered by the next test.
         const beforeNow = Date.now;
         const beforeKeys = Object.keys(globalThis).sort();
         harness.respondSuccess();
@@ -231,6 +209,9 @@ export function describePlatformContract(options: PlatformContractOptions): void
           : previewFromCapabilities(request, harness.platform.capabilities, hooks(harness));
 
         expect(result.success).toBe(true);
+        if (result.success) {
+          expect(result.data.valid).toBe(true);
+        }
         expect(harness.callCount()).toBe(0);
       });
 
@@ -243,7 +224,7 @@ export function describePlatformContract(options: PlatformContractOptions): void
           hooks(harness),
         );
 
-        expect(validation.errors).toEqual([]);
+        expect(validation.issues).toEqual([]);
       });
     });
 
@@ -261,7 +242,6 @@ export function describePlatformContract(options: PlatformContractOptions): void
         expect(failure).toBeInstanceOf(PlatformError);
         expect(failure.resumeHandle).toBeDefined();
         expect(failure.resumeHandle?.platform).toBe(platformModule.name);
-        // The host stores this in a JSON job record.
         expect(JSON.parse(JSON.stringify(failure.resumeHandle))).toEqual(failure.resumeHandle);
 
         const handle = failure.resumeHandle as ResumeHandle;
@@ -273,8 +253,6 @@ export function describePlatformContract(options: PlatformContractOptions): void
         });
 
         expect(['published', 'processing']).toContain(result.status);
-        // Resuming must not redo the steps the first attempt completed: that is
-        // what would create a second uploaded file or a second post.
         expect(harness.callCount() - callsBeforeResume).toBeLessThanOrEqual(
           scenario.completedStepsBeforeInterruption,
         );

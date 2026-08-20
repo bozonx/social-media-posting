@@ -13,7 +13,10 @@ function createMockPlatform(
     name,
     capabilities: {
       name,
-      supportedTypes: [PostType.POST, PostType.IMAGE],
+      postTypes: {
+        [PostType.POST]: { requiredFields: ['body'] },
+        [PostType.IMAGE]: { requiredFields: ['media'] },
+      },
       ...capabilitiesOverrides,
     },
     publish: async () => ({ status: 'published', postId: '123' }),
@@ -69,7 +72,9 @@ describe('PlatformRegistry', () => {
     const registry = new PlatformRegistry();
     const capabilities: PlatformCapabilities = {
       name: 'custom',
-      supportedTypes: [PostType.VIDEO],
+      postTypes: {
+        [PostType.VIDEO]: { requiredFields: ['media'] },
+      },
       maxBodyLength: 500,
     };
     registry.register(createMockPlatform('custom', capabilities));

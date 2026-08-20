@@ -1,13 +1,12 @@
 import { PostType } from '../types/post-type.js';
-import { MediaInputHelper } from '../media/media-input.helper.js';
 import { detectPrimaryMediaField } from '../media/media-priority.js';
 import type { PostRequest } from '../types/post-request.js';
 
 /**
- * Work out which post type a request means, from the media it carries.
+ * Work out which post type a request means, from the content and media it carries.
  *
- * Priority: an explicit `type` wins; then `media[]` → album, `document`,
- * `audio`, `video`, `cover` → image; a request with no media is a plain post.
+ * Priority: an explicit `type` wins; then `poll` → poll; then `media[]` → album/single-media;
+ * `repostOf` or plain content → post.
  *
  * Platforms whose type system differs override this through
  * {@link IPlatform.detectType}; most do not need to.
@@ -20,13 +19,13 @@ export function detectPostType(request: PostRequest): PostType {
     return request.type;
   }
 
+  if (request.poll) {
+    return PostType.POLL;
+  }
+
   const primaryType = detectPrimaryMediaField(request);
   if (primaryType) {
     return primaryType;
-  }
-
-  if (MediaInputHelper.isDefined(request.cover)) {
-    return PostType.IMAGE;
   }
 
   return PostType.POST;

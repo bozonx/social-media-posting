@@ -7,13 +7,18 @@ import type { MediaSource } from '../src/media/media-source.js';
 
 const baseCapabilities: PlatformCapabilities = {
   name: 'test-platform',
-  supportedTypes: [PostType.IMAGE, PostType.POST],
+  postTypes: {
+    [PostType.IMAGE]: { requiredFields: ['media'] },
+    [PostType.POST]: { requiredFields: ['body'] },
+  },
 };
 
 describe('media-source', () => {
   describe('toMediaSource', () => {
     it('creates a UrlMediaSource from an http URL', () => {
-      const source = toMediaSource({ src: 'http://cdn.example.com/image.jpg' });
+      const source = toMediaSource({
+        source: { kind: 'url', url: 'http://cdn.example.com/image.jpg' },
+      });
       expect(source).toEqual({
         kind: 'url',
         url: 'http://cdn.example.com/image.jpg',
@@ -21,7 +26,9 @@ describe('media-source', () => {
     });
 
     it('creates a UrlMediaSource from an https URL', () => {
-      const source = toMediaSource({ src: 'https://cdn.example.com/photo.png' });
+      const source = toMediaSource({
+        source: { kind: 'url', url: 'https://cdn.example.com/photo.png' },
+      });
       expect(source).toEqual({
         kind: 'url',
         url: 'https://cdn.example.com/photo.png',
@@ -29,16 +36,18 @@ describe('media-source', () => {
     });
 
     it('creates a PlatformRefMediaSource from a platform file ID', () => {
-      const source = toMediaSource({ src: 'AgACAgIAAxkBAAIC4' });
+      const source = toMediaSource({ source: { kind: 'platformRef', ref: 'AgACAgIAAxkBAAIC4' } });
       expect(source).toEqual({
         kind: 'platformRef',
         ref: 'AgACAgIAAxkBAAIC4',
       });
     });
 
-    it('throws ValidationError when MediaInput has no valid URL or platform ref', () => {
+    it('throws ValidationError when MediaInput has no valid source', () => {
       expect(() => toMediaSource({} as never)).toThrow(ValidationError);
-      expect(() => toMediaSource({ src: '' } as never)).toThrow(ValidationError);
+      expect(() => toMediaSource({ source: { kind: 'url', url: '' } } as never)).toThrow(
+        ValidationError,
+      );
     });
   });
 
@@ -48,22 +57,26 @@ describe('media-source', () => {
       expect(requiresByteUpload(source, baseCapabilities)).toBe(false);
     });
 
-    it('returns false for URL sources when platform supports URL passthrough', () => {
+    it('returns false for URL sources when platform accepts url', () => {
       const source: MediaSource = { kind: 'url', url: 'https://example.com/a.jpg' };
       const capabilities: PlatformCapabilities = {
         ...baseCapabilities,
-        supportsUrlPassthrough: true,
+        media: {
+          image: { acceptedSources: ['url', 'bytes'] },
+        },
       };
-      expect(requiresByteUpload(source, capabilities)).toBe(false);
+      expect(requiresByteUpload(source, capabilities, 'image')).toBe(false);
     });
 
-    it('returns true for URL sources when platform does not support URL passthrough', () => {
+    it('returns true for URL sources when platform does not accept url', () => {
       const source: MediaSource = { kind: 'url', url: 'https://example.com/a.jpg' };
       const capabilities: PlatformCapabilities = {
         ...baseCapabilities,
-        supportsUrlPassthrough: false,
+        media: {
+          image: { acceptedSources: ['bytes'] },
+        },
       };
-      expect(requiresByteUpload(source, capabilities)).toBe(true);
+      expect(requiresByteUpload(source, capabilities, 'image')).toBe(true);
     });
 
     it('returns true for in-memory bytes sources', () => {

@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+### 3.0.0 — Public API v3 (RFC-001)
+
+- **Unification of Media Model**:
+  - Replaced legacy single-media fields (`cover`, `video`, `audio`, `document`) with a single `media?: MediaInput[]` array and dedicated `thumbnail?: ThumbnailInput`.
+  - Replaced ambiguous string / object inputs with strictly discriminated union `MediaSourceInput` (`kind: 'url' | 'bytes' | 'blob' | 'stream' | 'platformRef'`).
+  - Renamed `hasSpoiler` to `sensitive` across media inputs and post requests.
+- **Dynamic PostType**:
+  - Converted `PostType` from a rigid enum into an open const object and type union (`POST`, `IMAGE`, `VIDEO`, `AUDIO`, `DOCUMENT`, `ALBUM`, `POLL`, `AUTO`, `STORY`, `ARTICLE`, etc.).
+  - Replaced `supportedTypes: PostType[]` with authoritative descriptor map `postTypes: Record<PostType, PostTypeCapabilities>`.
+- **Target & Audience Addressing**:
+  - Replaced platform-specific destination fields (`channelId`, etc.) with standard `target?: string | number` on `PostRequest` and `AccountConfig`.
+  - Added structured audience and thread properties (`visibility`, `contentWarning`, `inReplyTo`, `repostOf`, `poll`, `location`, `silent`).
+- **Post Lifecycle & Deletion**:
+  - Added `delete()` operation to `PostingClient`, `PostService`, `IPlatform`, and HTTP endpoint `POST /delete` for deleting single-part and multi-part posts by `PostRef`.
+  - Structured publication output to return `parts?: PostPart[]` and `ref: PostRef` for reliable tracking and subsequent deletion.
+  - Replaced flat status checking with structured `StatusResult` (`{ success: true, data: ... } | { success: false, error: ... }`).
+- **Standardized Result Structures**:
+  - Replaced bare error strings with structured `Issue` objects (`{ code, field, message, params }`).
+  - Updated `PreviewResult` to report `{ valid, detectedType, issues, ignoredFields, truncated, ... }`.
+- **Server HTTP Shell Updates**:
+  - Added base64 byte array decoding for JSON payload transport of `kind: 'bytes'`.
+  - Added `POST /delete` route to `apps/server`.
+- **Conformance Test Suite**:
+  - Conformance test harness verifies descriptor validation, dynamic post types, error classification, and post deletion contract.
+
 - Standardized workspace scripts according to fleet standards:
   - `check` is now strictly static analysis (`typecheck && lint && format:check`).
   - Added `validate` (`check && test:unit`) as developer definition-of-done.

@@ -11,9 +11,17 @@ const originalFetch = globalThis.fetch;
 
 const capabilities: PlatformCapabilities = {
   name: 'demo',
-  supportedTypes: [PostType.IMAGE],
+  postTypes: {
+    [PostType.IMAGE]: {
+      requiredFields: ['media'],
+    },
+  },
   media: {
-    image: { mimeTypes: ['image/jpeg', 'image/png'], maxBytes: 1024 },
+    image: {
+      acceptedSources: ['url', 'bytes'],
+      mimeTypes: ['image/jpeg', 'image/png'],
+      maxBytes: 1024,
+    },
   },
 };
 
@@ -79,23 +87,29 @@ describe('sniffMimeType', () => {
 
 describe('requiresByteUpload', () => {
   it('is false when the platform fetches URLs itself', () => {
-    const source = toMediaSource({ src: 'https://cdn.example/a.jpg' });
+    const source = toMediaSource({ source: { kind: 'url', url: 'https://cdn.example/a.jpg' } });
 
-    expect(requiresByteUpload(source, { ...capabilities, supportsUrlPassthrough: true })).toBe(
-      false,
-    );
+    expect(
+      requiresByteUpload(source, {
+        ...capabilities,
+        media: { image: { acceptedSources: ['url', 'bytes'] } },
+      }),
+    ).toBe(false);
   });
 
   it('is true when the platform cannot fetch for itself', () => {
-    const source = toMediaSource({ src: 'https://cdn.example/a.jpg' });
+    const source = toMediaSource({ source: { kind: 'url', url: 'https://cdn.example/a.jpg' } });
 
-    expect(requiresByteUpload(source, { ...capabilities, supportsUrlPassthrough: false })).toBe(
-      true,
-    );
+    expect(
+      requiresByteUpload(source, {
+        ...capabilities,
+        media: { image: { acceptedSources: ['bytes'] } },
+      }),
+    ).toBe(true);
   });
 
   it('is false for media the platform already stores', () => {
-    const source = toMediaSource({ src: 'AgACAgIAAxkBAAIC' });
+    const source = toMediaSource({ source: { kind: 'platformRef', ref: 'AgACAgIAAxkBAAIC' } });
 
     expect(requiresByteUpload(source, capabilities)).toBe(false);
   });

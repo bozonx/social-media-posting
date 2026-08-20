@@ -7,25 +7,27 @@ import { PostType } from '../src/types/post-type.js';
 import type { ILogger } from '../src/logger/logger.js';
 import type { IPlatform } from '../src/platforms/platform.interface.js';
 import type { PostRequest } from '../src/types/post-request.js';
-import type { PreviewResponse } from '../src/types/preview-response.js';
+import type { PreviewResult } from '../src/types/preview-response.js';
 
 const telegramAccount = {
   platform: 'telegram',
   auth: { apiKey: '123456789:ABC-DEF1234ghIkl-zyx57W2v1u123ew11', chatId: 'test-chat-id' },
-  parseMode: 'HTML',
 };
 
 const silentLogger: ILogger = { debug: () => {}, log: () => {}, warn: () => {}, error: () => {} };
 
-const previewResult: PreviewResponse = {
+const previewResult: PreviewResult = {
   success: true,
   data: {
     valid: true,
-    detectedType: 'post' as PreviewResponse['data']['detectedType'],
+    detectedType: PostType.POST,
     convertedBody: 'Test message',
     targetFormat: 'html',
     convertedBodyLength: 12,
+    issues: [],
     warnings: [],
+    ignoredFields: [],
+    truncated: false,
   },
 };
 
@@ -37,7 +39,15 @@ function createService(
     name: 'telegram',
     capabilities: {
       name: 'telegram',
-      supportedTypes: [PostType.POST, PostType.IMAGE],
+      postTypes: {
+        [PostType.POST]: {
+          requiredFields: ['body'],
+          forbiddenFields: ['media'],
+        },
+        [PostType.IMAGE]: {
+          requiredFields: ['media'],
+        },
+      },
       maxBodyLength: 4096,
       targetBodyFormat: 'html',
     },
@@ -64,15 +74,15 @@ function createService(
 
 describe('PreviewService', () => {
   describe('validation', () => {
-    it('reports a missing platform', async () => {
+    it('reports a missing platform as invalid preview data', async () => {
       const { service } = createService();
 
       const result = await service.preview({ body: 'Test message' } as PostRequest);
 
-      expect(result.success).toBe(false);
-      if (!result.success) {
+      expect(result.success).toBe(true);
+      if (result.success) {
         expect(result.data.valid).toBe(false);
-        expect(result.data.errors.join(' ')).toContain("Field 'platform' is required");
+        expect(result.data.issues.some(i => i.field === 'platform')).toBe(true);
       }
     });
 
@@ -87,7 +97,7 @@ describe('PreviewService', () => {
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.data.errors).toContain('Platform "unsupported" is not supported');
+        expect(result.error.message).toContain('Platform "unsupported" is not supported');
       }
     });
 
@@ -98,7 +108,7 @@ describe('PreviewService', () => {
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.data.errors).toContain('Either "account" or "auth" must be provided');
+        expect(result.error.message).toContain('Either "account" or "auth" must be provided');
       }
     });
 
@@ -113,7 +123,7 @@ describe('PreviewService', () => {
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.data.errors).toContain('Account "non-existent" not found in configuration');
+        expect(result.error.message).toContain('Account "non-existent" not found in configuration');
       }
     });
 
@@ -130,7 +140,7 @@ describe('PreviewService', () => {
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.data.errors).toContain(
+        expect(result.error.message).toContain(
           'Account platform "vk" does not match requested platform "telegram"',
         );
       }
@@ -141,7 +151,11 @@ describe('PreviewService', () => {
 
       const result = await service.preview({ platform: 'telegram', account: 'test-channel' });
 
-      expect(result.success).toBe(false);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.valid).toBe(false);
+        expect(result.data.issues.some(i => i.code === 'EMPTY_POST_REQUEST')).toBe(true);
+      }
       expect(platform.preview).not.toHaveBeenCalled();
     });
   });

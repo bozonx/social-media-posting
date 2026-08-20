@@ -1,42 +1,39 @@
 /**
- * Media type for explicit type specification in media arrays
- * Used in albums to avoid auto-detection by URL extension
+ * Media type for explicit type specification in media inputs.
  */
 export type MediaType = 'image' | 'video' | 'audio' | 'document';
 
 /**
- * MediaInput type
- * Always an object with src and optional parameters
- * For single media fields (cover, video, audio, document): hasSpoiler is optional
- * For media arrays: type should be specified to override auto-detection
+ * A media item to publish alongside or as the post.
  */
-export type MediaInput = MediaInputObject;
-
-export interface MediaInputObject {
-  /**
-   * Media source (URL or Telegram file_id)
-   */
-  src: string;
-
-  /**
-   * Hide media with spoiler animation (for shocking content)
-   * Supported by Telegram Bot API 5.6+
-   */
-  hasSpoiler?: boolean;
-
-  /**
-   * Explicit media type specification
-   * For single media fields (cover, video, audio, document) this is ignored
-   * For media[] arrays this overrides auto-detection by URL extension
-   */
+export interface MediaInput {
+  /** Required whenever the type cannot be safely detected from the source. */
   type?: MediaType;
-
-  /** Media duration in seconds, when known before upload. */
+  /** Accessibility description. Mastodon, Bluesky, X and LinkedIn all take one. */
+  altText?: string;
+  /** Hide behind a blur/spoiler where the network supports it. */
+  sensitive?: boolean;
+  fileName?: string;
+  mimeType?: string;
   durationSecs?: number;
-
-  /** Pixel width, paired with `height` for aspect-ratio validation. */
   width?: number;
-
-  /** Pixel height, paired with `width` for aspect-ratio validation. */
   height?: number;
+  thumbnail?: ThumbnailInput;
+  source: MediaSourceInput;
 }
+
+/** A thumbnail cannot recursively contain another thumbnail. */
+export type ThumbnailInput = Omit<MediaInput, 'thumbnail' | 'type'> & { type?: 'image' };
+
+export type MediaSourceInput =
+  | { kind: 'url'; url: string }
+  | { kind: 'bytes'; bytes: Uint8Array }
+  | { kind: 'blob'; blob: Blob }
+  | { kind: 'stream'; open: MediaStreamFactory; sizeBytes?: number }
+  | { kind: 'platformRef'; ref: string };
+
+export type MediaStreamFactory = (options?: {
+  /** When supplied, the returned stream must begin exactly at this byte offset. */
+  offsetBytes?: number;
+  signal?: AbortSignal;
+}) => Promise<ReadableStream<Uint8Array>>;

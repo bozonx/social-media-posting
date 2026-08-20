@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { AuthValidatorRegistry } from '../src/platforms/auth-validator-registry.js';
 import { ErrorCode } from '../src/errors/error-code.js';
+import { PostType } from '../src/types/post-type.js';
 import { ValidationError } from '../src/errors/posting-error.js';
 import { PlatformError } from '../src/errors/platform-error.js';
 import type { IAuthValidator } from '../src/platforms/auth-validator.interface.js';
@@ -35,7 +36,7 @@ describe('AuthValidatorRegistry', () => {
     registry.register({ providerName: 'mock', validate: validateFn });
 
     const context = {
-      capabilities: { name: 'mock', supportedTypes: [] },
+      capabilities: { name: 'mock', postTypes: { [PostType.POST]: {} } },
       accountRef: 'main',
     };
     await registry.validate('mock', { apiKey: 'valid-key' }, context);

@@ -5,8 +5,8 @@ describe('PostingConfig', () => {
   const validAccount = {
     platform: 'telegram',
     auth: { apiKey: '123:ABC' },
-    channelId: '@my_channel',
-    maxBody: 4096,
+    target: '@my_channel',
+    maxBodyLength: 4096,
   };
 
   describe('valid configuration', () => {
@@ -89,35 +89,35 @@ describe('PostingConfig', () => {
       ).toThrow('account "main": auth must be an object');
     });
 
-    it('rejects account with invalid channelId type', () => {
+    it('rejects account with invalid target type', () => {
       expect(
         () =>
           new PostingConfig({
             accounts: {
-              main: { platform: 'telegram', channelId: true as never, auth: {} },
+              main: { platform: 'telegram', target: true as never, auth: {} },
             },
           }),
-      ).toThrow('account "main": channelId must be a string or a number');
+      ).toThrow('account "main": target must be a string or a number');
     });
 
-    it('rejects account with non-positive or non-integer maxBody', () => {
+    it('rejects account with non-positive or non-integer maxBodyLength', () => {
       expect(
         () =>
           new PostingConfig({
             accounts: {
-              main: { platform: 'telegram', maxBody: 0, auth: {} },
+              main: { platform: 'telegram', maxBodyLength: 0, auth: {} },
             },
           }),
-      ).toThrow('account "main": maxBody must be a positive integer');
+      ).toThrow('account "main": maxBodyLength must be a positive integer');
 
       expect(
         () =>
           new PostingConfig({
             accounts: {
-              main: { platform: 'telegram', maxBody: 10.5, auth: {} },
+              main: { platform: 'telegram', maxBodyLength: 10.5, auth: {} },
             },
           }),
-      ).toThrow('account "main": maxBody must be a positive integer');
+      ).toThrow('account "main": maxBodyLength must be a positive integer');
     });
 
     it('rejects invalid requestTimeoutSecs (< 1, > 600, or non-integer)', () => {

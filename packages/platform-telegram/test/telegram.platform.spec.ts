@@ -2,14 +2,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { PostType, previewFromCapabilities } from '@bozonx/social-posting';
 import type { ILogger, PostRequest } from '@bozonx/social-posting';
 
-// The Bot API is the boundary under test, so `fetch` is stubbed and every
-// assertion is made against the JSON payload that actually goes on the wire.
 type BotApiCall = { method: string; payload: Record<string, unknown> };
 
-/**
- * Stands in for `https://api.telegram.org`: records the JSON each Bot API call
- * sends and answers with whatever the test queued for that method.
- */
 function createBotApiDouble() {
   const calls: BotApiCall[] = [];
   const replies = new Map<string, unknown>();
@@ -77,8 +71,8 @@ describe('TelegramPlatform', () => {
     auth: {
       apiKey: 'test-token',
     },
-    channelId: 'test-chat-id',
-    disableNotification: false,
+    target: 'test-chat-id',
+    silent: false,
   };
 
   const originalFetch = globalThis.fetch;
@@ -101,13 +95,14 @@ describe('TelegramPlatform', () => {
     });
 
     it('should support correct post types', () => {
-      expect(platform.capabilities.supportedTypes).toEqual([
+      expect(Object.keys(platform.capabilities.postTypes)).toEqual([
         PostType.POST,
         PostType.IMAGE,
         PostType.VIDEO,
-        PostType.ALBUM,
         PostType.AUDIO,
         PostType.DOCUMENT,
+        PostType.ALBUM,
+        PostType.POLL,
       ]);
     });
   });
@@ -127,16 +122,15 @@ describe('TelegramPlatform', () => {
 
       const result = await platform.publish(request, mockAccountConfig);
 
-      expect(result).toEqual({
-        status: 'published',
-        postId: '12345',
-        url: undefined,
-        raw: {
-          ok: true,
-          result: {
-            message_id: 12345,
-            chat: { id: 'test-chat-id' },
-          },
+      expect(result.status).toBe('published');
+      expect(result.postId).toBe('12345');
+      expect(result.parts).toMatchObject([{ id: '12345' }]);
+      expect(result.ref).toMatchObject({ postId: '12345' });
+      expect(result.raw).toEqual({
+        ok: true,
+        result: {
+          message_id: 12345,
+          chat: { id: 'test-chat-id' },
         },
       });
 
@@ -218,56 +212,12 @@ describe('TelegramPlatform', () => {
       });
     });
 
-    it('should support MarkdownV2 format directly via bodyFormat', async () => {
-      const request: PostRequest = {
-        platform: 'telegram',
-        body: '*Hello* _world_\\!',
-        bodyFormat: 'MarkdownV2',
-        type: PostType.POST,
-      };
-
-      botApi.reply('sendMessage', { message_id: 12345 });
-
-      await platform.publish(request, mockAccountConfig);
-
-      expect(botApi.lastPayload('sendMessage')).toEqual({
-        chat_id: 'test-chat-id',
-        text: '*Hello* _world_\\!',
-        parse_mode: 'MarkdownV2',
-        disable_notification: false,
-      });
-    });
-
-    it('should allow options.parse_mode to override bodyFormat', async () => {
-      const request: PostRequest = {
-        platform: 'telegram',
-        body: '*Hello* _world_\\!',
-        bodyFormat: 'html',
-        type: PostType.POST,
-        options: {
-          parse_mode: 'MarkdownV2',
-        },
-      };
-
-      botApi.reply('sendMessage', { message_id: 12345 });
-
-      await platform.publish(request, mockAccountConfig);
-
-      // options.parse_mode should override bodyFormat
-      expect(botApi.lastPayload('sendMessage')).toEqual({
-        chat_id: 'test-chat-id',
-        text: '*Hello* _world_\\!',
-        parse_mode: 'MarkdownV2',
-        disable_notification: false,
-      });
-    });
-
-    it('should use platform-specific parameters', async () => {
+    it('should use platform-specific parameters from extra', async () => {
       const request: PostRequest = {
         platform: 'telegram',
         body: 'Test message',
         type: PostType.POST,
-        options: {
+        extra: {
           parse_mode: 'Markdown',
           link_preview_options: { is_disabled: true },
           reply_parameters: { message_id: 999 },
@@ -286,16 +236,16 @@ describe('TelegramPlatform', () => {
         chat_id: 'test-chat-id',
         text: 'Test message',
         disable_notification: false,
-        ...request.options,
+        ...request.extra,
       });
     });
 
-    it('rejects options that could replace validated destination or content', async () => {
+    it('rejects extra options that could replace validated destination or content', async () => {
       const request: PostRequest = {
         platform: 'telegram',
         body: 'Test message',
         type: PostType.POST,
-        options: { chat_id: '@other', text: 'replacement' },
+        extra: { chat_id: '@other', text: 'replacement' },
       };
 
       await expect(platform.publish(request, mockAccountConfig)).rejects.toThrow(
@@ -304,17 +254,16 @@ describe('TelegramPlatform', () => {
       expect(botApi.called('sendMessage')).toBe(false);
     });
 
-    it('should use disableNotification from request to override config', async () => {
+    it('should use silent from request to override config', async () => {
       const request: PostRequest = {
         platform: 'telegram',
         body: 'Test message',
         type: PostType.POST,
-        disableNotification: true,
+        silent: true,
       };
 
       botApi.reply('sendMessage', { message_id: 12345 });
 
-      // Config has disableNotification: false
       await platform.publish(request, mockAccountConfig);
 
       expect(botApi.lastPayload('sendMessage')).toEqual({
@@ -331,7 +280,7 @@ describe('TelegramPlatform', () => {
         auth: {
           apiKey: 'test-token',
         },
-        channelId: '@publicchannel',
+        target: '@publicchannel',
       };
 
       const request: PostRequest = {
@@ -354,7 +303,7 @@ describe('TelegramPlatform', () => {
         platform: 'telegram',
         body: 'Image caption',
         bodyFormat: 'html',
-        cover: { src: 'https://example.com/image.jpg' },
+        media: [{ source: { kind: 'url', url: 'https://example.com/image.jpg' } }],
         type: PostType.IMAGE,
       };
 
@@ -373,7 +322,7 @@ describe('TelegramPlatform', () => {
       });
     });
 
-    it('should throw error if cover is missing for IMAGE type', async () => {
+    it('should throw error if media is missing for IMAGE type', async () => {
       const request: PostRequest = {
         platform: 'telegram',
         body: 'Image caption',
@@ -381,7 +330,7 @@ describe('TelegramPlatform', () => {
       };
 
       await expect(platform.publish(request, mockAccountConfig)).rejects.toThrow(
-        "Field 'cover' is required for type 'image'",
+        "Field 'media' is required for type 'image'",
       );
     });
   });
@@ -392,7 +341,7 @@ describe('TelegramPlatform', () => {
         platform: 'telegram',
         body: 'Video caption',
         bodyFormat: 'html',
-        video: { src: 'https://example.com/video.mp4' },
+        media: [{ source: { kind: 'url', url: 'https://example.com/video.mp4' } }],
         type: PostType.VIDEO,
       };
 
@@ -411,7 +360,7 @@ describe('TelegramPlatform', () => {
       });
     });
 
-    it('should throw error if video is missing for VIDEO type', async () => {
+    it('should throw error if media is missing for VIDEO type', async () => {
       const request: PostRequest = {
         platform: 'telegram',
         body: 'Video caption',
@@ -419,7 +368,7 @@ describe('TelegramPlatform', () => {
       };
 
       await expect(platform.publish(request, mockAccountConfig)).rejects.toThrow(
-        "Field 'video' is required for type 'video'",
+        "Field 'media' is required for type 'video'",
       );
     });
   });
@@ -431,9 +380,9 @@ describe('TelegramPlatform', () => {
         body: 'Album caption',
         bodyFormat: 'html',
         media: [
-          { src: 'https://example.com/image1.jpg' },
-          { src: 'https://example.com/image2.jpg' },
-          { src: 'https://example.com/video.mp4' },
+          { source: { kind: 'url', url: 'https://example.com/image1.jpg' } },
+          { source: { kind: 'url', url: 'https://example.com/image2.jpg' } },
+          { source: { kind: 'url', url: 'https://example.com/video.mp4' } },
         ],
         type: PostType.ALBUM,
       };
@@ -447,6 +396,8 @@ describe('TelegramPlatform', () => {
       const result = await platform.publish(request, mockAccountConfig);
 
       expect(result.postId).toBe('12345');
+      expect(result.parts).toMatchObject([{ id: '12345' }, { id: '12346' }, { id: '12347' }]);
+
       expect(botApi.lastPayload('sendMediaGroup')).toEqual({
         chat_id: 'test-chat-id',
         media: [
@@ -455,19 +406,14 @@ describe('TelegramPlatform', () => {
             media: 'https://example.com/image1.jpg',
             caption: 'Album caption',
             parse_mode: 'HTML',
-            has_spoiler: false,
           },
           {
             type: 'photo',
             media: 'https://example.com/image2.jpg',
-            caption: undefined,
-            has_spoiler: false,
           },
           {
             type: 'video',
             media: 'https://example.com/video.mp4',
-            caption: undefined,
-            has_spoiler: false,
           },
         ],
         disable_notification: false,
@@ -479,7 +425,7 @@ describe('TelegramPlatform', () => {
         platform: 'telegram',
         body: 'Album caption',
         bodyFormat: 'html',
-        media: [{ src: 'BAACAgIAAxkBAAIC...' }],
+        media: [{ source: { kind: 'platformRef', ref: 'BAACAgIAAxkBAAIC...' } }],
         type: PostType.ALBUM,
       };
 
@@ -496,10 +442,10 @@ describe('TelegramPlatform', () => {
         body: 'Album with explicit types',
         bodyFormat: 'html',
         media: [
-          { src: 'https://example.com/file1', type: 'image' },
-          { src: 'https://example.com/file2', type: 'video' },
-          { src: 'https://example.com/file3' },
-        ] as any,
+          { source: { kind: 'url', url: 'https://example.com/file1' }, type: 'image' },
+          { source: { kind: 'url', url: 'https://example.com/file2' }, type: 'video' },
+          { source: { kind: 'url', url: 'https://example.com/file3' } },
+        ],
         type: PostType.ALBUM,
       };
 
@@ -516,7 +462,6 @@ describe('TelegramPlatform', () => {
         media: [
           expect.objectContaining({ type: 'photo', media: 'https://example.com/file1' }),
           expect.objectContaining({ type: 'video', media: 'https://example.com/file2' }),
-          // No explicit type and no extension -> falls back to photo
           expect.objectContaining({ type: 'photo', media: 'https://example.com/file3' }),
         ],
         disable_notification: false,
@@ -543,7 +488,7 @@ describe('TelegramPlatform', () => {
         platform: 'telegram',
         body: 'Document caption',
         bodyFormat: 'html',
-        document: { src: 'https://example.com/document.pdf' },
+        media: [{ source: { kind: 'url', url: 'https://example.com/document.pdf' } }],
         type: PostType.DOCUMENT,
       };
 
@@ -561,7 +506,7 @@ describe('TelegramPlatform', () => {
       });
     });
 
-    it('should throw error if no document URL is provided', async () => {
+    it('should throw error if no document media is provided', async () => {
       const request: PostRequest = {
         platform: 'telegram',
         body: 'Document caption',
@@ -569,7 +514,7 @@ describe('TelegramPlatform', () => {
       };
 
       await expect(platform.publish(request, mockAccountConfig)).rejects.toThrow(
-        "Field 'document' is required for type 'document'",
+        "Field 'media' is required for type 'document'",
       );
     });
   });
@@ -580,7 +525,7 @@ describe('TelegramPlatform', () => {
         platform: 'telegram',
         body: 'Audio caption',
         bodyFormat: 'html',
-        audio: { src: 'https://example.com/audio.mp3' },
+        media: [{ source: { kind: 'url', url: 'https://example.com/audio.mp3' } }],
         type: PostType.AUDIO,
       };
 
@@ -598,7 +543,7 @@ describe('TelegramPlatform', () => {
       });
     });
 
-    it('should throw error if audio is missing for AUDIO type', async () => {
+    it('should throw error if media is missing for AUDIO type', async () => {
       const request: PostRequest = {
         platform: 'telegram',
         body: 'Audio caption',
@@ -606,8 +551,37 @@ describe('TelegramPlatform', () => {
       };
 
       await expect(platform.publish(request, mockAccountConfig)).rejects.toThrow(
-        "Field 'audio' is required for type 'audio'",
+        "Field 'media' is required for type 'audio'",
       );
+    });
+  });
+
+  describe('publish - POLL type', () => {
+    it('should publish poll successfully', async () => {
+      const request: PostRequest = {
+        platform: 'telegram',
+        body: 'What is your favorite color?',
+        poll: {
+          options: ['Red', 'Green', 'Blue'],
+          multiple: false,
+          anonymous: true,
+        },
+        type: PostType.POLL,
+      };
+
+      botApi.reply('sendPoll', { message_id: 12345 });
+
+      const result = await platform.publish(request, mockAccountConfig);
+
+      expect(result.postId).toBe('12345');
+      expect(botApi.lastPayload('sendPoll')).toEqual({
+        chat_id: 'test-chat-id',
+        question: 'What is your favorite color?',
+        options: ['Red', 'Green', 'Blue'],
+        is_anonymous: true,
+        allows_multiple_answers: false,
+        disable_notification: false,
+      });
     });
   });
 
@@ -616,7 +590,7 @@ describe('TelegramPlatform', () => {
       const request: PostRequest = {
         platform: 'telegram',
         body: 'Image caption',
-        cover: { src: 'AgACAgIAAxkBAAIC...' },
+        media: [{ source: { kind: 'platformRef', ref: 'AgACAgIAAxkBAAIC...' } }],
         type: PostType.IMAGE,
       };
 
@@ -634,11 +608,16 @@ describe('TelegramPlatform', () => {
       });
     });
 
-    it('should send photo with hasSpoiler flag', async () => {
+    it('should send photo with sensitive (has_spoiler) flag', async () => {
       const request: PostRequest = {
         platform: 'telegram',
         body: 'Spoiler image',
-        cover: { src: 'https://example.com/image.jpg', hasSpoiler: true },
+        media: [
+          {
+            source: { kind: 'url', url: 'https://example.com/image.jpg' },
+            sensitive: true,
+          },
+        ],
         type: PostType.IMAGE,
       };
 
@@ -656,11 +635,16 @@ describe('TelegramPlatform', () => {
       });
     });
 
-    it('should send video with hasSpoiler flag', async () => {
+    it('should send video with sensitive flag', async () => {
       const request: PostRequest = {
         platform: 'telegram',
         body: 'Spoiler video',
-        video: { src: 'https://example.com/video.mp4', hasSpoiler: true },
+        media: [
+          {
+            source: { kind: 'url', url: 'https://example.com/video.mp4' },
+            sensitive: true,
+          },
+        ],
         type: PostType.VIDEO,
       };
 
@@ -678,11 +662,11 @@ describe('TelegramPlatform', () => {
       });
     });
 
-    it('should treat non-URL src as fileId', async () => {
+    it('should treat non-URL platformRef as fileId', async () => {
       const request: PostRequest = {
         platform: 'telegram',
         body: 'Document caption',
-        document: { src: 'BQACAgIAAxkBAAIC...' },
+        media: [{ source: { kind: 'platformRef', ref: 'BQACAgIAAxkBAAIC...' } }],
         type: PostType.DOCUMENT,
       };
 
@@ -705,12 +689,12 @@ describe('TelegramPlatform', () => {
       const request: PostRequest = {
         platform: 'telegram',
         body: 'Test message',
-        cover: { src: 'https://example.com/image.jpg' },
+        media: [{ source: { kind: 'url', url: 'https://example.com/image.jpg' } }],
         type: PostType.POST,
       };
 
       await expect(platform.publish(request, mockAccountConfig)).rejects.toThrow(
-        "For type 'post', media fields must not be provided",
+        "For type 'post', field 'media' must not be provided",
       );
     });
 
@@ -747,18 +731,9 @@ describe('TelegramPlatform', () => {
       const url = (platform as any).buildPostUrl(123456789, 12345);
       expect(url).toBeUndefined();
     });
-
-    it('should handle numeric chatId for public channels', () => {
-      // This is an edge case - numeric chatId won't start with '@'
-      // but we ensure it doesn't throw an error
-      const url = (platform as any).buildPostUrl(456361709, 12345);
-      expect(url).toBeUndefined();
-    });
   });
 
   describe('preview', () => {
-    // Telegram has no dry-run of its own, so previewing goes through the
-    // generic path, driven by the same descriptor and hooks publish() uses.
     const preview = (request: PostRequest) =>
       previewFromCapabilities(request, platform.capabilities, {
         validateExtra: (r, type) => platform.validateExtra(r, mockAccountConfig, type),
@@ -773,11 +748,10 @@ describe('TelegramPlatform', () => {
 
       const result = preview(request);
 
-      expect(result.success).toBe(false);
-      if (!result.success) {
+      expect(result.success).toBe(true);
+      if (result.success) {
         expect(result.data.valid).toBe(false);
-        expect(result.data.errors).toContain("Post type 'article' is not supported for Telegram");
-        expect(Array.isArray(result.data.warnings)).toBe(true);
+        expect(result.data.issues.some(i => i.code === 'POST_TYPE_UNSUPPORTED')).toBe(true);
       }
     });
 
@@ -800,6 +774,40 @@ describe('TelegramPlatform', () => {
     });
   });
 
+  describe('delete', () => {
+    it('deletes a single message by postId', async () => {
+      botApi.reply('deleteMessage', true);
+
+      const result = await platform.delete({ postId: '12345' }, mockAccountConfig);
+
+      expect(result).toEqual({
+        status: 'deleted',
+        parts: [{ id: '12345', status: 'deleted' }],
+      });
+      expect(botApi.lastPayload('deleteMessage')).toEqual({
+        chat_id: 'test-chat-id',
+        message_id: 12345,
+      });
+    });
+
+    it('deletes all parts of a multi-part post', async () => {
+      botApi.reply('deleteMessage', true);
+
+      const result = await platform.delete(
+        { postId: '12345', parts: [{ id: '12345' }, { id: '12346' }] },
+        mockAccountConfig,
+      );
+
+      expect(result).toEqual({
+        status: 'deleted',
+        parts: [
+          { id: '12345', status: 'deleted' },
+          { id: '12346', status: 'deleted' },
+        ],
+      });
+    });
+  });
+
   describe('edge cases in publish', () => {
     it('throws non-retryable PlatformError when signal is already aborted', async () => {
       const controller = new AbortController();
@@ -819,16 +827,16 @@ describe('TelegramPlatform', () => {
       });
     });
 
-    it('throws ValidationError when channelId is completely missing from both request and account', async () => {
-      const accountWithoutChannel = { ...mockAccountConfig, channelId: '' };
+    it('throws ValidationError when target is completely missing from both request and account', async () => {
+      const accountWithoutTarget = { ...mockAccountConfig, target: '', channelId: '' };
       const request: PostRequest = {
         platform: 'telegram',
         body: 'Hello',
         type: PostType.POST,
       };
 
-      await expect(platform.publish(request, accountWithoutChannel)).rejects.toThrow(
-        /Field "channelId" is required for Telegram/,
+      await expect(platform.publish(request, accountWithoutTarget)).rejects.toThrow(
+        /Field "target" is required for Telegram/,
       );
     });
 

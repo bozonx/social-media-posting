@@ -16,11 +16,11 @@ export interface AccountConfig {
    */
   auth: ResolvedCredentials;
 
-  /** Platform-specific channel/chat identifier. */
-  channelId?: string | number;
+  /** Platform-specific target identifier (channel, page, board, community, profile). */
+  target?: string | number;
 
   /** Maximum body length for this account (characters). */
-  maxBody?: number;
+  maxBodyLength?: number;
 
   /** Additional platform-specific settings. */
   [key: string]: unknown;

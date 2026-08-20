@@ -13,7 +13,7 @@ const accountConfig: ResolvedAccountConfig = {
   platform: 'telegram',
   source: 'account',
   auth: { apiKey: '123456789:ABC-DEF1234ghIkl-zyx57W2v1u123ew11' },
-  channelId: '@contract_channel',
+  target: '@contract_channel',
 };
 
 /**
@@ -42,13 +42,19 @@ function createHarness(): ContractHarness {
     accountConfig,
 
     respondSuccess() {
-      install(async url =>
-        responseFrom(
+      install(async url => {
+        if (url.endsWith('deleteMessage')) {
+          return new Response(JSON.stringify({ ok: true, result: true }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          });
+        }
+        return responseFrom(
           url.endsWith('sendMediaGroup')
             ? (success.sendMediaGroup as RecordedResponse)
             : (success.sendMessage as RecordedResponse),
-        ),
-      );
+        );
+      });
     },
 
     respondWith(recorded: RecordedResponse) {
@@ -80,12 +86,14 @@ function createHarness(): ContractHarness {
 const base = {
   platform: 'telegram',
   account: 'contract',
-  channelId: '@contract_channel',
+  target: '@contract_channel',
 };
 
 describePlatformContract({
   module: telegram,
   createHarness,
+
+  sampleDeleteRef: { postId: '12345' },
 
   requests: {
     [PostType.POST]: { ...base, body: 'Contract suite post', type: PostType.POST },
@@ -93,27 +101,36 @@ describePlatformContract({
       ...base,
       type: PostType.IMAGE,
       body: 'caption',
-      cover: { src: 'https://cdn.example.com/image.jpg' },
+      media: [{ source: { kind: 'url', url: 'https://cdn.example.com/image.jpg' } }],
     },
     [PostType.VIDEO]: {
       ...base,
       type: PostType.VIDEO,
-      video: { src: 'https://cdn.example.com/video.mp4' },
+      media: [{ source: { kind: 'url', url: 'https://cdn.example.com/video.mp4' } }],
     },
     [PostType.AUDIO]: {
       ...base,
       type: PostType.AUDIO,
-      audio: { src: 'https://cdn.example.com/audio.mp3' },
+      media: [{ source: { kind: 'url', url: 'https://cdn.example.com/audio.mp3' } }],
     },
     [PostType.DOCUMENT]: {
       ...base,
       type: PostType.DOCUMENT,
-      document: { src: 'https://cdn.example.com/report.pdf' },
+      media: [{ source: { kind: 'url', url: 'https://cdn.example.com/report.pdf' } }],
     },
     [PostType.ALBUM]: {
       ...base,
       type: PostType.ALBUM,
-      media: [{ src: 'https://cdn.example.com/1.jpg' }, { src: 'https://cdn.example.com/2.jpg' }],
+      media: [
+        { source: { kind: 'url', url: 'https://cdn.example.com/1.jpg' } },
+        { source: { kind: 'url', url: 'https://cdn.example.com/2.jpg' } },
+      ],
+    },
+    [PostType.POLL]: {
+      ...base,
+      type: PostType.POLL,
+      body: 'Contract poll question',
+      poll: { options: ['Option A', 'Option B'] },
     },
   },
 

@@ -6,25 +6,30 @@ import {
   MAX_TAG_LENGTH,
   MAX_TAGS,
   MAX_TITLE_LENGTH,
-  PostType,
 } from '@bozonx/social-posting';
+
+export function base64ToBytes(base64: string): Uint8Array {
+  const binary = atob(base64.replace(/\s+/g, ''));
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
 
 /** One configured account: a platform, its credentials, and its defaults. */
 export const accountSchema = z
   .object({
     platform: z.string().min(1),
     auth: z.record(z.string(), z.unknown()).default({}),
-    channelId: z.union([z.string(), z.number()]).optional(),
-    maxBody: z.number().int().min(1).max(MAX_BODY_LIMIT).optional(),
+    target: z.union([z.string(), z.number()]).optional(),
+    maxBodyLength: z.number().int().min(1).max(MAX_BODY_LIMIT).optional(),
+    silent: z.boolean().optional(),
   })
   .loose();
 
 /**
  * The shell's configuration file.
- *
- * There is deliberately no retry or idempotency setting: one request makes one
- * attempt, and deduplication needs durable state the shell does not have.
- * See `docs/DELIVERY-SEMANTICS.md`.
  */
 export const serverConfigSchema = z.object({
   requestTimeoutSecs: z.number().int().min(1).max(600).default(60),
@@ -33,12 +38,38 @@ export const serverConfigSchema = z.object({
 
 export type ServerConfig = z.infer<typeof serverConfigSchema>;
 
+export const mediaSourceSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('url'),
+    url: z.string().min(1).max(MAX_MEDIA_SRC_LENGTH),
+  }),
+  z.object({
+    kind: z.literal('platformRef'),
+    ref: z.string().min(1).max(MAX_MEDIA_SRC_LENGTH),
+  }),
+  z.object({
+    kind: z.literal('base64'),
+    base64: z.string().min(1),
+  }),
+  z.object({
+    kind: z.literal('bytes'),
+    bytes: z.custom<Uint8Array>(
+      val =>
+        val instanceof Uint8Array ||
+        (typeof val === 'object' && val !== null && 'byteLength' in val),
+    ),
+  }),
+]);
+
 /** Media accepted on a request: a source plus per-item options. */
-const mediaInputSchema = z
+export const mediaInputSchema = z
   .object({
-    src: z.string().min(1).max(MAX_MEDIA_SRC_LENGTH),
-    hasSpoiler: z.boolean().optional(),
+    source: mediaSourceSchema,
     type: z.enum(['image', 'video', 'audio', 'document']).optional(),
+    mimeType: z.string().optional(),
+    fileName: z.string().optional(),
+    altText: z.string().max(MAX_DESCRIPTION_LENGTH).optional(),
+    sensitive: z.boolean().optional(),
     durationSecs: z.number().nonnegative().optional(),
     width: z.number().int().positive().optional(),
     height: z.number().int().positive().optional(),
@@ -55,35 +86,57 @@ export const resumeHandleSchema = z.object({
   expiresAt: z.string().optional(),
 });
 
+export const platformObjectRefSchema = z.object({
+  id: z.string().min(1),
+  target: z.union([z.string(), z.number()]).optional(),
+  extra: z.record(z.string(), z.unknown()).optional(),
+});
+
+export const pollInputSchema = z.object({
+  options: z.array(z.string().min(1)).min(2),
+  durationSecs: z.number().nonnegative().optional(),
+  multiple: z.boolean().optional(),
+  anonymous: z.boolean().optional(),
+});
+
+export const locationInputSchema = z.object({
+  latitude: z.number().optional(),
+  longitude: z.number().optional(),
+  placeId: z.string().optional(),
+  name: z.string().optional(),
+  address: z.string().optional(),
+});
+
 /**
  * The request body of `POST /post` and `POST /preview`.
- *
- * Only the structural shape is checked here. What a given network requires is
- * checked by the library against that platform's capability descriptor, so the
- * rules cannot drift between the HTTP and in-process paths.
  */
 export const postRequestSchema = z.object({
   platform: z.string().min(1),
+  target: z.union([z.string().min(1), z.number().int()]).optional(),
+  account: z.string().max(1000).optional(),
+  auth: z.record(z.string(), z.unknown()).optional(),
   body: z.string().max(MAX_BODY_LIMIT).optional(),
-  type: z.enum(PostType).optional(),
   bodyFormat: z.string().max(50).optional(),
+  type: z.string().optional(),
   title: z.string().max(MAX_TITLE_LENGTH).optional(),
   description: z.string().max(MAX_DESCRIPTION_LENGTH).optional(),
-  cover: mediaInputSchema.optional(),
-  video: mediaInputSchema.optional(),
-  audio: mediaInputSchema.optional(),
-  document: mediaInputSchema.optional(),
-  media: z.array(mediaInputSchema).optional(),
-  account: z.string().max(1000).optional(),
-  channelId: z.union([z.string().min(1), z.number().int()]).optional(),
-  auth: z.record(z.string(), z.unknown()).optional(),
-  options: z.record(z.string(), z.unknown()).optional(),
-  disableNotification: z.boolean().optional(),
   tags: z.array(z.string().max(MAX_TAG_LENGTH)).max(MAX_TAGS).optional(),
+  language: z.string().max(50).optional(),
+  media: z.array(mediaInputSchema).optional(),
+  thumbnail: mediaInputSchema.optional(),
+  visibility: z.string().max(50).optional(),
+  sensitive: z.boolean().optional(),
+  contentWarning: z.string().max(MAX_DESCRIPTION_LENGTH).optional(),
+  commentsEnabled: z.boolean().optional(),
+  inReplyTo: platformObjectRefSchema.optional(),
+  repostOf: platformObjectRefSchema.optional(),
+  poll: pollInputSchema.optional(),
+  location: locationInputSchema.optional(),
   scheduledAt: z.string().max(50).optional(),
-  postLanguage: z.string().max(50).optional(),
   mode: z.enum(['publish', 'draft']).optional(),
-  maxBody: z.number().int().min(1).max(MAX_BODY_LIMIT).optional(),
+  silent: z.boolean().optional(),
+  idempotencyKey: z.string().max(500).optional(),
+  extra: z.record(z.string(), z.unknown()).optional(),
   resume: resumeHandleSchema.optional(),
 });
 
@@ -93,4 +146,31 @@ export const statusRequestSchema = z.object({
   account: z.string().max(1000).optional(),
   auth: z.record(z.string(), z.unknown()).optional(),
   handle: resumeHandleSchema,
+});
+
+/** The request body of `POST /delete`. */
+export const deleteRequestSchema = z.object({
+  platform: z.string().min(1).optional(),
+  account: z.string().max(1000).optional(),
+  auth: z.record(z.string(), z.unknown()).optional(),
+  ref: z.union([
+    z.string(),
+    z.number(),
+    z.object({
+      postId: z.string().optional(),
+      target: z.union([z.string(), z.number()]).optional(),
+      parts: z
+        .array(
+          z.object({
+            id: z.string(),
+            target: z.union([z.string(), z.number()]).optional(),
+            url: z.string().optional(),
+            kind: z.string().optional(),
+          }),
+        )
+        .optional(),
+      extra: z.record(z.string(), z.unknown()).optional(),
+    }),
+  ]),
+  resume: resumeHandleSchema.optional(),
 });

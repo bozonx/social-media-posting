@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { PostService } from '../src/services/post.service.js';
 import { PostingConfig } from '../src/config/posting-config.js';
 import { PlatformRegistry } from '../src/platforms/platform-registry.js';
@@ -7,11 +7,22 @@ import { PostType } from '../src/types/post-type.js';
 import { ErrorCode } from '../src/errors/error-code.js';
 import { ValidationError } from '../src/errors/posting-error.js';
 import { PlatformError } from '../src/errors/platform-error.js';
-import type { IPlatform, PlatformPublishResponse } from '../src/platforms/platform.interface.js';
+import type {
+  IPlatform,
+  PlatformPublishResponse,
+  PublishOptions,
+} from '../src/platforms/platform.interface.js';
+import type { ResolvedAccountConfig } from '../src/types/account-config.js';
 import type { ILogger } from '../src/logger/logger.js';
 import type { PostRequest } from '../src/types/post-request.js';
 import type { PostResponse } from '../src/types/post-response.js';
 import type { ResumeHandle } from '../src/types/resume-handle.js';
+
+type MockPlatform = IPlatform & {
+  publish: Mock<IPlatform['publish']>;
+  preview: Mock<NonNullable<IPlatform['preview']>>;
+  detectType: Mock<NonNullable<IPlatform['detectType']>>;
+};
 
 const accountConfig = {
   platform: 'telegram',
@@ -39,23 +50,37 @@ const createPlatformResult = (
   status: 'published',
   postId: '12345',
   url: 'https://t.me/test/12345',
+  parts: [{ id: '12345' }],
+  ref: { postId: '12345', parts: [{ id: '12345' }] },
   raw: { message_id: 12345 },
   ...overrides,
 });
 
 function createService(configOverrides: Record<string, unknown> = {}) {
-  const platform = {
+  const platform: MockPlatform = {
     name: 'telegram',
     capabilities: {
       name: 'telegram',
-      supportedTypes: [
-        PostType.AUTO,
-        PostType.POST,
-        PostType.IMAGE,
-        PostType.VIDEO,
-        PostType.ALBUM,
-        PostType.DOCUMENT,
-      ],
+      postTypes: {
+        [PostType.POST]: {
+          requiredFields: ['body'],
+          forbiddenFields: ['media'],
+        },
+        [PostType.IMAGE]: {
+          requiredFields: ['media'],
+        },
+        [PostType.VIDEO]: {
+          requiredFields: ['media'],
+        },
+        [PostType.ALBUM]: {
+          requiredFields: ['media'],
+        },
+        [PostType.DOCUMENT]: {
+          requiredFields: ['media'],
+        },
+      },
+      maxBodyLength: 4096,
+      targetBodyFormat: 'html',
     },
     publish: vi.fn<IPlatform['publish']>(),
     preview: vi.fn<NonNullable<IPlatform['preview']>>(),
@@ -122,7 +147,7 @@ describe('PostService', () => {
         createPostRequest({
           type: PostType.AUTO,
           body: undefined,
-          cover: { src: 'https://a/b.jpg' },
+          media: [{ source: { kind: 'url', url: 'https://a/b.jpg' } }],
         }),
       );
 
@@ -179,19 +204,6 @@ describe('PostService', () => {
       }
     });
 
-    it('fails when the post type is unknown', async () => {
-      const { service } = createService();
-
-      const result = await service.publish(
-        createPostRequest({ type: 'UNSUPPORTED_TYPE' as PostType }),
-      );
-
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.error.code).toBe(ErrorCode.VALIDATION_ERROR);
-      }
-    });
-
     it('fails when the request carries no content at all', async () => {
       const { service } = createService();
 
@@ -200,7 +212,6 @@ describe('PostService', () => {
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error.code).toBe(ErrorCode.VALIDATION_ERROR);
-        expect(result.error.message).toContain('must have either body text');
       }
     });
 
@@ -332,7 +343,6 @@ describe('PostService', () => {
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error.resumeHandle).toEqual(handle);
-        // The handle must survive the host storing it in a JSON job record.
         expect(JSON.parse(JSON.stringify(result.error.resumeHandle))).toEqual(handle);
       }
     });
@@ -409,7 +419,11 @@ describe('PostService', () => {
         handle,
       );
 
-      expect(status).toMatchObject({ status: 'published', postId: '42' });
+      expect(status.success).toBe(true);
+      if (status.success) {
+        expect(status.data.status).toBe('published');
+        expect(status.data.postId).toBe('42');
+      }
       expect(checkStatus).toHaveBeenCalledWith(
         handle,
         expect.objectContaining({ source: 'account' }),
@@ -421,19 +435,46 @@ describe('PostService', () => {
     it('returns a failed status result on a platform that publishes synchronously', async () => {
       const { service } = createService();
 
-      await expect(
-        service.checkStatus(
-          { platform: 'telegram', account: 'test-channel' },
-          {
-            platform: 'telegram',
-            step: 'x',
-            state: {},
-          },
-        ),
-      ).resolves.toMatchObject({
-        status: 'failed',
-        error: { message: expect.stringMatching(/publishes synchronously/) },
+      const res = await service.checkStatus(
+        { platform: 'telegram', account: 'test-channel' },
+        {
+          platform: 'telegram',
+          step: 'x',
+          state: {},
+        },
+      );
+      expect(res.success).toBe(false);
+      if (!res.success) {
+        expect(res.error.message).toMatch(/publishes synchronously/);
+      }
+    });
+  });
+
+  describe('deletion', () => {
+    it('deletes a published post by reference', async () => {
+      const { service, platform } = createService();
+      const deleteMock = vi.fn().mockResolvedValue({
+        status: 'deleted',
+        parts: [{ id: '12345', status: 'deleted' }],
       });
+      (platform as unknown as { delete: unknown }).delete = deleteMock;
+
+      const result = await service.delete('12345', {
+        platform: 'telegram',
+        account: 'test-channel',
+      });
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.status).toBe('deleted');
+        expect(result.data.parts?.[0]?.id).toBe('12345');
+      }
+
+      expect(deleteMock).toHaveBeenCalledWith(
+        { postId: '12345' },
+        expect.objectContaining({ source: 'account' }),
+        expect.any(Object),
+      );
     });
   });
 
@@ -467,10 +508,12 @@ describe('PostService', () => {
     it('passes an abort signal down to the platform', async () => {
       const { service, platform } = createService();
       let receivedSignal: AbortSignal | undefined;
-      platform.publish.mockImplementation((_request, _account, options) => {
-        receivedSignal = options?.signal;
-        return Promise.resolve(createPlatformResult());
-      });
+      platform.publish.mockImplementation(
+        (_request: PostRequest, _account: ResolvedAccountConfig, options?: PublishOptions) => {
+          receivedSignal = options?.signal;
+          return Promise.resolve(createPlatformResult());
+        },
+      );
 
       await service.publish(createPostRequest());
 

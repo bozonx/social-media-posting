@@ -145,7 +145,7 @@ function validateAccount(name: string, account: unknown): string[] {
     return [`${prefix}: must be an object`];
   }
 
-  const { platform, auth, channelId, maxBody } = account as Partial<AccountConfig>;
+  const { platform, auth, target, maxBodyLength } = account as Partial<AccountConfig>;
 
   if (typeof platform !== 'string' || platform.trim().length === 0) {
     errors.push(`${prefix}: platform must be a non-empty string`);
@@ -158,14 +158,14 @@ function validateAccount(name: string, account: unknown): string[] {
   ) {
     errors.push(`${prefix}: auth must be an object`);
   }
-  if (channelId !== undefined && typeof channelId !== 'string' && typeof channelId !== 'number') {
-    errors.push(`${prefix}: channelId must be a string or a number`);
+  if (target !== undefined && typeof target !== 'string' && typeof target !== 'number') {
+    errors.push(`${prefix}: target must be a string or a number`);
   }
   if (
-    maxBody !== undefined &&
-    (typeof maxBody !== 'number' || !Number.isInteger(maxBody) || maxBody < 1)
+    maxBodyLength !== undefined &&
+    (typeof maxBodyLength !== 'number' || !Number.isInteger(maxBodyLength) || maxBodyLength < 1)
   ) {
-    errors.push(`${prefix}: maxBody must be a positive integer`);
+    errors.push(`${prefix}: maxBodyLength must be a positive integer`);
   }
 
   return errors;

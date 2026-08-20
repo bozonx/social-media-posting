@@ -25,9 +25,12 @@ describe('postRoutes', () => {
         },
       }),
       checkStatus: vi.fn().mockResolvedValue({
-        status: 'published',
-        postId: '12345',
-        raw: { telegram_id: 123 },
+        success: true,
+        data: {
+          status: 'published',
+          postId: '12345',
+          raw: { telegram_id: 123 },
+        },
       } as StatusResult),
     } as unknown as PostService,
     previewService: {
@@ -230,10 +233,14 @@ describe('postRoutes', () => {
       });
 
       expect(res.status).toBe(200);
-      const data = (await res.json()) as Record<string, unknown>;
-      expect(data.status).toBe('published');
-      expect(data.postId).toBe('12345');
-      expect(data.raw).toBeUndefined();
+      const data = (await res.json()) as {
+        success: boolean;
+        data: { status: string; postId: string; raw?: unknown };
+      };
+      expect(data.success).toBe(true);
+      expect(data.data.status).toBe('published');
+      expect(data.data.postId).toBe('12345');
+      expect(data.data.raw).toBeUndefined();
     });
 
     it('retains raw status payload when includeRawResponses is true', async () => {
@@ -261,8 +268,9 @@ describe('postRoutes', () => {
       });
 
       expect(res.status).toBe(200);
-      const data = (await res.json()) as Record<string, unknown>;
-      expect(data.raw).toEqual({ telegram_id: 123 });
+      const data = (await res.json()) as { success: boolean; data: { raw?: unknown } };
+      expect(data.success).toBe(true);
+      expect(data.data.raw).toEqual({ telegram_id: 123 });
     });
   });
 });

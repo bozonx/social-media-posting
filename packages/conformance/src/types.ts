@@ -4,17 +4,13 @@ import type {
   PlatformModule,
   PostRequest,
   PostType,
+  PostRef,
   ResolvedAccountConfig,
   ResumeHandle,
 } from '@bozonx/social-posting';
 
 /**
  * A response recorded from a real platform API.
- *
- * Kept as status, headers and body rather than as a parsed object, because the
- * paths that break in production — a 429 whose cool-down lives in a header, a
- * moderation refusal whose reason lives in the body — are exactly the ones a
- * tidied-up fixture loses.
  */
 export interface RecordedResponse {
   status: number;
@@ -39,9 +35,6 @@ export interface ErrorCase {
 
 /**
  * The transport double a platform package supplies.
- *
- * Only the platform knows its own endpoints, so the suite asks it to install
- * and remove the double rather than guessing at URLs.
  */
 export interface ContractHarness {
   /** A platform instance wired to this harness. */
@@ -66,16 +59,9 @@ export interface ResumableScenario {
   request: PostRequest;
   /** Number of completed transport steps that a resumed attempt must not repeat. */
   completedStepsBeforeInterruption: number;
-  /**
-   * Arrange the transport so the publication fails after some progress.
-   * @returns The harness to run the failing attempt against.
-   */
+  /** Arrange the transport so the publication fails after some progress. */
   arrangeInterruption(harness: ContractHarness): void;
-  /**
-   * Arrange the transport so a resumed publication succeeds, and report how
-   * many calls the *first* steps would have taken. The suite asserts the
-   * resumed attempt does not repeat them.
-   */
+  /** Arrange the transport so a resumed publication succeeds. */
   arrangeResume(harness: ContractHarness, handle: ResumeHandle): void;
 }
 
@@ -85,17 +71,14 @@ export interface PlatformContractOptions {
   module: PlatformModule;
   /** Build a fresh harness; called once per test. */
   createHarness(): ContractHarness;
-  /**
-   * A valid request per post type the platform declares.
-   *
-   * A declared type without a request here fails the suite: a type a platform
-   * claims to support and cannot demonstrate is a claim, not a capability.
-   */
+  /** A valid request per post type the platform declares. */
   requests: Partial<Record<PostType, PostRequest>>;
   /** Recorded failures and the classification each must produce. */
   errorCases: ErrorCase[];
   /** A request that breaks a declared limit, and the message it must produce. */
   overLimitRequest: { request: PostRequest; expectedError: RegExp };
+  /** Sample PostRef for deletion tests, if deletion is supported. */
+  sampleDeleteRef?: PostRef;
   /** A multi-step publication, for platforms that have one. */
   resumable?: ResumableScenario;
 }

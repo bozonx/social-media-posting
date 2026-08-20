@@ -8,11 +8,6 @@ import type { PreviewResult } from '../types/preview-response.js';
 /**
  * Build a preview from a platform's descriptor alone.
  *
- * This is the default `preview()` for every network. A platform only overrides
- * it when the network offers a real dry-run of its own; short of that, a
- * hand-written preview is the same checks written a second time, drifting from
- * the first.
- *
  * @param request - The request to preview.
  * @param capabilities - What the platform accepts.
  * @param options - Platform hooks for rules a descriptor cannot express.
@@ -23,30 +18,84 @@ export function previewFromCapabilities(
   capabilities: PlatformCapabilities,
   options: CapabilityValidationOptions = {},
 ): PreviewResult {
-  const { detectedType, errors, warnings } = validateAgainstCapabilities(
+  const { detectedType, issues, warnings, ignoredFields } = validateAgainstCapabilities(
     request,
     capabilities,
     options,
   );
 
-  if (errors.length > 0) {
-    return { success: false, data: { valid: false, errors, warnings } };
-  }
-
   const targetFormat = resolveBodyTargetFormat(request, capabilities);
-  const convertedBody = renderBody(request, capabilities, targetFormat);
+  const { body: convertedBody, truncated } = renderBodyWithTruncation(
+    request,
+    capabilities,
+    targetFormat,
+  );
+
+  if (issues.length > 0) {
+    return {
+      success: true,
+      data: {
+        valid: false,
+        detectedType,
+        issues,
+        warnings,
+        ignoredFields,
+        convertedBody,
+        convertedBodyLength:
+          convertedBody !== undefined
+            ? countBodyLength(convertedBody, capabilities.bodyLengthRule)
+            : undefined,
+        targetFormat,
+        truncated,
+      },
+    };
+  }
 
   return {
     success: true,
     data: {
       valid: true,
       detectedType,
-      convertedBody,
-      targetFormat,
-      convertedBodyLength: convertedBody?.length,
+      issues: [],
       warnings,
+      ignoredFields,
+      convertedBody,
+      convertedBodyLength:
+        convertedBody !== undefined
+          ? countBodyLength(convertedBody, capabilities.bodyLengthRule)
+          : undefined,
+      targetFormat,
+      truncated,
     },
   };
+}
+
+/**
+ * Convert the body into the platform's canonical format and shorten it to fit,
+ * counting length the way that platform counts it, reporting whether truncation occurred.
+ */
+export function renderBodyWithTruncation(
+  request: PostRequest,
+  capabilities: PlatformCapabilities,
+  targetFormat = capabilities.targetBodyFormat ?? request.bodyFormat ?? 'text',
+): { body: string | undefined; truncated: boolean } {
+  if (request.body === undefined) {
+    return { body: undefined, truncated: false };
+  }
+
+  const converted = convertBody(request.body, request.bodyFormat ?? 'text', targetFormat);
+  const limit = capabilities.maxBodyLength;
+
+  if (limit === undefined || countBodyLength(converted, capabilities.bodyLengthRule) <= limit) {
+    return { body: converted, truncated: false };
+  }
+
+  const body =
+    targetFormat === 'html'
+      ? truncateHtml(converted, limit, capabilities.bodyLengthRule)
+      : truncateBody(converted, limit, capabilities.bodyLengthRule);
+
+  return { body, truncated: true };
 }
 
 /**
@@ -58,24 +107,7 @@ export function renderBody(
   capabilities: PlatformCapabilities,
   targetFormat = capabilities.targetBodyFormat ?? request.bodyFormat ?? 'text',
 ): string | undefined {
-  if (request.body === undefined) {
-    return undefined;
-  }
-
-  const converted = convertBody(request.body, request.bodyFormat ?? 'text', targetFormat);
-
-  const limit =
-    capabilities.maxBodyLength === undefined
-      ? request.maxBody
-      : Math.min(request.maxBody ?? capabilities.maxBodyLength, capabilities.maxBodyLength);
-
-  if (limit === undefined || countBodyLength(converted, capabilities.bodyLengthRule) <= limit) {
-    return converted;
-  }
-
-  return targetFormat === 'html'
-    ? truncateHtml(converted, limit, capabilities.bodyLengthRule)
-    : truncateBody(converted, limit, capabilities.bodyLengthRule);
+  return renderBodyWithTruncation(request, capabilities, targetFormat).body;
 }
 
 /** Resolve the actual wire format, preserving platform-native dialects. */

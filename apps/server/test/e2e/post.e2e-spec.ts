@@ -100,12 +100,26 @@ describe('POST /api/v1/post', () => {
     await postJson(app, '/api/v1/post', {
       platform: 'telegram',
       account: 'test_account',
-      cover: { src: 'https://example.com/a.jpg', width: 1200, height: 630, durationSecs: 0 },
+      media: [
+        {
+          source: { kind: 'url', url: 'https://example.com/a.jpg' },
+          width: 1200,
+          height: 630,
+          durationSecs: 0,
+        },
+      ],
     });
 
     expect(platform.publish).toHaveBeenCalledWith(
       expect.objectContaining({
-        cover: expect.objectContaining({ width: 1200, height: 630, durationSecs: 0 }),
+        media: [
+          expect.objectContaining({
+            source: { kind: 'url', url: 'https://example.com/a.jpg' },
+            width: 1200,
+            height: 630,
+            durationSecs: 0,
+          }),
+        ],
       }),
       expect.anything(),
       expect.anything(),
@@ -145,7 +159,7 @@ describe('POST /api/v1/post', () => {
   });
 
   it('reports an unsupported post type', async () => {
-    platform.capabilities.supportedTypes = [];
+    platform.capabilities.postTypes = {};
 
     const { body } = await postJson(app, '/api/v1/post', {
       platform: 'telegram',
@@ -226,7 +240,10 @@ describe('POST /api/v1/preview', () => {
       convertedBody: '<b>Bold text</b>',
       targetFormat: 'html',
       convertedBodyLength: 16,
+      issues: [],
       warnings: [],
+      ignoredFields: [],
+      truncated: false,
     };
     platform.preview.mockResolvedValue({ success: true, data: previewData });
 
@@ -263,7 +280,10 @@ describe('POST /api/v1/status', () => {
     });
 
     expect(status).toBe(200);
-    expect(body).toMatchObject({ status: 'published', postId: '42' });
+    expect(body).toMatchObject({
+      success: true,
+      data: { status: 'published', postId: '42' },
+    });
     expect(platform.checkStatus).toHaveBeenCalledWith(
       handle,
       expect.objectContaining({ source: 'account' }),
@@ -291,7 +311,7 @@ describe('POST /api/v1/status', () => {
 
     expect(status).toBe(200);
     expect(body).toMatchObject({
-      status: 'failed',
+      success: false,
       error: {
         code: ErrorCode.VALIDATION_ERROR,
         retryable: false,

@@ -1,133 +1,85 @@
 import { describe, it, expect } from 'vitest';
 import { MediaInputHelper } from '../src/media/media-input.helper.js';
-import { ValidationError } from '../src/errors/posting-error.js';
 
 describe('MediaInputHelper', () => {
   describe('isObject', () => {
-    it('should return true for object with src (URL)', () => {
-      expect(MediaInputHelper.isObject({ src: 'https://example.com/image.jpg' })).toBe(true);
-    });
-
-    it('should return true for object with src (fileId)', () => {
-      expect(MediaInputHelper.isObject({ src: 'AgACAgIAAxkBAAIC...' })).toBe(true);
-    });
-
-    it('should return false for null', () => {
-      expect(MediaInputHelper.isObject(null as any)).toBe(false);
-    });
-  });
-
-  describe('getUrl', () => {
-    it('should return URL from object input', () => {
-      expect(MediaInputHelper.getUrl({ src: 'https://example.com/image.jpg' })).toBe(
-        'https://example.com/image.jpg',
-      );
-    });
-
-    it('should return undefined for object with fileId src', () => {
-      expect(MediaInputHelper.getUrl({ src: 'AgACAgIAAxkBAAIC...' })).toBeUndefined();
-    });
-
-    it('should return undefined for null', () => {
-      expect(MediaInputHelper.getUrl(null as any)).toBeUndefined();
-    });
-  });
-
-  describe('getPlatformRef', () => {
-    it('should return fileId from object input', () => {
-      expect(MediaInputHelper.getPlatformRef({ src: 'AgACAgIAAxkBAAIC...' })).toBe(
-        'AgACAgIAAxkBAAIC...',
-      );
-    });
-
-    it('should return undefined for object with URL src', () => {
+    it('should return true for object with source', () => {
       expect(
-        MediaInputHelper.getPlatformRef({ src: 'https://example.com/image.jpg' }),
-      ).toBeUndefined();
-    });
-
-    it('should throw ValidationError for invalid URL that looks like http(s) URL', () => {
-      expect(() =>
-        MediaInputHelper.getPlatformRef({ src: 'https://example.com/\nimage.jpg' }),
-      ).toThrow(ValidationError);
-    });
-  });
-
-  describe('getHasSpoiler', () => {
-    it('should return true when hasSpoiler is true', () => {
-      expect(
-        MediaInputHelper.getHasSpoiler({ src: 'https://example.com/image.jpg', hasSpoiler: true }),
+        MediaInputHelper.isObject({
+          source: { kind: 'url', url: 'https://example.com/image.jpg' },
+        }),
       ).toBe(true);
     });
 
-    it('should return false when hasSpoiler is false', () => {
-      expect(
-        MediaInputHelper.getHasSpoiler({ src: 'https://example.com/image.jpg', hasSpoiler: false }),
-      ).toBe(false);
-    });
-
-    it('should return false when hasSpoiler is not set', () => {
-      expect(MediaInputHelper.getHasSpoiler({ src: 'https://example.com/image.jpg' })).toBe(false);
+    it('should return false for null and primitives', () => {
+      expect(MediaInputHelper.isObject(null)).toBe(false);
+      expect(MediaInputHelper.isObject('string')).toBe(false);
+      expect(MediaInputHelper.isObject(123)).toBe(false);
     });
   });
 
-  describe('getType', () => {
-    it('should return type from object input', () => {
+  describe('isSource', () => {
+    it('should return true for valid source shapes', () => {
+      expect(MediaInputHelper.isSource({ kind: 'url', url: 'https://a/b.jpg' })).toBe(true);
+      expect(MediaInputHelper.isSource({ kind: 'platformRef', ref: 'ref-1' })).toBe(true);
+      expect(MediaInputHelper.isSource({ kind: 'bytes', bytes: new Uint8Array() })).toBe(true);
+      expect(MediaInputHelper.isSource({ kind: 'blob', blob: new Blob() })).toBe(true);
       expect(
-        MediaInputHelper.getType({
-          src: 'https://example.com/image.jpg',
-          type: 'image',
-        } as any),
-      ).toBe('image');
+        MediaInputHelper.isSource({ kind: 'stream', open: async () => new ReadableStream() }),
+      ).toBe(true);
     });
 
-    it('should return undefined when type is not set', () => {
+    it('should return false for invalid sources', () => {
+      expect(MediaInputHelper.isSource(null)).toBe(false);
+      expect(MediaInputHelper.isSource({ kind: 'unknown' })).toBe(false);
+      expect(MediaInputHelper.isSource({})).toBe(false);
+    });
+  });
+
+  describe('isValidShape', () => {
+    it('should return true for valid MediaInput object', () => {
       expect(
-        MediaInputHelper.getType({
-          src: 'https://example.com/image.jpg',
-        } as any),
-      ).toBeUndefined();
+        MediaInputHelper.isValidShape({
+          source: { kind: 'url', url: 'https://example.com/image.jpg' },
+        }),
+      ).toBe(true);
+    });
+
+    it('should return false for invalid MediaInput', () => {
+      expect(MediaInputHelper.isValidShape(null)).toBe(false);
+      expect(MediaInputHelper.isValidShape({})).toBe(false);
+      expect(MediaInputHelper.isValidShape({ source: 'not-an-object' })).toBe(false);
     });
   });
 
   describe('isNotEmpty', () => {
-    it('should return true for non-empty array with objects', () => {
+    it('should return true for non-empty array with valid objects', () => {
       expect(
         MediaInputHelper.isNotEmpty([
-          { src: 'https://example.com/1.jpg' },
-          { src: 'https://example.com/2.jpg' },
+          { source: { kind: 'url', url: 'https://example.com/1.jpg' } },
         ]),
       ).toBe(true);
     });
 
-    it('should return true for array with single item', () => {
-      expect(MediaInputHelper.isNotEmpty([{ src: 'https://example.com/1.jpg' }])).toBe(true);
-    });
-
-    it('should return false for empty array', () => {
+    it('should return false for empty or invalid array', () => {
       expect(MediaInputHelper.isNotEmpty([])).toBe(false);
-    });
-
-    it('should return false for undefined', () => {
       expect(MediaInputHelper.isNotEmpty(undefined)).toBe(false);
-    });
-
-    it('should return false for null', () => {
-      expect(MediaInputHelper.isNotEmpty(null as any)).toBe(false);
+      expect(MediaInputHelper.isNotEmpty(null as never)).toBe(false);
     });
   });
 
   describe('isDefined', () => {
-    it('should return true for object', () => {
-      expect(MediaInputHelper.isDefined({ src: 'https://example.com/image.jpg' })).toBe(true);
+    it('should return true for valid defined object', () => {
+      expect(
+        MediaInputHelper.isDefined({
+          source: { kind: 'url', url: 'https://example.com/image.jpg' },
+        }),
+      ).toBe(true);
     });
 
-    it('should return false for undefined', () => {
+    it('should return false for undefined or invalid', () => {
       expect(MediaInputHelper.isDefined(undefined)).toBe(false);
-    });
-
-    it('should return false for null', () => {
-      expect(MediaInputHelper.isDefined(null as any)).toBe(false);
+      expect(MediaInputHelper.isDefined({} as never)).toBe(false);
     });
   });
 });

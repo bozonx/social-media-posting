@@ -7,11 +7,15 @@
 
 // Client
 export { createPostingClient } from './client.js';
-export type { PostingClient, PostingClientOptions } from './client.js';
+export type {
+  PostingClient,
+  PostingClientOptions,
+  DeleteCallOptions,
+  PublishCallOptions,
+} from './client.js';
 
 // Services (for hosts assembling their own composition root)
 export { PostService } from './services/post.service.js';
-export type { PublishCallOptions } from './services/post.service.js';
 export { PreviewService } from './services/preview.service.js';
 export { BasePostService } from './services/base-post.service.js';
 export type { PostServiceDeps } from './services/base-post.service.js';
@@ -22,6 +26,7 @@ export type {
   PlatformPublishResponse,
   PlatformStatusResponse,
   PublishOptions,
+  DeleteOptions,
 } from './platforms/platform.interface.js';
 export type {
   IAuthValidator,
@@ -34,30 +39,53 @@ export type {
   PostTypeCapabilities,
   MediaConstraints,
   BodyLengthRule,
+  RequestField,
+  ToggleCapabilities,
+  ExtraFieldSpec,
+  RateLimits,
 } from './platforms/capabilities.js';
+export { validateCapabilities } from './platforms/capabilities.js';
 export { PlatformRegistry } from './platforms/platform-registry.js';
 export { AuthValidatorRegistry } from './platforms/auth-validator-registry.js';
 
 // Request and result types
-export type { PostRequest } from './types/post-request.js';
 export type {
+  PostRequest,
+  PlatformObjectRef,
+  PollInput,
+  LocationInput,
+  Visibility,
+} from './types/post-request.js';
+
+export type {
+  Issue,
+  PostPart,
+  PostRef,
+  ErrorPayload,
   PostResponse,
   ErrorResponse,
   PostResult,
   StatusResult,
+  DeletePartResult,
+  DeleteOutcome,
+  DeleteResult,
 } from './types/post-response.js';
 export type { ResumeHandle, JsonValue } from './types/resume-handle.js';
+export type { PreviewResult } from './types/preview-response.js';
 export type {
-  PreviewResponse,
-  PreviewErrorResponse,
-  PreviewResult,
-} from './types/preview-response.js';
-export type { MediaInput, MediaInputObject, MediaType } from './types/media-input.js';
+  MediaInput,
+  MediaSourceInput,
+  ThumbnailInput,
+  MediaStreamFactory,
+  MediaType,
+} from './types/media-input.js';
 export type { AccountConfig, ResolvedAccountConfig } from './types/account-config.js';
 
-// Enums
+// Types & const objects
 export { PostType } from './types/post-type.js';
+export type { PostType as PostTypeValue } from './types/post-type.js';
 export { BodyFormat } from './types/body-format.js';
+export type { BodyFormat as BodyFormatValue } from './types/body-format.js';
 export { ErrorCode } from './errors/error-code.js';
 
 // Errors
@@ -105,7 +133,7 @@ export type {
 // Helpers available to platform packages
 export { MediaInputHelper } from './media/media-input.helper.js';
 export { detectPrimaryMediaField } from './media/media-priority.js';
-export { validateMediaUrl, validateMediaUrls } from './media/media-url.js';
+export { validateMediaUrl } from './media/media-url.js';
 export { validateAgainstCapabilities } from './validation/capability-validator.js';
 export type {
   CapabilityValidation,
@@ -114,6 +142,7 @@ export type {
 export {
   previewFromCapabilities,
   renderBody,
+  renderBodyWithTruncation,
   resolveBodyTargetFormat,
 } from './validation/capability-preview.js';
 export { detectPostType } from './validation/detect-post-type.js';

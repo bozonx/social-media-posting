@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { validateMediaUrl, validateMediaUrls } from '../src/media/media-url.js';
+import { validateMediaUrl } from '../src/media/media-url.js';
 import { ValidationError } from '../src/errors/posting-error.js';
 
 describe('media URL validation', () => {
@@ -77,76 +77,6 @@ describe('media URL validation', () => {
       expect(() => {
         validateMediaUrl('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA');
       }).toThrow(ValidationError);
-    });
-  });
-
-  describe('validateMediaUrls', () => {
-    it('should validate all URLs in array', () => {
-      const urls = [
-        'https://example.com/image1.jpg',
-        'https://example.com/image2.jpg',
-        'https://example.com/image3.jpg',
-      ];
-
-      expect(() => {
-        validateMediaUrls(urls);
-      }).not.toThrow();
-    });
-
-    it('should accept empty array', () => {
-      expect(() => {
-        validateMediaUrls([]);
-      }).not.toThrow();
-    });
-
-    it('should throw on first invalid URL', () => {
-      const urls = [
-        'https://example.com/image1.jpg',
-        'ftp://example.com/file.txt',
-        'https://example.com/image3.jpg',
-      ];
-
-      expect(() => {
-        validateMediaUrls(urls);
-      }).toThrow(ValidationError);
-      expect(() => {
-        validateMediaUrls(urls);
-      }).toThrow('Invalid media URL protocol: ftp:');
-    });
-
-    it('should throw on malformed URL in array', () => {
-      const urls = [
-        'https://example.com/image1.jpg',
-        'not-a-url',
-        'https://example.com/image3.jpg',
-      ];
-
-      expect(() => {
-        validateMediaUrls(urls);
-      }).toThrow(ValidationError);
-      expect(() => {
-        validateMediaUrls(urls);
-      }).toThrow('Invalid media URL format');
-    });
-
-    it('should handle array with empty strings', () => {
-      const urls = ['https://example.com/image1.jpg', '', 'https://example.com/image3.jpg'];
-
-      expect(() => {
-        validateMediaUrls(urls);
-      }).not.toThrow();
-    });
-
-    it('should validate multiple URLs with different formats', () => {
-      const urls = [
-        'http://example.com/image1.jpg',
-        'https://cdn.example.com:443/image2.png?v=123',
-        'https://example.com/videos/video.mp4#start=10',
-      ];
-
-      expect(() => {
-        validateMediaUrls(urls);
-      }).not.toThrow();
     });
   });
 });

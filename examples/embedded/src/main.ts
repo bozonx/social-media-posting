@@ -21,7 +21,7 @@ const client = createPostingClient({
     myChannel: {
       platform: 'telegram',
       auth: { apiKey: process.env.TELEGRAM_BOT_TOKEN ?? '123456789:REPLACE-ME' },
-      channelId: process.env.TELEGRAM_CHANNEL ?? '@your_channel',
+      target: process.env.TELEGRAM_CHANNEL ?? '@your_channel',
     },
   },
   requestTimeoutSecs: 30,

@@ -1,17 +1,22 @@
 import { PostingConfig, type PostingConfigInput } from './config/posting-config.js';
 import { PlatformRegistry } from './platforms/platform-registry.js';
 import { AuthValidatorRegistry } from './platforms/auth-validator-registry.js';
-import { PostService } from './services/post.service.js';
+import {
+  PostService,
+  type DeleteCallOptions,
+  type PublishCallOptions,
+} from './services/post.service.js';
 import { PreviewService } from './services/preview.service.js';
 import { ConsoleLogger, type ILogger } from './logger/logger.js';
 import type { PlatformModule } from './platforms/platform-module.js';
 import type { PlatformCapabilities } from './platforms/capabilities.js';
 import type { PostRequest } from './types/post-request.js';
-import type { PostResult, StatusResult } from './types/post-response.js';
+import type { PostResult, StatusResult, DeleteResult, PostRef } from './types/post-response.js';
 import type { PreviewResult } from './types/preview-response.js';
 import type { ResumeHandle } from './types/resume-handle.js';
-import type { PublishCallOptions } from './services/post.service.js';
 import type { CredentialProvider } from './auth/credentials.js';
+
+export type { DeleteCallOptions, PublishCallOptions };
 
 /**
  * Everything needed to build a posting client.
@@ -29,16 +34,12 @@ export interface PostingClientOptions extends PostingConfigInput {
   logger?: ILogger;
   /**
    * Where credentials come from, and where rotated ones go back to.
-   *
-   * Omit it and the accounts in `accounts` are used as-is, which is right for
-   * static-token networks. A host serving a network with expiring tokens
-   * supplies its own, backed by its encrypted store.
    */
   credentialProvider?: CredentialProvider;
 }
 
 /**
- * The library's entry point: publish and preview posts on registered platforms.
+ * The library's entry point: publish, delete and preview posts on registered platforms.
  */
 export interface PostingClient {
   /**
@@ -47,6 +48,13 @@ export interface PostingClient {
    * @param options - Abort signal and optional resume handle from a failed attempt.
    */
   post(request: PostRequest, options?: PublishCallOptions): Promise<PostResult>;
+
+  /**
+   * Delete a published post by its reference or ID.
+   * @param target - PostRef or postId to delete.
+   * @param options - Platform/account options, abort signal, and optional resume handle.
+   */
+  delete(target: PostRef | string | number, options?: DeleteCallOptions): Promise<DeleteResult>;
 
   /**
    * Check on a post that `post()` left in `processing`.
@@ -127,6 +135,10 @@ export function createPostingClient(options: PostingClientOptions): PostingClien
   return {
     post(request: PostRequest, options?: PublishCallOptions): Promise<PostResult> {
       return postService.publish(request, options);
+    },
+
+    delete(target: PostRef | string | number, options?: DeleteCallOptions): Promise<DeleteResult> {
+      return postService.delete(target, options);
     },
 
     checkStatus(

@@ -16,14 +16,13 @@ export function fakePlatform(
 ): { platform: FakePlatform; platformModule: PlatformModule } {
   const resolved: PlatformCapabilities = {
     name,
-    supportedTypes: [
-      PostType.AUTO,
-      PostType.POST,
-      PostType.IMAGE,
-      PostType.VIDEO,
-      PostType.ALBUM,
-      PostType.DOCUMENT,
-    ],
+    postTypes: {
+      [PostType.POST]: {},
+      [PostType.IMAGE]: {},
+      [PostType.VIDEO]: {},
+      [PostType.ALBUM]: {},
+      [PostType.DOCUMENT]: {},
+    },
     ...capabilities,
   };
 

@@ -23,16 +23,3 @@ export function validateMediaUrl(url: string): void {
     );
   }
 }
-
-/**
- * Validate several media URLs.
- * @param urls - URLs to validate.
- * @throws ValidationError on the first malformed URL.
- */
-export function validateMediaUrls(urls: string[]): void {
-  if (urls.length === 0) {
-    return;
-  }
-
-  urls.forEach(url => validateMediaUrl(url));
-}

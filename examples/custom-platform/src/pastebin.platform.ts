@@ -28,21 +28,16 @@ import type {
 /** What this imaginary network accepts, stated as data. */
 export const pastebinCapabilities: PlatformCapabilities = {
   name: 'pastebin',
-  supportedTypes: [PostType.AUTO, PostType.POST],
   postTypes: {
     [PostType.POST]: {
       requiredFields: ['body'],
-      forbiddenFields: ['cover', 'video', 'audio', 'document', 'media'],
+      forbiddenFields: ['media'],
     },
   },
   maxBodyLength: 512_000,
   supportedBodyFormats: ['text'],
   targetBodyFormat: 'text',
-  supportsUrlPassthrough: false,
-  requiresByteUpload: false,
-  supportsNativeScheduling: false,
-  supportsDraft: false,
-  ignoredFields: ['tags', 'description', 'postLanguage'],
+  ignoredFields: ['tags', 'description', 'language'],
   rateLimits: { postsPerDay: 100 },
 };
 
@@ -66,7 +61,7 @@ class PastebinPlatform implements IPlatform {
     if (!body) {
       throw new ValidationError("Field 'body' is required for pastebin");
     }
-    if (MediaInputHelper.isDefined(request.cover)) {
+    if (MediaInputHelper.isNotEmpty(request.media)) {
       throw new ValidationError('pastebin does not accept media');
     }
 
@@ -99,13 +94,18 @@ class PastebinPlatform implements IPlatform {
   }
 
   preview(request: PostRequest): Promise<PreviewResult> {
-    const errors: string[] = [];
     if (!request.body?.trim()) {
-      errors.push("Field 'body' is required for pastebin");
-    }
-
-    if (errors.length > 0) {
-      return Promise.resolve({ success: false, data: { valid: false, errors, warnings: [] } });
+      return Promise.resolve({
+        success: true,
+        data: {
+          valid: false,
+          detectedType: PostType.POST,
+          issues: [{ code: 'BODY_REQUIRED', message: "Field 'body' is required for pastebin" }],
+          warnings: [],
+          ignoredFields: [],
+          truncated: false,
+        },
+      });
     }
 
     return Promise.resolve({
@@ -115,8 +115,11 @@ class PastebinPlatform implements IPlatform {
         detectedType: PostType.POST,
         convertedBody: request.body,
         targetFormat: 'text',
-        convertedBodyLength: request.body?.length,
-        warnings: request.tags?.length ? ['pastebin ignores tags'] : [],
+        convertedBodyLength: request.body.length,
+        issues: [],
+        warnings: [],
+        ignoredFields: Array.isArray(request.tags) && request.tags.length > 0 ? ['tags'] : [],
+        truncated: false,
       },
     });
   }

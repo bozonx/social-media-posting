@@ -9,7 +9,12 @@ import type { PlatformModule } from '../src/platforms/platform-module.js';
 function fakePlatform() {
   const platform: IPlatform & { publish: ReturnType<typeof vi.fn> } = {
     name: 'fake',
-    capabilities: { name: 'fake', supportedTypes: [PostType.AUTO, PostType.POST] },
+    capabilities: {
+      name: 'fake',
+      postTypes: {
+        [PostType.POST]: { requiredFields: ['body'] },
+      },
+    },
     publish: vi.fn().mockResolvedValue({ status: 'published', postId: '1' }),
   };
   const platformModule: PlatformModule = {
