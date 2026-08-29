@@ -15,6 +15,8 @@ export interface MediaInput {
   sensitive?: boolean;
   fileName?: string;
   mimeType?: string;
+  /** Known source size used for local capability validation. */
+  sizeBytes?: number;
   durationSecs?: number;
   width?: number;
   height?: number;

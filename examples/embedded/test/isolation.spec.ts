@@ -29,8 +29,8 @@ describe('embedded consumer isolation', () => {
     const loggerA = recordingLogger();
     const loggerB = recordingLogger();
 
-    const clientA = clientWith(loggerA, '111111111:AAA-aaa', '@channel_a');
-    const clientB = clientWith(loggerB, '222222222:BBB-bbb', '@channel_b');
+    const clientA = clientWith(loggerA, '111111111:AAA-aaa-valid-token-value', '@channel_a');
+    const clientB = clientWith(loggerB, '222222222:BBB-bbb-valid-token-value', '@channel_b');
 
     const previewA = await clientA.preview({
       platform: 'telegram',
@@ -62,7 +62,7 @@ describe('embedded consumer isolation', () => {
 
     try {
       const logger = recordingLogger();
-      const client = clientWith(logger, '333333333:CCC-ccc', '@channel_c');
+      const client = clientWith(logger, '333333333:CCC-ccc-valid-token-value', '@channel_c');
       await client.preview({ platform: 'telegram', account: 'main', body: 'quiet' });
 
       for (const spy of Object.values(spies)) {
@@ -80,7 +80,7 @@ describe('embedded consumer isolation', () => {
     const bare = createPostingClient({ accounts: {}, logger });
     expect(bare.getRegisteredPlatforms()).toEqual([]);
 
-    const withTelegram = clientWith(logger, '444444444:DDD-ddd', '@channel_d');
+    const withTelegram = clientWith(logger, '444444444:DDD-ddd-valid-token-value', '@channel_d');
     expect(withTelegram.getRegisteredPlatforms()).toEqual(['telegram']);
   });
 });

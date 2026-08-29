@@ -22,6 +22,7 @@ export type {
   ToggleCapabilities,
   ExtraFieldSpec,
   RateLimits,
+  CapabilitySource,
 } from './platforms/capabilities.js';
 
 // Request and result types

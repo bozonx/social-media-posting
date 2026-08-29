@@ -135,8 +135,8 @@ export function validateAgainstCapabilities(
   }
 
   validateMediaConstraints(request, detectedType, capabilities, issues, label);
-  validateBodyAgainstCapabilities(request, capabilities, issues, label);
-  validateTextFieldsAgainstCapabilities(request, capabilities, issues);
+  validateBodyAgainstCapabilities(request, detectedType, capabilities, issues, label);
+  validateTextFieldsAgainstCapabilities(request, detectedType, capabilities, issues);
   validateAudienceAndStructure(request, capabilities, issues, label);
   validateExtraFields(request, detectedType, capabilities, issues);
 
@@ -301,6 +301,16 @@ function validateOneMediaItem(
       });
     }
 
+    const maxBytes = constraints.maxBytesBySource?.[media.source.kind] ?? constraints.maxBytes;
+    if (media.sizeBytes !== undefined && maxBytes !== undefined && media.sizeBytes > maxBytes) {
+      issues.push({
+        code: 'MEDIA_TOO_LARGE',
+        field: `${field}.sizeBytes`,
+        message: `${kind} size ${media.sizeBytes} bytes exceeds the ${maxBytes} byte maximum on ${label}`,
+        params: { maxBytes, actualBytes: media.sizeBytes, sourceKind: media.source.kind },
+      });
+    }
+
     if (media.durationSecs !== undefined) {
       if (
         constraints.minDurationSecs !== undefined &&
@@ -403,18 +413,21 @@ function validateOneMediaItem(
 
 function validateBodyAgainstCapabilities(
   request: PostRequest,
+  detectedType: PostType,
   capabilities: PlatformCapabilities,
   issues: Issue[],
   label: string,
 ): void {
-  if (request.body && capabilities.maxBodyLength !== undefined) {
+  const typeRules = capabilities.postTypes[detectedType];
+  const maxBodyLength = typeRules?.maxBodyLength ?? capabilities.maxBodyLength;
+  if (request.body && maxBodyLength !== undefined) {
     const length = countBodyLength(request.body, capabilities.bodyLengthRule);
-    if (length > capabilities.maxBodyLength) {
+    if (length > maxBodyLength) {
       issues.push({
         code: 'BODY_TOO_LONG',
         field: 'body',
-        message: `Body length ${length} exceeds the ${capabilities.maxBodyLength} characters ${label} accepts`,
-        params: { maxLength: capabilities.maxBodyLength, actualLength: length },
+        message: `Body length ${length} exceeds the ${maxBodyLength} characters ${label} accepts`,
+        params: { maxLength: maxBodyLength, actualLength: length },
       });
     }
   }
@@ -432,55 +445,65 @@ function validateBodyAgainstCapabilities(
 
 function validateTextFieldsAgainstCapabilities(
   request: PostRequest,
+  detectedType: PostType,
   capabilities: PlatformCapabilities,
   issues: Issue[],
 ): void {
-  if (
-    request.title &&
-    capabilities.maxTitleLength !== undefined &&
-    request.title.length > capabilities.maxTitleLength
-  ) {
+  const typeRules = capabilities.postTypes[detectedType];
+  const maxTitleLength = typeRules?.maxTitleLength ?? capabilities.maxTitleLength;
+  const maxDescriptionLength = typeRules?.maxDescriptionLength ?? capabilities.maxDescriptionLength;
+  const maxTags = typeRules?.maxTags ?? capabilities.maxTags;
+  const maxTagLength = typeRules?.maxTagLength ?? capabilities.maxTagLength;
+  const maxTagsLength = typeRules?.maxTagsLength ?? capabilities.maxTagsLength;
+  if (request.title && maxTitleLength !== undefined && request.title.length > maxTitleLength) {
     issues.push({
       code: 'TITLE_TOO_LONG',
       field: 'title',
-      message: `Title length ${request.title.length} exceeds the maximum ${capabilities.maxTitleLength} characters`,
+      message: `Title length ${request.title.length} exceeds the maximum ${maxTitleLength} characters`,
     });
   }
 
   if (
     request.description &&
-    capabilities.maxDescriptionLength !== undefined &&
-    request.description.length > capabilities.maxDescriptionLength
+    maxDescriptionLength !== undefined &&
+    request.description.length > maxDescriptionLength
   ) {
     issues.push({
       code: 'DESCRIPTION_TOO_LONG',
       field: 'description',
-      message: `Description length ${request.description.length} exceeds the maximum ${capabilities.maxDescriptionLength} characters`,
+      message: `Description length ${request.description.length} exceeds the maximum ${maxDescriptionLength} characters`,
     });
   }
 
-  if (
-    request.tags &&
-    capabilities.maxTags !== undefined &&
-    request.tags.length > capabilities.maxTags
-  ) {
+  if (request.tags && maxTags !== undefined && request.tags.length > maxTags) {
     issues.push({
       code: 'TOO_MANY_TAGS',
       field: 'tags',
-      message: `Tag count ${request.tags.length} exceeds the maximum ${capabilities.maxTags}`,
+      message: `Tag count ${request.tags.length} exceeds the maximum ${maxTags}`,
     });
   }
 
-  if (request.tags && capabilities.maxTagLength !== undefined) {
+  if (request.tags && maxTagLength !== undefined) {
     for (let i = 0; i < request.tags.length; i++) {
       const tag = request.tags[i];
-      if (tag && tag.length > capabilities.maxTagLength) {
+      if (tag && tag.length > maxTagLength) {
         issues.push({
           code: 'TAG_TOO_LONG',
           field: `tags[${i}]`,
-          message: `Tag '${tag}' exceeds the maximum length of ${capabilities.maxTagLength} characters`,
+          message: `Tag '${tag}' exceeds the maximum length of ${maxTagLength} characters`,
         });
       }
+    }
+  }
+
+  if (request.tags && maxTagsLength !== undefined) {
+    const tagsLength = request.tags.join(',').length;
+    if (tagsLength > maxTagsLength) {
+      issues.push({
+        code: 'TAGS_TOO_LONG',
+        field: 'tags',
+        message: `Combined tag length ${tagsLength} exceeds the maximum ${maxTagsLength} characters`,
+      });
     }
   }
 }

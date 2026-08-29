@@ -118,6 +118,12 @@ importers:
 
   packages/core: {}
 
+  packages/platform-catalog:
+    devDependencies:
+      '@bozonx/social-posting':
+        specifier: workspace:*
+        version: link:../core
+
   packages/platform-telegram:
     devDependencies:
       '@bozonx/social-posting':

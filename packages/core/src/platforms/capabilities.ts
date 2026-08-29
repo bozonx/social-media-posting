@@ -50,6 +50,8 @@ export interface MediaConstraints {
   mimeTypes?: string[];
   /** Largest accepted file size, in bytes. */
   maxBytes?: number;
+  /** Source-specific byte limits when the platform treats URLs and uploads differently. */
+  maxBytesBySource?: Partial<Record<MediaSourceInput['kind'], number>>;
   /** Smallest and largest accepted duration, in seconds (video and audio). */
   minDurationSecs?: number;
   maxDurationSecs?: number;
@@ -76,6 +78,25 @@ export interface PostTypeCapabilities {
   mediaCounts?: Partial<Record<MediaType, { min?: number; max?: number }>>;
   /** Whether one `media[]` may mix kinds (Telegram cannot mix audio with photos). */
   allowsMixedMedia?: boolean;
+  /** Type-specific body limit, overriding the platform-wide default. */
+  maxBodyLength?: number;
+  /** Type-specific title and description limits. */
+  maxTitleLength?: number;
+  maxDescriptionLength?: number;
+  /** Type-specific tag limits. */
+  maxTags?: number;
+  maxTagLength?: number;
+  /** Maximum serialized length of all tags, using commas as separators. */
+  maxTagsLength?: number;
+}
+
+export interface CapabilitySource {
+  /** Official documentation URL supporting one or more descriptor values. */
+  url: string;
+  /** Short description of the facts supported by this source. */
+  supports: string[];
+  /** Date on which the source was last checked, in YYYY-MM-DD form. */
+  verifiedAt: string;
 }
 
 /** How a platform counts the length of a body. */
@@ -136,6 +157,8 @@ export interface PlatformCapabilities {
   name: string;
   /** Human-readable name, used in messages shown to the caller. */
   displayName?: string;
+  /** Official sources used to maintain this descriptor. */
+  sources?: CapabilitySource[];
 
   /** Per-type rules. Its keys are the definitive list of publishable types. */
   postTypes: Partial<Record<PostType, PostTypeCapabilities>>;
@@ -152,6 +175,7 @@ export interface PlatformCapabilities {
   maxDescriptionLength?: number;
   maxTags?: number;
   maxTagLength?: number;
+  maxTagsLength?: number;
   tagFormat?: 'plain' | 'hashtag';
 
   // media

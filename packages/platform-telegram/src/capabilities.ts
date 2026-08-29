@@ -5,6 +5,9 @@ import type { PlatformCapabilities } from '@bozonx/social-posting';
 export const MAX_MEDIA_GROUP_SIZE = 10;
 /** Largest caption Telegram accepts on a media message. */
 export const MAX_CAPTION_LENGTH = 1024;
+const MB_BYTES = 1024 * 1024;
+export const MAX_URL_PHOTO_BYTES = 5 * MB_BYTES;
+export const MAX_URL_FILE_BYTES = 20 * MB_BYTES;
 
 /**
  * What Telegram accepts, stated as data.
@@ -12,6 +15,13 @@ export const MAX_CAPTION_LENGTH = 1024;
 export const telegramCapabilities: PlatformCapabilities = {
   name: 'telegram',
   displayName: 'Telegram',
+  sources: [
+    {
+      url: 'https://core.telegram.org/bots/api',
+      supports: ['body length', 'caption length', 'media groups', 'media upload limits'],
+      verifiedAt: '2026-08-29',
+    },
+  ],
 
   postTypes: {
     [PostType.POST]: {
@@ -23,29 +33,34 @@ export const telegramCapabilities: PlatformCapabilities = {
       minMediaCount: 1,
       maxMediaCount: 1,
       mediaCounts: { image: { min: 1, max: 1 } },
+      maxBodyLength: MAX_CAPTION_LENGTH,
     },
     [PostType.VIDEO]: {
       requiredFields: ['media'],
       minMediaCount: 1,
       maxMediaCount: 1,
       mediaCounts: { video: { min: 1, max: 1 } },
+      maxBodyLength: MAX_CAPTION_LENGTH,
     },
     [PostType.AUDIO]: {
       requiredFields: ['media'],
       minMediaCount: 1,
       maxMediaCount: 1,
       mediaCounts: { audio: { min: 1, max: 1 } },
+      maxBodyLength: MAX_CAPTION_LENGTH,
     },
     [PostType.DOCUMENT]: {
       requiredFields: ['media'],
       minMediaCount: 1,
       maxMediaCount: 1,
       mediaCounts: { document: { min: 1, max: 1 } },
+      maxBodyLength: MAX_CAPTION_LENGTH,
     },
     [PostType.ALBUM]: {
       requiredFields: ['media'],
       minMediaCount: 1,
       maxMediaCount: MAX_MEDIA_GROUP_SIZE,
+      maxBodyLength: MAX_CAPTION_LENGTH,
     },
     [PostType.POLL]: {
       requiredFields: ['poll'],
@@ -63,15 +78,19 @@ export const telegramCapabilities: PlatformCapabilities = {
   media: {
     image: {
       acceptedSources: ['url', 'bytes', 'blob', 'stream', 'platformRef'],
+      maxBytesBySource: { url: MAX_URL_PHOTO_BYTES },
     },
     video: {
       acceptedSources: ['url', 'bytes', 'blob', 'stream', 'platformRef'],
+      maxBytesBySource: { url: MAX_URL_FILE_BYTES },
     },
     audio: {
       acceptedSources: ['url', 'bytes', 'blob', 'stream', 'platformRef'],
+      maxBytesBySource: { url: MAX_URL_FILE_BYTES },
     },
     document: {
       acceptedSources: ['url', 'bytes', 'blob', 'stream', 'platformRef'],
+      maxBytesBySource: { url: MAX_URL_FILE_BYTES },
     },
   },
 

@@ -38,6 +38,7 @@ export type {
   ToggleCapabilities,
   ExtraFieldSpec,
   RateLimits,
+  CapabilitySource,
 } from './platforms/capabilities.js';
 export { validateCapabilities } from './platforms/capabilities.js';
 export { PlatformRegistry } from './platforms/platform-registry.js';

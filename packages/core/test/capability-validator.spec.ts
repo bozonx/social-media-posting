@@ -165,6 +165,33 @@ describe('validateAgainstCapabilities', () => {
       expect(result.issues.some(i => i.message.includes('duration 2s is below'))).toBe(true);
       expect(result.issues.some(i => i.message.includes('below the 0.5 minimum'))).toBe(true);
     });
+
+    it('enforces source-specific file size limits when size is known', () => {
+      const result = validateAgainstCapabilities(
+        {
+          platform: 'demo',
+          type: PostType.IMAGE,
+          media: [
+            {
+              source: { kind: 'url', url: 'https://a/image.jpg' },
+              type: 'image',
+              sizeBytes: 11,
+            },
+          ],
+        },
+        {
+          ...capabilities,
+          media: {
+            image: {
+              acceptedSources: ['url'],
+              maxBytesBySource: { url: 10 },
+            },
+          },
+        },
+      );
+
+      expect(result.issues.some(issue => issue.code === 'MEDIA_TOO_LARGE')).toBe(true);
+    });
   });
 
   describe('body rules', () => {
@@ -199,6 +226,31 @@ describe('validateAgainstCapabilities', () => {
 
       expect(result.issues).toEqual([]);
     });
+
+    it('uses a detected post type body limit before the platform default', () => {
+      const result = validateAgainstCapabilities(
+        {
+          platform: 'demo',
+          body: 'a'.repeat(11),
+          type: PostType.IMAGE,
+          media: [{ source: { kind: 'url', url: 'https://a/b.jpg' }, type: 'image' }],
+        },
+        {
+          ...capabilities,
+          postTypes: {
+            ...capabilities.postTypes,
+            [PostType.IMAGE]: {
+              requiredFields: ['media'],
+              minMediaCount: 1,
+              maxMediaCount: 1,
+              maxBodyLength: 10,
+            },
+          },
+        },
+      );
+
+      expect(result.issues.some(issue => issue.code === 'BODY_TOO_LONG')).toBe(true);
+    });
   });
 
   describe('fields that would be dropped', () => {
@@ -209,6 +261,17 @@ describe('validateAgainstCapabilities', () => {
         result.warnings.some(w => w.message.includes('title, tags are not used by Demo')),
       ).toBe(true);
       expect(result.ignoredFields).toEqual(expect.arrayContaining(['title', 'tags']));
+    });
+  });
+
+  describe('tag rules', () => {
+    it('enforces the combined serialized tag length', () => {
+      const result = validateAgainstCapabilities(
+        { platform: 'demo', body: 'hi', tags: ['alpha', 'beta'] } as PostRequest,
+        { ...capabilities, ignoredFields: [], maxTagsLength: 9 },
+      );
+
+      expect(result.issues.some(issue => issue.code === 'TAGS_TOO_LONG')).toBe(true);
     });
   });
 

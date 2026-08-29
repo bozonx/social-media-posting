@@ -19,5 +19,11 @@ export const telegram: PlatformModule = {
 
 export { TelegramPlatform } from './telegram.platform.js';
 export type { TelegramAccountConfig, TelegramPlatformDeps } from './telegram.platform.js';
-export { TelegramAuthValidator } from './telegram-auth.validator.js';
-export { telegramCapabilities, MAX_MEDIA_GROUP_SIZE, MAX_CAPTION_LENGTH } from './capabilities.js';
+export { TelegramAuthValidator, validateTelegramAuth } from './telegram-auth.validator.js';
+export {
+  telegramCapabilities,
+  MAX_MEDIA_GROUP_SIZE,
+  MAX_CAPTION_LENGTH,
+  MAX_URL_PHOTO_BYTES,
+  MAX_URL_FILE_BYTES,
+} from './capabilities.js';
