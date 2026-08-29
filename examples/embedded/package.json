@@ -1,6 +1,6 @@
 {
   "name": "@bozonx/example-embedded",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "private": true,
   "description": "Minimal in-process consumer of @bozonx/social-posting",
   "type": "module",

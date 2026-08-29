@@ -1,5 +1,12 @@
 # @bozonx/social-posting-conformance
 
+## 0.6.0
+
+### Patch Changes
+
+- Updated dependencies [b604e4f]
+  - @bozonx/social-posting@0.6.0
+
 ## 0.5.1
 
 ### Patch Changes

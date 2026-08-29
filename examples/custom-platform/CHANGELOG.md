@@ -1,5 +1,12 @@
 # @bozonx/example-custom-platform
 
+## 0.0.3
+
+### Patch Changes
+
+- Updated dependencies [b604e4f]
+  - @bozonx/social-posting@0.6.0
+
 ## 0.0.2
 
 ### Patch Changes
