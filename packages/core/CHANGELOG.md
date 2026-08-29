@@ -1,5 +1,11 @@
 # @bozonx/social-posting
 
+## 0.7.0
+
+### Minor Changes
+
+- 1cc1dd7: Add restrictions of social media
+
 ## 0.6.0
 
 ### Minor Changes

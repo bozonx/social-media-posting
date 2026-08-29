@@ -1,6 +1,6 @@
 {
   "name": "@bozonx/example-custom-platform",
-  "version": "0.0.3",
+  "version": "0.1.0",
   "private": true,
   "description": "A social network implemented outside the library, in one file",
   "type": "module",

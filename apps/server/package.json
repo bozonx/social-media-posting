@@ -1,6 +1,6 @@
 {
   "name": "@bozonx/social-posting-server",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "private": true,
   "description": "HTTP shell around @bozonx/social-posting, deployable to Node and Cloudflare Workers",
   "type": "module",
