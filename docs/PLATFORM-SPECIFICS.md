@@ -223,23 +223,86 @@ The most constrained integration in this list, and the one most likely to be ref
 - A video Pin requires a publicly reachable **cover image URL**. It is not optional and it is not
   generated for you.
 
-## Networks on the roadmap, and what will change for you
+## Planned networks
 
-These are not implemented. They are listed because they each break an assumption that the seven
-above let you keep, and it is cheaper to know now.
+Mastodon, Bluesky and Vimeo are planned adapters. They are described here rather than in the
+roadmap table because each one changes an assumption the seven networks above let you keep.
 
-| Network                | The assumption it breaks                                                                                                                                                                                                                                                      |
-| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Mastodon**           | There is no single API host. Every instance is a separate server with its own limits, its own character count, its own media rules and its own custom emoji. Capabilities must be discovered per account, at runtime. It also has the only real idempotency key in this list. |
-| **Bluesky**            | Same multi-host problem (the account's PDS). Content is a typed record with byte-offset facets for links and mentions, so the text and its markup are validated together, and images are blobs uploaded separately.                                                           |
-| **Vimeo**              | Video-only like YouTube, but the constraint is a per-account **storage quota**, not a daily operation quota — a different failure mode with a different message to your user.                                                                                                 |
-| **WhatsApp Channels**  | No documented public API for posting Channel updates today. It is in the catalog as _unavailable_, and a catalog entry is not an adapter.                                                                                                                                     |
-| **VK / OK / regional** | Non-OAuth2 or dialect-OAuth2 auth, region-specific API hosts, and error messages that are not in English. Error _codes_ stay stable; error _messages_ should never be shown to your users untranslated.                                                                       |
+### Mastodon
 
-The consequence for the core, and therefore for you: an account's configuration is not just a
-token. It can carry an instance/API host, and its capabilities may have to be resolved per account
-rather than read from a constant. Write your integration so that it asks the client for
-capabilities for _an account_, not for _a platform name_.
+- **There is no single API host.** Every instance is a separate server. An account's configuration
+  must carry the instance URL, not just a token.
+- **Limits are instance configuration, not documentation.** The character limit, the number of
+  attachments, accepted formats and file sizes vary between servers, sometimes by a factor of
+  several. They are read from the instance at runtime. Do not hardcode 500 characters.
+- Your OAuth application is registered **per instance**, so the client id and secret are per
+  instance too. You have to store them alongside the token, not in your global config.
+- The only real **idempotency key** in this list. If you supply one, a repeated call cannot create
+  a second post — the strongest duplicate protection available anywhere here.
+- Content warnings and the sensitive flag are both real, and both meaningful. Threads are native.
+- Media upload can be asynchronous: an accepted upload may still be processing, and publishing
+  before it is ready fails.
+
+### Bluesky
+
+- Multi-host again: the account's PDS is the endpoint.
+- Authentication is not OAuth2 in the classic sense, so the OAuth refresh machinery does not
+  apply to it.
+- A post is a typed record, and **the client builds the markup**. Links, mentions and hashtags are
+  ranges expressed in **UTF-8 byte offsets**. If you build them yourself with string indices, any
+  text containing emoji or non-Latin characters produces misaligned links. Let the adapter do it.
+- The text limit is **300 graphemes**, with a separate byte limit — not 300 of anything
+  `String.length` counts.
+- Up to four images per post; video goes through a separate service and is asynchronous.
+
+### Vimeo
+
+- Video only, like YouTube, but the limit you will actually hit is the **account's storage quota
+  and upload allowance**, not a daily operation quota. Both surface as `QUOTA_EXCEEDED`, and the
+  advice you give the user is different: free up space rather than try tomorrow.
+- Upload is resumable; processing after upload is asynchronous, and "uploaded" is not "playable".
+- Upload access depends on the account tier.
+
+### WhatsApp Channels — not planned
+
+There is **no public documented API for publishing Channel updates**. The Cloud API covers
+business-to-user messaging, not creating posts in a Channel. It stays in the catalog as
+_unavailable_, and a catalog entry is not an adapter.
+
+We will not ship a workaround. Web automation or unofficial protocol clients violate the terms of
+service, break without warning, and cannot produce an honest capability descriptor. If you need
+WhatsApp delivery today, the legitimate route is Cloud API messaging to your own opted-in
+recipients — a different product with consent, templates and per-message billing, which does not
+fit the "create a publication" contract.
+
+## What is deliberately out of scope
+
+This library publishes **durable, addressable content to an audience**. A network qualifies when
+its result has a stable id and usually a public URL, is addressed to an audience rather than to a
+person, and can be prepared in advance without a live session.
+
+- **Snapchat** — access to the Public Profile API is approval-gated, and the only format is a
+  Story. Ephemeral content does not fit a model built around publications with history.
+- **Twitch** — there is no "publish this content" endpoint; the product is built around a live
+  session. A "stream started" notification is a _source event_ for your application, not a
+  publication this library creates.
+- **Reddit and Discord** pass the test and may be added later. Discord is cheap (a webhook and one
+  call) and is best presented to your users as an announcement channel rather than a social
+  network — there are no reach or engagement semantics behind it. Reddit needs subreddit rules and
+  flair fetched before every submission, and automated posting into communities that are not your
+  own is a good way to get an account banned.
+
+A catalog entry means we know about a network. It does not mean we support it.
+
+### Regional networks
+
+VK, OK and others bring non-OAuth2 or dialect-OAuth2 auth, region-specific API hosts, and error
+messages that are not in English. Error _codes_ stay stable; error _messages_ from those networks
+should never be shown to your users untranslated.
+
+The consequence for you, across all of the above: an account's configuration is not just a token.
+It can carry an instance or API host, and its capabilities may have to be resolved per account.
+Write your integration so that it asks for capabilities of _an account_, not of _a platform name_.
 
 ## A checklist before you enable a network in production
 
