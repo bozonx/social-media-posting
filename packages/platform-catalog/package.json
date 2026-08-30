@@ -1,6 +1,6 @@
 {
   "name": "@bozonx/social-posting-platform-catalog",
-  "version": "0.5.0",
+  "version": "0.7.0",
   "description": "Versioned capability profiles for social posting platforms",
   "type": "module",
   "main": "./dist/index.js",
@@ -26,7 +26,7 @@
   },
   "dependencies": {},
   "peerDependencies": {
-    "@bozonx/social-posting": "^0.5.0"
+    "@bozonx/social-posting": "^0.7.0"
   },
   "devDependencies": {
     "@bozonx/social-posting": "workspace:*"
