@@ -68,6 +68,9 @@ importers:
       '@bozonx/social-posting':
         specifier: workspace:*
         version: link:../../packages/core
+      '@bozonx/social-posting-discord':
+        specifier: workspace:*
+        version: link:../../packages/platform-discord
       '@bozonx/social-posting-telegram':
         specifier: workspace:*
         version: link:../../packages/platform-telegram
@@ -123,6 +126,15 @@ importers:
       '@bozonx/social-posting':
         specifier: workspace:*
         version: link:../core
+
+  packages/platform-discord:
+    devDependencies:
+      '@bozonx/social-posting':
+        specifier: workspace:*
+        version: link:../core
+      '@bozonx/social-posting-conformance':
+        specifier: workspace:*
+        version: link:../conformance
 
   packages/platform-telegram:
     devDependencies:

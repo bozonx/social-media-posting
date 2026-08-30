@@ -35,10 +35,16 @@ export const MAX_POLL_QUESTION_LENGTH = 300;
 export const MIN_POLL_DURATION_SECS = 3_600;
 export const MAX_POLL_DURATION_SECS = 768 * 3_600;
 
-/** We upload the bytes ourselves; a URL source is downloaded first, not handed over. */
+/**
+ * Discord never fetches a URL: every file is uploaded to it as
+ * `multipart/form-data`. A `url` source is still accepted because this adapter
+ * downloads it first — which is why the transport is `both` rather than `push`,
+ * and why `requiresPubliclyFetchableUrl` is absent: the URL has to be reachable
+ * from this process, not from Discord.
+ */
 const attachment = {
   acceptedSources: ['url', 'bytes', 'blob', 'stream'] as const,
-  transport: 'push' as const,
+  transport: 'both' as const,
   maxBytes: DEFAULT_MAX_ATTACHMENT_BYTES,
 };
 
@@ -129,6 +135,10 @@ export const discordCapabilities: PlatformCapabilities = {
 
   altText: { supported: true, maxLength: MAX_ALT_TEXT_LENGTH },
 
+  // Discord has no per-message spoiler flag: a spoilered attachment is one
+  // whose file name starts with `SPOILER_`.
+  sensitive: { supportedValues: [false, true], default: false },
+
   // The channel is `target.id`. A guild id is not part of the address Discord
   // needs — the channel is globally unique — but it is what a permalink and the
   // boost-tier lookup are built from, so it is part of the address we keep.
@@ -209,7 +219,6 @@ export const discordCapabilities: PlatformCapabilities = {
     'thumbnail',
     'visibility',
     'contentWarning',
-    'sensitive',
     'commentsEnabled',
     'location',
     'repostOf',

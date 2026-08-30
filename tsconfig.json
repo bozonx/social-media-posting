@@ -11,6 +11,7 @@
       "@bozonx/social-posting": ["./packages/core/src/index.ts"],
       "@bozonx/social-posting/platform": ["./packages/core/src/platform.ts"],
       "@bozonx/social-posting-telegram": ["./packages/platform-telegram/src/index.ts"],
+      "@bozonx/social-posting-discord": ["./packages/platform-discord/src/index.ts"],
       "@bozonx/social-posting-conformance": ["./packages/conformance/src/index.ts"]
     }
   },

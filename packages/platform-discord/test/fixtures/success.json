@@ -1,0 +1,55 @@
+{
+  "$comment": "Message objects recorded from Discord (v10), trimmed to the fields this adapter reads plus what a host may log.",
+  "botMessage": {
+    "status": 200,
+    "body": {
+      "id": "1310000000000000001",
+      "type": 0,
+      "channel_id": "1290000000000000002",
+      "content": "Contract suite post",
+      "timestamp": "2026-08-30T10:00:00.000000+00:00",
+      "attachments": [],
+      "embeds": [],
+      "pinned": false,
+      "tts": false
+    }
+  },
+  "webhookMessage": {
+    "status": 200,
+    "body": {
+      "id": "1310000000000000009",
+      "type": 0,
+      "channel_id": "1290000000000000002",
+      "guild_id": "1280000000000000003",
+      "webhook_id": "1300000000000000004",
+      "content": "Sent through a webhook",
+      "timestamp": "2026-08-30T10:00:00.000000+00:00",
+      "attachments": [],
+      "embeds": []
+    }
+  },
+  "attachmentMessage": {
+    "status": 200,
+    "body": {
+      "id": "1310000000000000010",
+      "type": 0,
+      "channel_id": "1290000000000000002",
+      "content": "caption",
+      "attachments": [
+        {
+          "id": "1310000000000000011",
+          "filename": "image.jpg",
+          "description": "A red square",
+          "size": 1234,
+          "url": "https://cdn.discordapp.com/attachments/1290000000000000002/1310000000000000011/image.jpg",
+          "content_type": "image/jpeg"
+        }
+      ],
+      "embeds": []
+    }
+  },
+  "guild": {
+    "status": 200,
+    "body": { "id": "1280000000000000003", "name": "Contract server", "premium_tier": 2 }
+  }
+}

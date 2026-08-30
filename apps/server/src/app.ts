@@ -9,6 +9,7 @@ import {
   PreviewService,
 } from '@bozonx/social-posting/platform';
 import type { PostServiceDeps } from '@bozonx/social-posting/platform';
+import { discord } from '@bozonx/social-posting-discord';
 import { telegram } from '@bozonx/social-posting-telegram';
 import { JsonLogger } from './logger.js';
 import { DrainTracker } from './middleware/drain.js';
@@ -24,7 +25,7 @@ import type { ServerConfig } from './config/schema.js';
  *
  * Adding one is a line here plus a dependency; nothing in the library changes.
  */
-export const PLATFORMS: PlatformModule[] = [telegram];
+export const PLATFORMS: PlatformModule[] = [telegram, discord];
 
 /** Everything needed to build the HTTP app. */
 export interface CreateAppOptions {

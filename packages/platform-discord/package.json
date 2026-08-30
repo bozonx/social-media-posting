@@ -1,8 +1,12 @@
 {
   "name": "@bozonx/social-posting-discord",
-  "version": "3.0.0",
+  "version": "0.5.0",
   "description": "Discord platform for @bozonx/social-posting",
-  "keywords": ["social-media", "posting", "discord"],
+  "keywords": [
+    "social-media",
+    "posting",
+    "discord"
+  ],
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -14,7 +18,11 @@
       "default": "./dist/index.js"
     }
   },
-  "files": ["dist", "README.md", "LICENSE"],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "clean": "rm -rf dist *.tsbuildinfo",
@@ -22,14 +30,21 @@
     "prepack": "pnpm run build"
   },
   "dependencies": {},
-  "peerDependencies": { "@bozonx/social-posting": "workspace:^" },
+  "peerDependencies": {
+    "@bozonx/social-posting": "^0.5.0"
+  },
   "devDependencies": {
     "@bozonx/social-posting": "workspace:*",
     "@bozonx/social-posting-conformance": "workspace:*"
   },
-  "publishConfig": { "access": "public", "provenance": true },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "sideEffects": false,
   "author": "Ivan K",
   "license": "MIT",
-  "engines": { "node": ">=24.0.0" }
+  "engines": {
+    "node": ">=24.0.0"
+  }
 }

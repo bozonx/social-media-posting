@@ -4,7 +4,8 @@ A web-standard library for publishing to social networks. Every network is an is
 implementing one stable contract; adding one is meant to be the only work left.
 
 - **`@bozonx/social-posting`** — the core. Zero runtime dependencies, no framework.
-- **`@bozonx/social-posting-telegram`** — Telegram. One package per network.
+- **`@bozonx/social-posting-telegram`**, **`@bozonx/social-posting-discord`** — the networks. One
+  package per network.
 - **`@bozonx/social-posting-conformance`** — the contract suite every network must pass.
 - **`apps/server`** — an HTTP shell for non-Node callers. Not published to npm; ships as a Docker
   image and a Cloudflare Workers deployment.
@@ -92,6 +93,10 @@ mutates no global state and never touches an ambient logger.
 | Network  | Package                           | Media by URL | Byte upload | Deferred results |
 | -------- | --------------------------------- | ------------ | ----------- | ---------------- |
 | Telegram | `@bozonx/social-posting-telegram` | yes          | no          | no               |
+| Discord  | `@bozonx/social-posting-discord`  | yes¹         | yes         | no               |
+
+¹ Discord never fetches a URL: the adapter downloads it and uploads the bytes, so the URL must be
+reachable from your process rather than from Discord.
 
 Adding the next one: [`CONTRIBUTING-PLATFORMS.md`](CONTRIBUTING-PLATFORMS.md).
 
@@ -153,6 +158,7 @@ See [`apps/server/README.md`](apps/server/README.md) for the API, and
 | ------------------------------------------------------------------------------ | -------------------------------------------- |
 | [`packages/core/README.md`](packages/core/README.md)                           | The library API                              |
 | [`packages/platform-telegram/README.md`](packages/platform-telegram/README.md) | Telegram reference                           |
+| [`packages/platform-discord/README.md`](packages/platform-discord/README.md)   | Discord reference                            |
 | [`apps/server/README.md`](apps/server/README.md)                               | The HTTP API                                 |
 | [`CONTRIBUTING-PLATFORMS.md`](CONTRIBUTING-PLATFORMS.md)                       | Adding a network                             |
 | [`docs/DELIVERY-SEMANTICS.md`](docs/DELIVERY-SEMANTICS.md)                     | Duplicate risk, and who owns it              |

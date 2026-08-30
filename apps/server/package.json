@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@bozonx/social-posting": "workspace:*",
+    "@bozonx/social-posting-discord": "workspace:*",
     "@bozonx/social-posting-telegram": "workspace:*",
     "@hono/node-server": "^2.1.1",
     "hono": "^4.13.3",

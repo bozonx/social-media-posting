@@ -8,7 +8,7 @@ network makes about _your_ application, your storage, your user, and your databa
 Read it before you promise a network to your own users. Most integrations fail not on the HTTP
 call but on one of the constraints below.
 
-> Status: 2026-08-29. Only Telegram ships today. Every other section describes what the adapter
+> Status: 2026-08-30. Telegram and Discord ship today. Every other section describes what the adapter
 > will require of you, and is written from official documentation. Anything account-, tier-,
 > region- or review-dependent is deliberately _not_ given as a number here, because it is not a
 > number we are allowed to promise.
@@ -277,7 +277,7 @@ The most constrained integration in this list, and the one most likely to be ref
 These are the planned adapters. Each is described here rather than in a table because each one
 changes an assumption the networks above let you keep.
 
-### Discord
+### Discord — _shipping_
 
 The cheapest integration in the set, and the one most likely to be misunderstood.
 
@@ -289,6 +289,16 @@ The cheapest integration in the set, and the one most likely to be misunderstood
 - 2000 characters. Up to 10 attachments, but **the size limit per attachment depends on the
   server's boost level** — it is not a constant, and it is read at runtime.
 - Embeds are a Discord-specific format and are passed through `extra`.
+- **Discord never fetches a URL.** Every file is uploaded to it. A `url` media source still works
+  because the adapter downloads it first, which means the URL must be reachable from _your_
+  process, not from Discord — the opposite of the Meta networks, and the reason no signed-URL
+  lifetime applies here.
+- A webhook cannot reply to a message. `inReplyTo` is refused on a webhook account rather than
+  quietly dropped; use a bot token if you need replies.
+- Spoilered attachments have no flag: Discord treats a file whose name starts with `SPOILER_` as
+  spoilered, and that is what `media[].sensitive` produces.
+- Polls run for **whole hours**. A `durationSecs` that is not a multiple of 3600 is refused rather
+  than rounded, because rounding a poll's deadline is a silent change to what was asked for.
 
 Present it to your users as an _announcement channel_, not as a social network. There are no reach
 or engagement semantics behind a Discord message, and a UI that implies otherwise will disappoint.

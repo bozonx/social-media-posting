@@ -113,9 +113,10 @@ because polling requires a scheduler and a scheduler requires durable state.
 
 ## Per-network notes
 
-| Network  | Native idempotency | Duplicate window                                             | Reconciliation                                                                                                                                  |
-| -------- | ------------------ | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| Telegram | none               | one Bot API call; a lost response after the message was sent | none from the API side — the Bot API cannot list a channel's recent messages, so a duplicate is only visible to a client that reads the channel |
+| Network  | Native idempotency | Duplicate window                                             | Reconciliation                                                                                                                                                                                                                                |
+| -------- | ------------------ | ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Telegram | none               | one Bot API call; a lost response after the message was sent | none from the API side — the Bot API cannot list a channel's recent messages, so a duplicate is only visible to a client that reads the channel                                                                                               |
+| Discord  | none               | one REST call; a lost response after the message was created | none implemented — a bot token could list recent channel messages, but a webhook cannot read the channel at all, so the adapter declares neither `reconcile()` nor an idempotency key and an unconfirmed create surfaces as `UNKNOWN_OUTCOME` |
 
 This table grows one row per network as networks land, and each row is filled in from that
 network's documented behaviour rather than from assumption. A network is not "done" until its row

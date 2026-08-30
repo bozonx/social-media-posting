@@ -1,6 +1,43 @@
 {
-  "$comment": "Responses recorded from the real Discord API. Record the failures too — those are the paths that break in production.",
-  "rateLimited": { "status": 429, "headers": { "retry-after": "30" }, "body": {} },
-  "unauthorized": { "status": 401, "body": {} },
-  "serverError": { "status": 503, "body": {} }
+  "$comment": "Responses recorded from the Discord API (v10). The failures matter most: they are the paths that break in production.",
+  "rateLimited": {
+    "status": 429,
+    "headers": { "retry-after": "30", "x-ratelimit-scope": "user" },
+    "body": {
+      "message": "You are being rate limited.",
+      "retry_after": 30.0,
+      "global": false,
+      "code": 0
+    }
+  },
+  "unauthorized": {
+    "status": 401,
+    "body": { "message": "401: Unauthorized", "code": 0 }
+  },
+  "missingPermissions": {
+    "status": 403,
+    "body": { "message": "Missing Permissions", "code": 50013 }
+  },
+  "unknownChannel": {
+    "status": 404,
+    "body": { "message": "Unknown Channel", "code": 10003 }
+  },
+  "attachmentTooLarge": {
+    "status": 400,
+    "body": {
+      "message": "Invalid Form Body",
+      "code": 50035,
+      "errors": {
+        "files": { "0": { "_errors": [{ "code": "FILE_SIZE", "message": "File too large" }] } }
+      }
+    }
+  },
+  "payloadTooLarge": {
+    "status": 413,
+    "body": { "message": "Request entity too large", "code": 40005 }
+  },
+  "serverError": {
+    "status": 503,
+    "body": { "message": "503: Service Unavailable", "code": 0 }
+  }
 }
