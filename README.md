@@ -145,6 +145,7 @@ See [`apps/server/README.md`](apps/server/README.md) for the API, and
 | [`apps/server/README.md`](apps/server/README.md)                               | The HTTP API                                 |
 | [`CONTRIBUTING-PLATFORMS.md`](CONTRIBUTING-PLATFORMS.md)                       | Adding a network                             |
 | [`docs/DELIVERY-SEMANTICS.md`](docs/DELIVERY-SEMANTICS.md)                     | Duplicate risk, and who owns it              |
+| [`docs/PLATFORM-SPECIFICS.md`](docs/PLATFORM-SPECIFICS.md)                     | What each network demands of your app        |
 | [`docs/OAUTH.md`](docs/OAUTH.md)                                               | Credentials, token refresh, re-authorization |
 | [`docs/RUNTIMES.md`](docs/RUNTIMES.md)                                         | Node, Workers, Deno, Bun                     |
 | [`docs/CHANGELOG.md`](docs/CHANGELOG.md)                                       | What changed, and why                        |
