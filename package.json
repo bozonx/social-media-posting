@@ -30,7 +30,7 @@
     "publish:packages": "pnpm --filter @bozonx/social-posting --filter @bozonx/social-posting-telegram --filter @bozonx/social-posting-discord --filter @bozonx/social-posting-platform-catalog --filter @bozonx/social-posting-conformance publish --access public --no-git-checks",
     "publish:packages:dry": "pnpm --filter @bozonx/social-posting --filter @bozonx/social-posting-telegram --filter @bozonx/social-posting-discord --filter @bozonx/social-posting-platform-catalog --filter @bozonx/social-posting-conformance publish --access public --dry-run --no-git-checks",
     "publish:all": "pnpm -r --filter \"./packages/*\" publish --access public --no-git-checks",
-    "validate": "pnpm check && pnpm test:unit",
+    "validate": "pnpm check && pnpm --filter @bozonx/social-posting build && pnpm test:unit",
     "validate:all": "pnpm check && pnpm check:deps && pnpm build && pnpm typecheck:packages && pnpm test:unit && pnpm test:e2e && pnpm test:workerd && pnpm check:publish",
     "docker:build": "docker compose -f apps/server/docker/docker-compose.yml build",
     "docker:up": "docker compose -f apps/server/docker/docker-compose.yml up -d",
