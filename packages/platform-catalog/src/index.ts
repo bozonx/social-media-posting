@@ -258,12 +258,6 @@ export const platformProfiles = {
       'post records and embeds',
     ]),
   }),
-  diaspora: unavailable(
-    'diaspora',
-    'diaspora*',
-    'diaspora* has no stable, official cross-pod publishing API.',
-    'https://diasporafoundation.org/',
-  ),
   snapchat: profile(
     'snapchat',
     'Snapchat',

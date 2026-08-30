@@ -20,7 +20,6 @@ discovered at runtime.
 | Mastodon          | Available             | Limits are instance configuration and require discovery.             |
 | X                 | Available             | Product tier and weighted character counting apply.                  |
 | Bluesky           | Available             | AT Protocol record and blob constraints apply.                       |
-| diaspora*         | Unavailable           | No stable official cross-pod publishing API.                         |
 | Snapchat          | Restricted            | Public Profile API access is approval-based.                         |
 | Discord           | Available             | Bot/webhook permissions and guild upload tier apply.                 |
 | Pinterest         | Available             | Pins require a board and media-specific flows.                       |
