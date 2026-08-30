@@ -22,6 +22,10 @@ consumer, rather than fifteen times later.
 
 ### Added
 
+- **Federated publishing wave:** `@bozonx/social-posting-mastodon` exports Mastodon and a
+  descriptor-derived Pixelfed module over one protocol implementation. It supports arbitrary
+  instance hosts, runtime instance limits, media alt text, polls, replies, explicit threads and
+  idempotency keys. Truth Social remains restricted pending the legal/access gate.
 - **Meta publishing wave:** `@bozonx/social-posting-threads`,
   `@bozonx/social-posting-instagram`, and `@bozonx/social-posting-facebook`. Threads and Instagram
   persist container/carousel IDs and publish only after processing finishes. Facebook implements

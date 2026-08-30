@@ -80,6 +80,9 @@ importers:
       '@bozonx/social-posting-instagram':
         specifier: workspace:*
         version: link:../../packages/platform-instagram
+      '@bozonx/social-posting-mastodon':
+        specifier: workspace:*
+        version: link:../../packages/platform-mastodon
       '@bozonx/social-posting-telegram':
         specifier: workspace:*
         version: link:../../packages/platform-telegram
@@ -172,6 +175,15 @@ importers:
         version: link:../conformance
 
   packages/platform-instagram:
+    devDependencies:
+      '@bozonx/social-posting':
+        specifier: workspace:*
+        version: link:../core
+      '@bozonx/social-posting-conformance':
+        specifier: workspace:*
+        version: link:../conformance
+
+  packages/platform-mastodon:
     devDependencies:
       '@bozonx/social-posting':
         specifier: workspace:*

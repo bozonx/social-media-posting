@@ -13,6 +13,7 @@ import { dailymotion } from '@bozonx/social-posting-dailymotion';
 import { discord } from '@bozonx/social-posting-discord';
 import { facebook } from '@bozonx/social-posting-facebook';
 import { instagram } from '@bozonx/social-posting-instagram';
+import { mastodon, pixelfed } from '@bozonx/social-posting-mastodon';
 import { telegram } from '@bozonx/social-posting-telegram';
 import { threads } from '@bozonx/social-posting-threads';
 import { vimeo } from '@bozonx/social-posting-vimeo';
@@ -40,6 +41,8 @@ export const PLATFORMS: PlatformModule[] = [
   threads,
   instagram,
   facebook,
+  mastodon,
+  pixelfed,
 ];
 
 /** Everything needed to build the HTTP app. */

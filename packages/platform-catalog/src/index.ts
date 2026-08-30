@@ -258,6 +258,54 @@ export const platformProfiles = {
     },
     'Character and media limits are instance configuration and must be discovered at runtime.',
   ),
+  pixelfed: profile(
+    'pixelfed',
+    'Pixelfed',
+    'available',
+    {
+      postTypes: {
+        [PostType.IMAGE]: { requiredFields: ['media'], minMediaCount: 1, maxMediaCount: 4 },
+        [PostType.VIDEO]: { requiredFields: ['media'], minMediaCount: 1, maxMediaCount: 1 },
+        [PostType.ALBUM]: { requiredFields: ['media'], minMediaCount: 2, maxMediaCount: 4 },
+      },
+      media: pushMedia(['image', 'video']),
+      supportsContentWarning: true,
+      supportsReply: true,
+      sensitive: { supportedValues: [false, true] },
+      supportedVisibility: ['public', 'unlisted', 'private', 'direct'],
+      supportsIdempotencyKey: true,
+      auth: {
+        kind: 'oauth2',
+        scopes: ['write:statuses', 'write:media'],
+        docsUrl: 'https://docs.pixelfed.org/technical-documentation/api/',
+      },
+      sources: source('https://docs.pixelfed.org/technical-documentation/api/', [
+        'Mastodon-compatible API',
+      ]),
+    },
+    'Implemented as a descriptor over the Mastodon API adapter; instance limits are discovered at runtime.',
+  ),
+  truthSocial: profile(
+    'truthSocial',
+    'Truth Social',
+    'restricted',
+    {
+      postTypes: {
+        [PostType.POST]: { requiredFields: ['body'] },
+        [PostType.IMAGE]: { requiredFields: ['media'], minMediaCount: 1, maxMediaCount: 4 },
+        [PostType.VIDEO]: { requiredFields: ['media'], minMediaCount: 1, maxMediaCount: 1 },
+      },
+      media: pushMedia(['image', 'video']),
+      supportsContentWarning: true,
+      supportsReply: true,
+      sensitive: { supportedValues: [false, true] },
+      supportedVisibility: ['public', 'unlisted', 'private', 'direct'],
+      supportsIdempotencyKey: true,
+      auth: { kind: 'oauth2', scopes: ['write:statuses', 'write:media'] },
+      sources: source('https://truthsocial.com/terms-of-service', ['service terms']),
+    },
+    'No adapter is exported until lawful API access and permission for automated publishing are documented.',
+  ),
   x: profile('x', 'X', 'available', {
     postTypes: {
       [PostType.POST]: { requiredFields: ['body'], maxBodyLength: 280 },

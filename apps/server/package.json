@@ -21,6 +21,7 @@
     "@bozonx/social-posting-discord": "workspace:*",
     "@bozonx/social-posting-facebook": "workspace:*",
     "@bozonx/social-posting-instagram": "workspace:*",
+    "@bozonx/social-posting-mastodon": "workspace:*",
     "@bozonx/social-posting-telegram": "workspace:*",
     "@bozonx/social-posting-threads": "workspace:*",
     "@bozonx/social-posting-vimeo": "workspace:*",

@@ -101,7 +101,7 @@ export function deriveModule(
           }
           const value = Reflect.get(target, property, receiver) as unknown;
           return typeof value === 'function'
-            ? (value as (...args: unknown[]) => unknown).bind(target)
+            ? (value as (...args: unknown[]) => unknown).bind(receiver)
             : value;
         },
       });

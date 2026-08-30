@@ -1,0 +1,51 @@
+{
+  "name": "@bozonx/social-posting-mastodon",
+  "version": "0.5.0",
+  "description": "Mastodon API platform adapters for @bozonx/social-posting",
+  "keywords": [
+    "social-media",
+    "posting",
+    "mastodon",
+    "pixelfed"
+  ],
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "workerd": "./dist/index.js",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepack": "pnpm run build"
+  },
+  "dependencies": {},
+  "peerDependencies": {
+    "@bozonx/social-posting": "^0.5.0"
+  },
+  "devDependencies": {
+    "@bozonx/social-posting": "workspace:*",
+    "@bozonx/social-posting-conformance": "workspace:*"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "sideEffects": false,
+  "author": "Ivan K",
+  "license": "MIT",
+  "engines": {
+    "node": ">=24.0.0"
+  }
+}
