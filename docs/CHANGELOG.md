@@ -103,6 +103,9 @@ consumer, rather than fifteen times later.
 
 ### Changed
 
+- BloggerDog host integration now persists the capability-driven `adaptedRequest` instead of
+  maintaining a Telegram-specific request formatter and duplicate per-network delivery rules.
+
 - Telegram: media declares `transport: 'pull'`; the chat is addressed through the normalized
   target, and a forum topic is `target.messageThreadId` (the `message_thread_id` extra field is
   gone); the descriptor declares `auth.requiresTarget`.
