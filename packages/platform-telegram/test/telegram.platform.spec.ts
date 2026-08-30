@@ -106,6 +106,16 @@ describe('TelegramPlatform', () => {
         PostType.POLL,
       ]);
     });
+
+    it('declares only media sources implemented by the JSON Bot API transport', () => {
+      expect(platform.capabilities.media?.image?.acceptedSources).toEqual(['url', 'platformRef']);
+      expect(platform.capabilities.media?.video?.acceptedSources).toEqual(['url', 'platformRef']);
+      expect(platform.capabilities.media?.audio?.acceptedSources).toEqual(['url', 'platformRef']);
+      expect(platform.capabilities.media?.document?.acceptedSources).toEqual([
+        'url',
+        'platformRef',
+      ]);
+    });
   });
 
   describe('publish - POST type', () => {
@@ -251,6 +261,20 @@ describe('TelegramPlatform', () => {
 
       await expect(platform.publish(request, mockAccountConfig)).rejects.toThrow(
         /protected Telegram option.*chat_id, text/,
+      );
+      expect(botApi.called('sendMessage')).toBe(false);
+    });
+
+    it('rejects undeclared Telegram options before publishing', async () => {
+      const request: PostRequest = {
+        platform: 'telegram',
+        body: 'Test message',
+        type: PostType.POST,
+        extra: { disable_notification: true },
+      };
+
+      await expect(platform.publish(request, mockAccountConfig)).rejects.toThrow(
+        /Unknown extra field 'disable_notification'/,
       );
       expect(botApi.called('sendMessage')).toBe(false);
     });
@@ -426,14 +450,69 @@ describe('TelegramPlatform', () => {
         platform: 'telegram',
         body: 'Album caption',
         bodyFormat: 'html',
-        media: [{ source: { kind: 'platformRef', ref: 'BAACAgIAAxkBAAIC...' } }],
+        media: [
+          { source: { kind: 'platformRef', ref: 'BAACAgIAAxkBAAIC...' } },
+          { source: { kind: 'platformRef', ref: 'BAACAgIAAxkBAAID...' }, type: 'image' },
+        ],
         type: PostType.ALBUM,
       };
 
       await expect(platform.publish(request, mockAccountConfig)).rejects.toThrow(
-        "Media item at index 0 must specify 'type' when using Telegram file_id in albums",
+        "Media item at index 0 must specify 'type' in Telegram albums",
       );
 
+      expect(botApi.called('sendMediaGroup')).toBe(false);
+    });
+
+    it('rejects a one-item media group', async () => {
+      const request: PostRequest = {
+        platform: 'telegram',
+        media: [{ type: 'image', source: { kind: 'url', url: 'https://example.com/image.jpg' } }],
+        type: PostType.ALBUM,
+      };
+
+      await expect(platform.publish(request, mockAccountConfig)).rejects.toThrow(
+        'needs at least 2 media item(s)',
+      );
+      expect(botApi.called('sendMediaGroup')).toBe(false);
+    });
+
+    it('keeps homogeneous audio albums as InputMediaAudio without spoiler fields', async () => {
+      const request: PostRequest = {
+        platform: 'telegram',
+        media: [
+          { type: 'audio', source: { kind: 'url', url: 'https://example.com/one.mp3' } },
+          { type: 'audio', source: { kind: 'url', url: 'https://example.com/two.mp3' } },
+        ],
+        type: PostType.ALBUM,
+      };
+      botApi.reply('sendMediaGroup', [{ message_id: 1 }, { message_id: 2 }]);
+
+      await platform.publish(request, mockAccountConfig);
+
+      expect(botApi.lastPayload('sendMediaGroup')).toEqual({
+        chat_id: 'test-chat-id',
+        media: [
+          { type: 'audio', media: 'https://example.com/one.mp3' },
+          { type: 'audio', media: 'https://example.com/two.mp3' },
+        ],
+        disable_notification: false,
+      });
+    });
+
+    it('rejects mixing documents with visual media', async () => {
+      const request: PostRequest = {
+        platform: 'telegram',
+        media: [
+          { type: 'document', source: { kind: 'url', url: 'https://example.com/a.pdf' } },
+          { type: 'image', source: { kind: 'url', url: 'https://example.com/b.jpg' } },
+        ],
+        type: PostType.ALBUM,
+      };
+
+      await expect(platform.publish(request, mockAccountConfig)).rejects.toThrow(
+        /audio and document albums must contain only one media type/,
+      );
       expect(botApi.called('sendMediaGroup')).toBe(false);
     });
 
@@ -445,7 +524,7 @@ describe('TelegramPlatform', () => {
         media: [
           { source: { kind: 'url', url: 'https://example.com/file1' }, type: 'image' },
           { source: { kind: 'url', url: 'https://example.com/file2' }, type: 'video' },
-          { source: { kind: 'url', url: 'https://example.com/file3' } },
+          { source: { kind: 'url', url: 'https://example.com/file3' }, type: 'image' },
         ],
         type: PostType.ALBUM,
       };

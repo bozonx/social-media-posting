@@ -58,7 +58,7 @@ export const telegramCapabilities: PlatformCapabilities = {
     },
     [PostType.ALBUM]: {
       requiredFields: ['media'],
-      minMediaCount: 1,
+      minMediaCount: 2,
       maxMediaCount: MAX_MEDIA_GROUP_SIZE,
       maxBodyLength: MAX_CAPTION_LENGTH,
     },
@@ -77,19 +77,19 @@ export const telegramCapabilities: PlatformCapabilities = {
 
   media: {
     image: {
-      acceptedSources: ['url', 'bytes', 'blob', 'stream', 'platformRef'],
+      acceptedSources: ['url', 'platformRef'],
       maxBytesBySource: { url: MAX_URL_PHOTO_BYTES },
     },
     video: {
-      acceptedSources: ['url', 'bytes', 'blob', 'stream', 'platformRef'],
+      acceptedSources: ['url', 'platformRef'],
       maxBytesBySource: { url: MAX_URL_FILE_BYTES },
     },
     audio: {
-      acceptedSources: ['url', 'bytes', 'blob', 'stream', 'platformRef'],
+      acceptedSources: ['url', 'platformRef'],
       maxBytesBySource: { url: MAX_URL_FILE_BYTES },
     },
     document: {
-      acceptedSources: ['url', 'bytes', 'blob', 'stream', 'platformRef'],
+      acceptedSources: ['url', 'platformRef'],
       maxBytesBySource: { url: MAX_URL_FILE_BYTES },
     },
   },
@@ -139,7 +139,7 @@ export const telegramCapabilities: PlatformCapabilities = {
     { name: 'reply_parameters', type: 'object' },
   ],
 
-  allowUnknownExtraFields: true,
+  allowUnknownExtraFields: false,
 
   rateLimits: {
     note: 'Bot API limits depend on chat type; hosts must honour retry_after from 429 responses.',

@@ -26,7 +26,7 @@ import type {
 import { toTelegramInput } from './telegram-media.js';
 import { toPlatformError } from './telegram-error.js';
 import { TelegramApi } from './telegram-api.js';
-import { MAX_CAPTION_LENGTH, MAX_MEDIA_GROUP_SIZE, telegramCapabilities } from './capabilities.js';
+import { MAX_CAPTION_LENGTH, telegramCapabilities } from './capabilities.js';
 
 /**
  * Collaborators the Telegram platform needs.
@@ -487,16 +487,17 @@ export class TelegramPlatform implements IPlatform {
     }
 
     if (type === PostType.ALBUM) {
-      request.media?.forEach((item, index) => {
-        const isRef = item.source.kind === 'platformRef';
-        if (isRef && !item.type) {
-          issues.push({
-            code: 'ALBUM_MEDIA_TYPE_REQUIRED',
-            field: `media[${index}].type`,
-            message: `Media item at index ${index} must specify 'type' when using Telegram file_id in albums`,
-          });
-        }
-      });
+      const mediaKinds = request.media?.map((item, index) => resolveAlbumMediaType(item, index));
+      const distinctKinds = new Set(mediaKinds);
+      const visualAlbum = [...distinctKinds].every(kind => kind === 'photo' || kind === 'video');
+      if (!visualAlbum && distinctKinds.size > 1) {
+        issues.push({
+          code: 'ALBUM_MEDIA_MIX_UNSUPPORTED',
+          field: 'media',
+          message:
+            'Telegram albums may mix photos and videos; audio and document albums must contain only one media type',
+        });
+      }
     }
 
     return issues;
@@ -684,17 +685,18 @@ export class TelegramPlatform implements IPlatform {
     extra: Record<string, unknown>,
     signal?: AbortSignal,
   ): Promise<TelegramMessage[]> {
-    const mediaGroup = media.slice(0, MAX_MEDIA_GROUP_SIZE).map((item, index) => {
+    const mediaGroup = media.map((item, index) => {
       const mediaInput = toTelegramInput(item);
-      const explicitType = item.type;
-      const url = item.source.kind === 'url' ? item.source.url : undefined;
+      const type = resolveAlbumMediaType(item, index);
 
       return {
-        type: mapMediaTypeToTelegram(explicitType, url),
+        type,
         media: mediaInput,
         caption: index === 0 ? caption : undefined,
-        parse_mode: parseMode && index === 0 ? parseMode : undefined,
-        has_spoiler: sensitive ?? item.sensitive,
+        parse_mode: caption && parseMode && index === 0 ? parseMode : undefined,
+        ...(type === 'photo' || type === 'video'
+          ? { has_spoiler: sensitive ?? item.sensitive }
+          : {}),
       };
     });
 
@@ -720,16 +722,34 @@ export class TelegramPlatform implements IPlatform {
   }
 }
 
-function mapMediaTypeToTelegram(
-  explicitType: string | undefined,
-  url: string | undefined,
-): 'photo' | 'video' {
-  if (explicitType) {
-    return explicitType === 'video' ? 'video' : 'photo';
+type TelegramAlbumMediaType = 'photo' | 'video' | 'audio' | 'document';
+
+function resolveAlbumMediaType(item: MediaInput, index: number): TelegramAlbumMediaType {
+  if (item.type) {
+    return item.type === 'image' ? 'photo' : item.type;
   }
 
-  const isVideo = url ? /\.(mp4|mov|avi|mkv)$/i.test(url) : false;
-  return isVideo ? 'video' : 'photo';
+  if (item.source.kind !== 'url') {
+    throw new ValidationError(
+      `Media item at index ${index} must specify 'type' in Telegram albums`,
+    );
+  }
+
+  let pathname: string;
+  try {
+    pathname = new URL(item.source.url).pathname;
+  } catch {
+    throw new ValidationError(`Media item at index ${index} has an invalid URL`);
+  }
+
+  if (/\.(jpe?g|png|webp|gif)$/i.test(pathname)) return 'photo';
+  if (/\.(mp4|mov|avi|mkv|webm)$/i.test(pathname)) return 'video';
+  if (/\.(mp3|m4a|ogg|wav|flac)$/i.test(pathname)) return 'audio';
+  if (/\.[a-z0-9]{1,10}$/i.test(pathname)) return 'document';
+
+  throw new ValidationError(
+    `Media item at index ${index} must specify 'type' when its URL has no recognizable file extension`,
+  );
 }
 
 interface TelegramMessage {

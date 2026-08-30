@@ -10,8 +10,8 @@ export class TelegramAuthValidator implements IAuthValidator {
   /**
    * Validate a Telegram credential object.
    *
-   * A bot token is static: it never expires, so this check is purely about
-   * shape and never reports `AUTH_REFRESH_REQUIRED`.
+   * Bot tokens do not use an expiry timestamp, so this local check validates
+   * shape only. Telegram can still revoke a token at any time.
    *
    * @param auth - Credentials, expected to carry `apiKey`.
    * @returns The problems found; an empty list means the token is well-formed.

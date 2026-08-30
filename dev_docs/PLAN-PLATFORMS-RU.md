@@ -19,27 +19,30 @@ Web Crypto) и прямые HTTP-запросы. SDK поставщиков и r
 Не входят в эту итерацию: редактирование, удаление, аналитика, чтение лент, комментарии,
 модерация и собственный планировщик. Новые адаптеры не реализуют `delete()`. Поле
 `scheduledAt` отвергается, если конкретный официальный publish endpoint не поддерживает его
-как часть создания. Существующее удаление Telegram не расширяется и не является образцом для
-новых пакетов.
+как часть создания.
 
 ## Что означает «всё, что поддерживает BloggerDog»
 
 В `../bloggerdog` найдены типы `POST`, `ARTICLE`, `NEWS`, `VIDEO`, `SHORT`, `STORY` и медиа
-`IMAGE`, `VIDEO`, `AUDIO`, `DOCUMENT`. `ARTICLE` и `NEWS` — продуктовые формы контента, а не
-самостоятельные форматы большинства соцсетей. Для внешней сети они публикуются как обычный
-пост с подходящими текстом и медиа. Нельзя молча превращать неподдерживаемый тип в другой:
-адаптер возвращает структурированную ошибку/предупреждение, а явное отображение выполняется
-до вызова адаптера.
+`IMAGE`, `VIDEO`, `AUDIO`, `DOCUMENT`. `ARTICLE` — самостоятельный нативный формат: у него есть
+заголовок, расширенная структура/форматирование и изображения внутри документа, а не только
+вложения рядом с текстом. Его можно объявлять только для сети с настоящим API статей. Если
+такого API нет, пользователь должен выбрать `POST`; библиотека не преобразует `ARTICLE` в post
+и возвращает `unsupported`. В текущем списке платформ нативных статей нет. В будущем этот тип
+предназначен для Telegra.ph, VK Articles, сайта-блога и других подтверждённых article APIs.
+
+`NEWS` — продуктовая разновидность обычного поста и может отображаться на `post`, `image` или
+`album`. Нельзя молча превращать остальные неподдерживаемые типы в другой формат.
 
 Требуемое отображение:
 
-| BloggerDog                         | Библиотечный тип/режим              | Назначение                                 |
-| ---------------------------------- | ----------------------------------- | ------------------------------------------ |
-| `POST`, `NEWS`, короткий `ARTICLE` | `post`, `image` или `album`         | текст, одна картинка, галерея              |
-| длинный `ARTICLE`                  | обычный пост в пределах лимита      | сеть не получает фиктивную «статью»        |
-| `VIDEO`                            | `video`, `extra.videoKind = "long"` | обычное горизонтальное видео               |
-| `SHORT`                            | новый явный тип `shortVideo`        | Reel, Short или TikTok video               |
-| `STORY`                            | `story`                             | только сети с официальным endpoint Stories |
+| BloggerDog     | Библиотечный тип/режим              | Назначение                                 |
+| -------------- | ----------------------------------- | ------------------------------------------ |
+| `POST`, `NEWS` | `post`, `image` или `album`         | текст, одна картинка, галерея              |
+| `ARTICLE`      | `article`                           | только нативная статья с document content  |
+| `VIDEO`        | `video`, `extra.videoKind = "long"` | обычное горизонтальное видео               |
+| `SHORT`        | новый явный тип `shortVideo`        | Reel, Short или TikTok video               |
+| `STORY`        | `story`                             | только сети с официальным endpoint Stories |
 
 Ориентация сама по себе недостаточна для выбора формата: вертикальное видео может быть Reel,
 обычным видео или Story. `SHORT`/`STORY` должны приходить явно. Для `POST` сохраняется
@@ -47,18 +50,18 @@ Web Crypto) и прямые HTTP-запросы. SDK поставщиков и r
 
 ## Матрица первой версии
 
-`Да` означает отдельный официальный create-flow. `Как пост` означает продуктовый тип
-BloggerDog, преобразованный до адаптера. `Нет` означает локальный отказ до сетевого запроса.
+`Да` означает отдельный официальный create-flow. `NEWS как post` означает явное продуктовое
+отображение новости на обычную публикацию. `Нет` означает локальный отказ до сетевого запроса.
 
-| Платформа              | Текст | 1 фото | Галерея               | SHORT                                  | VIDEO             | STORY                                    | ARTICLE/NEWS                                 |
-| ---------------------- | ----- | ------ | --------------------- | -------------------------------------- | ----------------- | ---------------------------------------- | -------------------------------------------- |
-| Facebook Page          | Да    | Да     | Да                    | Reels                                  | Да                | проверить Page Stories перед реализацией | Как пост                                     |
-| Threads                | Да    | Да     | carousel              | видео-пост, не отдельный формат        | Да                | Нет                                      | Как пост                                     |
-| Instagram professional | Нет   | Да     | carousel              | Reel                                   | Reel/видео        | Да                                       | Как caption + media                          |
-| YouTube                | Нет   | Нет    | Нет                   | `videos.insert`, классификация YouTube | `videos.insert`   | Нет                                      | metadata видео                               |
-| TikTok                 | Нет   | Да     | photo post            | video direct post                      | video direct post | Нет                                      | caption/description + media                  |
-| X                      | Да    | Да     | до 4 изображений      | video post                             | video post        | Нет                                      | Как post/thread только при отдельном решении |
-| Pinterest              | Нет   | Да     | Нет в organic Pins v5 | video Pin                              | video Pin         | Нет                                      | title/description + media                    |
+| Платформа              | Текст | 1 фото | Галерея               | SHORT                                  | VIDEO             | STORY                                    | ARTICLE/NEWS                 |
+| ---------------------- | ----- | ------ | --------------------- | -------------------------------------- | ----------------- | ---------------------------------------- | ---------------------------- |
+| Facebook Page          | Да    | Да     | Да                    | Reels                                  | Да                | проверить Page Stories перед реализацией | Нет; NEWS как post           |
+| Threads                | Да    | Да     | carousel              | видео-пост, не отдельный формат        | Да                | Нет                                      | Нет; NEWS как post           |
+| Instagram professional | Нет   | Да     | carousel              | Reel                                   | Reel/видео        | Да                                       | Нет; NEWS только с media     |
+| YouTube                | Нет   | Нет    | Нет                   | `videos.insert`, классификация YouTube | `videos.insert`   | Нет                                      | Нет; NEWS как metadata видео |
+| TikTok                 | Нет   | Да     | photo post            | video direct post                      | video direct post | Нет                                      | Нет; NEWS только с media     |
+| X                      | Да    | Да     | до 4 изображений      | video post                             | video post        | Нет                                      | Нет; NEWS как post           |
+| Pinterest              | Нет   | Да     | Нет в organic Pins v5 | video Pin                              | video Pin         | Нет                                      | Нет; NEWS только с media     |
 
 Важно: смешанная коллекция изображений и видео поддерживается не везде. Она не должна
 объявляться как общий `album`, пока правила конкретной сети не подтверждены. TikTok photo post
@@ -83,31 +86,36 @@ Pinterest v5 создаёт один image/video Pin, а не органичес
 1. Добавить явный `PostType.SHORT_VIDEO`. Текущее расширяемое строковое объединение позволяет
    передать неизвестную строку, но `detectPostType()`, каталог, preview и conformance не имеют
    общей семантики SHORT. Старый алиас не оставлять.
-2. Разделить «тип публикации» и «набор вложений». Сейчас `ALBUM` определяется при двух любых
+2. Спроектировать отдельный `ArticleDocument`: обязательный title и упорядоченные block nodes
+   (paragraph/heading/list/quote/code/image и необходимые rich-text marks). Текущие `body` и
+   `media[]` не сохраняют позиции изображений внутри статьи. `PostType.ARTICLE` должен требовать
+   этот документ, а capability — явно перечислять допустимые blocks/marks. Ни один из семи
+   текущих адаптеров `ARTICLE` не объявляет.
+3. Разделить «тип публикации» и «набор вложений». Сейчас `ALBUM` определяется при двух любых
    медиа, хотя допустимость смешанного набора платформозависима. Нужны точные `mediaCounts` и
    platform validation hooks.
-3. Добавить декларативные видео-ограничения: aspect ratio/width/height, duration, codec/container,
+4. Добавить декларативные видео-ограничения: aspect ratio/width/height, duration, codec/container,
    frame rate и требование cover. Сейчас часть из них можно проверить только вручную в адаптере.
-4. Уточнить модель асинхронного результата. Meta containers, TikTok, X video processing,
+5. Уточнить модель асинхронного результата. Meta containers, TikTok, X video processing,
    Pinterest video и YouTube требуют polling. `checkStatus()` подходит, но handle должен хранить
    только JSON-состояние, без access token и подписанного upload URL в логах/raw.
-5. Добавить безопасный helper для multipart/form-data и single/multipart upload на Web APIs.
+6. Добавить безопасный helper для multipart/form-data и single/multipart upload на Web APIs.
    `runChunkedUpload()` покрывает offset-based протоколы, но не все init/finalize/status варианты.
-6. Не считать generic retry публикации безопасным. Повторять можно только адресованный chunk или
+7. Не считать generic retry публикации безопасным. Повторять можно только адресованный chunk или
    status call. После неопределённого ответа create/publish нужна платформа-специфичная проверка;
    иначе возможны дубликаты.
-7. OAuth различается: Meta long-lived token exchange, Threads refresh, Google refresh token,
+8. OAuth различается: Meta long-lived token exchange, Threads refresh, Google refresh token,
    TikTok rotation, X OAuth 2 PKCE/OAuth 1.0a и Pinterest refresh нельзя выразить одним статическим
    token endpoint без platform config. Authorization flow остаётся у host, но документировать
    обязательные scopes, target IDs и refresh strategy необходимо для каждого пакета.
-8. HTTP shell с JSON/base64 и общим body limit не годится для больших видео. Для Node/Workers
+9. HTTP shell с JSON/base64 и общим body limit не годится для больших видео. Для Node/Workers
    нужны URL/stream source либо отдельный streaming ingress; нельзя материализовать YouTube/TikTok
    видео в JSON или памяти Worker.
-9. Каталог — только предварительная справка. Перед реализацией исправить в нём неподтверждённые
-   значения: generic media sources у Facebook/Pinterest, YouTube MIME как только
-   `application/octet-stream`, TikTok `ALBUM` из 1 элемента, а также отсутствие различия
-   Reel/Story/обычного video.
-10. В конфигурации нужны platform-specific target: Facebook Page ID, Meta/Threads/Instagram user
+10. Каталог — только предварительная справка. Перед реализацией исправить в нём неподтверждённые
+    значения: generic media sources у Facebook/Pinterest, YouTube MIME как только
+    `application/octet-stream`, TikTok `ALBUM` из 1 элемента, а также отсутствие различия
+    Reel/Story/обычного video.
+11. В конфигурации нужны platform-specific target: Facebook Page ID, Meta/Threads/Instagram user
     ID, YouTube channel из токена, TikTok open ID/creator context, Pinterest board ID. Одного
     неструктурированного `target` достаточно для wire contract, но README каждого адаптера должен
     задать точное значение.
@@ -268,76 +276,27 @@ status; rate limits и доступ к API зависят от приложен�
 [Create boards and Pins](https://developers.pinterest.com/docs/work-with-organic-content-and-users/create-boards-and-pins/),
 [API v5](https://developers.pinterest.com/docs/api/v5/).
 
-## Аудит существующего Telegram
-
-### Что сделано правильно
-
-- прямые Bot API HTTP-запросы без SDK и Node built-ins;
-- `sendMessage`, `sendPhoto`, `sendVideo`, `sendAudio`, `sendDocument`, `sendMediaGroup`, poll,
-  copy/forward и platform `file_id` покрыты тестами;
-- abort/timeout, 429 `retry_after`, классификация ошибок, protected `extra` fields и ссылки для
-  публичного `@channel` реализованы;
-- лимиты текста 4096, caption 1024 и URL-fetch 5/20 MB вынесены в capabilities;
-- album parts сохраняются, поэтому созданные сообщения не теряются;
-- preview использует тот же renderer, что публикация.
-
-### Ошибки и обязательные исправления
-
-1. `telegramCapabilities.media.*.acceptedSources` заявляет `bytes`, `blob`, `stream`, но
-   `toTelegramInput()` принимает только URL и `platformRef`. `TelegramApi` всегда посылает JSON,
-   multipart upload отсутствует. До реализации multipart удалить ложные sources либо реализовать
-   настоящий streaming multipart и тесты workerd.
-2. `sendMediaGroup` по официальной документации требует 2–10 items, а capability задаёт
-   `minMediaCount: 1`. Исправить минимум на 2; `slice(0, 10)` скрыто отбрасывает данные и должен
-   быть удалён после строгой локальной валидации.
-3. Album capability не задаёт состав. Bot API разрешает photo/video mix, но audio и document
-   можно группировать только с тем же типом. Текущая `mapMediaTypeToTelegram()` превращает любой
-   explicit type кроме video в photo, то есть audio/document в album отправляются неверно.
-   Добавить корректные InputMedia variants или локально запретить эти альбомы согласно scope.
-4. Тип album по URL определяется расширением; query string, CDN URL без расширения и `.webm`
-   определяются неверно. Для album требовать `media[].type` либо использовать уже имеющиеся
-   mime metadata/sniffing до adapter call.
-5. `has_spoiler` посылается для каждого media group item, включая типы, где поле недопустимо.
-   Формировать payload по конкретному InputMedia subtype.
-6. `allowUnknownExtraFields: true` разрешает параметры не для того Bot API method. Нужны method-
-   specific allowlists либо строгая схема; иначе preview проходит, а Telegram отвечает 400.
-7. Auth validator проверяет только форму token и прямо утверждает, что token «никогда не
-   истекает». Bot token может быть отозван; назвать проверку локальной shape validation и не
-   выдавать её за проверку действительности credentials.
-8. В BloggerDog `VIDEO` и `STORY` сейчас допускают `minCount: 0` и любые media, хотя adapter
-   `PostType.VIDEO` требует ровно одно video, а настоящего Telegram Story publish flow здесь нет.
-   Это интеграционное расхождение: BloggerDog должен маппить свои editorial types на фактические
-   transport types и не обещать Telegram Stories.
-9. Новые возможности Bot API (например live photo и direct message topics) не входят в scope, но
-   capability source нужно периодически перепроверять. Отсутствие поддержки должно быть явным,
-   а не интерпретироваться как обычное фото.
-
-Официальный источник: [Telegram Bot API](https://core.telegram.org/bots/api), в частности
-`sendMediaGroup`, `InputMediaPhoto`, `InputMediaVideo`, `InputMediaAudio`, `InputMediaDocument` и
-раздел Sending Files.
-
 ## Порядок реализации
 
-1. Исправить Telegram contract/capabilities и добавить регрессионные тесты на перечисленные
-   расхождения.
-2. Расширить core типом `shortVideo`, точными media/video rules, multipart helpers и безопасным
+1. Расширить core типом `shortVideo`, моделью `ArticleDocument`, точными media/video rules,
+   multipart helpers и безопасным
    async/resume contract; обновить conformance suite.
-3. Исправить platform catalog только подтверждёнными официальными значениями и отдельными
+2. Исправить platform catalog только подтверждёнными официальными значениями и отдельными
    `verifiedAt`; не использовать generic media limits как обещание реализации.
-4. Реализовать `platform-youtube` первым: он проверит resumable upload и processing contract.
-5. Реализовать container-based `platform-threads` и `platform-instagram`, переиспользуя только
+3. Реализовать `platform-youtube` первым: он проверит resumable upload и processing contract.
+4. Реализовать container-based `platform-threads` и `platform-instagram`, переиспользуя только
    внутренние source-файлы без создания runtime package dependency между adapters.
-6. Реализовать `platform-facebook` с атомарным учётом partial unpublished media.
-7. Реализовать `platform-tiktok` вместе с dynamic creator-info validation и обязательным UX
+5. Реализовать `platform-facebook` с атомарным учётом partial unpublished media.
+6. Реализовать `platform-tiktok` вместе с dynamic creator-info validation и обязательным UX
    контрактом для host.
-8. Реализовать `platform-x` и `platform-pinterest`, проверив актуальные product access и media
+7. Реализовать `platform-x` и `platform-pinterest`, проверив актуальные product access и media
    upload versions непосредственно перед кодированием.
-9. Для каждого пакета: README, auth validator, capabilities с official sources, HTTP/error layer,
+8. Для каждого пакета: README, auth validator, capabilities с official sources, HTTP/error layer,
    adapter, recorded fixtures, unit tests, conformance tests и workerd tests.
-10. Подключить пакеты в root tsconfig/publish scripts/server Docker workspace и `PLATFORMS`,
-    обновить `.env.example`, `config.yaml`, OAuth docs, examples, permanent platform matrix и
-    `docs/CHANGELOG.md`.
-11. Выполнить `pnpm validate`; перед выпуском — `pnpm validate:all`, sandbox accounts и ручные
+9. Подключить пакеты в root tsconfig/publish scripts/server Docker workspace и `PLATFORMS`,
+   обновить `.env.example`, `config.yaml`, OAuth docs, examples, permanent platform matrix и
+   `docs/CHANGELOG.md`.
+10. Выполнить `pnpm validate`; перед выпуском — `pnpm validate:all`, sandbox accounts и ручные
     smoke tests каждого поддержанного content flow.
 
 ## Критерии готовности одной платформы
@@ -361,8 +320,9 @@ status; rate limits и доступ к API зависят от приложен�
 - кто предоставляет временные публичные URL для Meta/TikTok URL-pull: BloggerDog/object storage
   или adapter (stateless library не должна владеть storage);
 - как BloggerDog хранит `ResumeHandle`, `PostPart` и processing state между задачами очереди;
-- нужен ли multi-post fallback для длинного ARTICLE/NEWS. По умолчанию — отказ, потому что
-  автоматическая разбивка создаёт несколько постов и меняет смысл операции;
+- нужен ли multi-post fallback для длинного `NEWS`. По умолчанию — отказ, потому что
+  автоматическая разбивка создаёт несколько постов и меняет смысл операции. `ARTICLE` fallback
+  не получает: он доступен только через нативный article API;
 - что считать успехом для YouTube: получение video ID или завершение processing;
 - какие account/app review credentials доступны для обязательных end-to-end smoke tests;
 - должен ли сервер принимать большие stream uploads, или production contract ограничивается
