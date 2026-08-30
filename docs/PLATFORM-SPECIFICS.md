@@ -225,8 +225,39 @@ The most constrained integration in this list, and the one most likely to be ref
 
 ## Planned networks
 
-Mastodon, Bluesky and Vimeo are planned adapters. They are described here rather than in the
-roadmap table because each one changes an assumption the seven networks above let you keep.
+These are the planned adapters. Each is described here rather than in a table because each one
+changes an assumption the networks above let you keep.
+
+### Discord
+
+The cheapest integration in the set, and the one most likely to be misunderstood.
+
+- **Two access models, and they are not tiers of each other.** A _webhook URL_ needs no OAuth, no
+  bot and no review — but that URL is simultaneously your credential **and** your destination: the
+  guild and channel are baked into it. Store it as a secret, not as a channel id. A _bot token_
+  with guild permissions is the other model, and there the target is a guild plus a channel.
+- Publishing is one call. No containers, no processing state.
+- 2000 characters. Up to 10 attachments, but **the size limit per attachment depends on the
+  server's boost level** — it is not a constant, and it is read at runtime.
+- Embeds are a Discord-specific format and are passed through `extra`.
+
+Present it to your users as an _announcement channel_, not as a social network. There are no reach
+or engagement semantics behind a Discord message, and a UI that implies otherwise will disappoint.
+
+### LinkedIn
+
+- **Access is the risk, not the code.** Publishing as a member and publishing as an organization
+  are different approved products with different scopes. Apply before you plan the work; without
+  approval the adapter cannot ship no matter how finished it is.
+- **`document` is a real post type here** — the PDF carousel. This is the only network in the set
+  where a document is a publication rather than a file attached to one.
+- The author is either a person or an organization, and the two are not interchangeable.
+- **There is no API for LinkedIn Articles.** The long-form editor has no public publishing
+  endpoint, so `type: 'article'` is unsupported. This one catches people out precisely because the
+  product _does_ have articles — the format exists, the API does not.
+- Images and video are uploaded first and referenced by the post; media processing is
+  asynchronous, and publishing before it finishes fails.
+- The API version is pinned by a header and rotates on a schedule.
 
 ### Mastodon
 
@@ -243,6 +274,16 @@ roadmap table because each one changes an assumption the seven networks above le
 - Media upload can be asynchronous: an accepted upload may still be processing, and publishing
   before it is ready fails.
 
+### Pixelfed and Truth Social
+
+Both speak the Mastodon API, so both are the Mastodon adapter under a different name with a
+different capability descriptor — not separate integrations. Everything in the Mastodon section
+applies, including the per-instance host and per-instance OAuth client.
+
+What differs is stated as data: **Pixelfed has no text-only post** — media is required. Truth
+Social additionally depends on confirmation that automated publishing is permitted by its terms
+and that API access was obtained legitimately; until that exists, it stays a catalog entry.
+
 ### Bluesky
 
 - Multi-host again: the account's PDS is the endpoint.
@@ -255,13 +296,17 @@ roadmap table because each one changes an assumption the seven networks above le
   `String.length` counts.
 - Up to four images per post; video goes through a separate service and is asynchronous.
 
-### Vimeo
+### Vimeo and Dailymotion
 
-- Video only, like YouTube, but the limit you will actually hit is the **account's storage quota
-  and upload allowance**, not a daily operation quota. Both surface as `QUOTA_EXCEEDED`, and the
-  advice you give the user is different: free up space rather than try tomorrow.
-- Upload is resumable; processing after upload is asynchronous, and "uploaded" is not "playable".
-- Upload access depends on the account tier.
+Both are video-only, both upload then process asynchronously, and for both "uploaded" is not
+"playable".
+
+The difference that matters to your users is the limit you hit. Vimeo's is the **account's storage
+quota and upload allowance**; YouTube's is a daily operation quota. Both arrive as
+`QUOTA_EXCEEDED`, and the advice differs: free up space versus try tomorrow. Dailymotion requires
+a title and gates limits on account status.
+
+Neither has a separate Shorts format — a vertical video is an ordinary upload.
 
 ### WhatsApp Channels — not planned
 
@@ -279,26 +324,26 @@ fit the "create a publication" contract.
 
 This library publishes **durable, addressable content to an audience**. A network qualifies when
 its result has a stable id and usually a public URL, is addressed to an audience rather than to a
-person, and can be prepared in advance without a live session.
+person, and can be prepared in advance without a live session. Passing that test is necessary but
+not sufficient: a network is also declined when automated posting into it would harm the user.
 
-- **Snapchat** — access to the Public Profile API is approval-gated, and the only format is a
-  Story. Ephemeral content does not fit a model built around publications with history.
+- **Reddit** — declined on product grounds, not technical ones. Automated posting into subreddits
+  you do not own is the fastest route to a banned account, and per-subreddit rules and required
+  flair mean no request can be validated without first fetching them. The catalog profile stays as
+  reference.
+- **Snapchat** — approval-gated Public Profile API, and the only format is an ephemeral Story.
 - **Twitch** — there is no "publish this content" endpoint; the product is built around a live
   session. A "stream started" notification is a _source event_ for your application, not a
   publication this library creates.
-- **Reddit and Discord** pass the test and may be added later. Discord is cheap (a webhook and one
-  call) and is best presented to your users as an announcement channel rather than a social
-  network — there are no reach or engagement semantics behind it. Reddit needs subreddit rules and
-  flair fetched before every submission, and automated posting into communities that are not your
-  own is a good way to get an account banned.
 
 A catalog entry means we know about a network. It does not mean we support it.
 
 ### Regional networks
 
-VK, OK and others bring non-OAuth2 or dialect-OAuth2 auth, region-specific API hosts, and error
-messages that are not in English. Error _codes_ stay stable; error _messages_ from those networks
-should never be shown to your users untranslated.
+VK, OK and others are not in this set and are not close. When they arrive they bring non-OAuth2 or
+dialect-OAuth2 auth, region-specific API hosts, and error messages that are not in English. Error
+_codes_ stay stable; error _messages_ from those networks should never be shown to your users
+untranslated.
 
 The consequence for you, across all of the above: an account's configuration is not just a token.
 It can carry an instance or API host, and its capabilities may have to be resolved per account.
