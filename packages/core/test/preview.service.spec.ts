@@ -106,7 +106,7 @@ describe('PreviewService', () => {
 
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.message).toContain('Account "non-existent" not found in configuration');
+        expect(result.error.message).toContain('Account "non-existent" is not in configuration');
       }
     });
 

@@ -329,6 +329,32 @@ export interface PlatformCapabilities {
 
   /** Rate limits the platform documents, for the host to plan against. */
   rateLimits?: RateLimits;
+
+  /**
+   * What happens after the network accepts a publication but before it exists.
+   *
+   * A host that polls `checkStatus()` needs a budget, and the budget is a
+   * property of the network rather than of the host: a Telegram message is
+   * live on the first check, while a YouTube upload routinely transcodes for
+   * longer than a quarter of an hour. One global timeout serving both means
+   * either giving up on YouTube or holding a Telegram job open for nothing.
+   */
+  asyncProcessing?: AsyncProcessing;
+}
+
+/** How long a network takes to finish a publication it has already accepted. */
+export interface AsyncProcessing {
+  /** Whether `publish()` can return `processing` at all. */
+  supported: boolean;
+  /** Time to completion in the ordinary case, in seconds. */
+  typicalSecs?: number;
+  /**
+   * How long a host should keep asking before calling the publication failed,
+   * in seconds. The one number a host cannot invent for itself.
+   */
+  maxWaitSecs?: number;
+  /** Gap between checks when a response states none, in seconds. */
+  pollIntervalSecs?: number;
 }
 
 /**
@@ -453,6 +479,21 @@ export function validateCapabilities(capabilities: PlatformCapabilities): void {
       ) {
         errors.push(`${label}: media constraints for '${kind}' minHeight cannot exceed maxHeight`);
       }
+    }
+  }
+
+  if (capabilities.asyncProcessing) {
+    const { supported, typicalSecs, maxWaitSecs, pollIntervalSecs } = capabilities.asyncProcessing;
+    if (typeof supported !== 'boolean') {
+      errors.push(`${label}: asyncProcessing.supported must be a boolean`);
+    }
+    for (const [key, value] of Object.entries({ typicalSecs, maxWaitSecs, pollIntervalSecs })) {
+      if (value !== undefined && (!Number.isFinite(value) || value <= 0)) {
+        errors.push(`${label}: asyncProcessing.${key} must be a positive number of seconds`);
+      }
+    }
+    if (typicalSecs !== undefined && maxWaitSecs !== undefined && typicalSecs > maxWaitSecs) {
+      errors.push(`${label}: asyncProcessing.typicalSecs cannot exceed maxWaitSecs`);
     }
   }
 

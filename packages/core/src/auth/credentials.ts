@@ -42,7 +42,36 @@ export interface CredentialProvider {
    * @param next - The credentials to store in place of the previous ones.
    */
   onCredentialsRefreshed?(accountRef: string, next: ResolvedCredentials): Promise<void>;
+
+  /**
+   * Per-account settings that are configuration rather than credentials.
+   *
+   * A YouTube account's OAuth client id, a Mastodon account's instance URL, a
+   * Vimeo account's default upload approach: an adapter reads these from the
+   * account config, and a host whose accounts live in a database has no static
+   * configuration to put them in. Without this, such a host can supply secrets
+   * and nothing else.
+   *
+   * Never return credentials from here — `auth` is merged separately, and
+   * anything returned here is treated as ordinary configuration.
+   *
+   * @param accountRef - The account name as it appears in a request.
+   * @returns Fields to fold over the account, without `auth` or `platform`.
+   */
+  getAccountSettings?(accountRef: string): Promise<AccountSettings>;
 }
+
+/**
+ * Account fields a provider may supply, excluding the ones it must not.
+ *
+ * `platform` is fixed by the request and `auth` travels through
+ * {@link CredentialProvider.getCredentials}; letting either be overridden here
+ * would give one account two sources of truth.
+ */
+export type AccountSettings = Record<string, unknown> & {
+  platform?: never;
+  auth?: never;
+};
 
 /**
  * The trivial provider: credentials that live in the client's own configuration

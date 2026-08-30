@@ -15,7 +15,6 @@ export interface PlatformProfile {
   notes?: string;
 }
 
-const allUploadSources = ['url', 'bytes', 'blob', 'stream', 'platformRef'] as const;
 const directUploadSources = ['bytes', 'blob', 'stream', 'platformRef'] as const;
 const verifiedAt = '2026-08-29';
 
@@ -124,56 +123,81 @@ export const platformProfiles = {
     'No documented public WhatsApp Cloud API endpoint publishes Channel updates.',
     'https://faq.whatsapp.com/265055289421317',
   ),
-  youtube: profile('youtube', 'YouTube', 'available', {
-    postTypes: {
-      [PostType.VIDEO]: {
-        requiredFields: ['media', 'title'],
-        minMediaCount: 1,
-        maxMediaCount: 1,
-        maxTitleLength: 100,
-        maxDescriptionLength: 5_000,
-        maxTagsLength: 500,
+  youtube: profile(
+    'youtube',
+    'YouTube',
+    'available',
+    {
+      postTypes: {
+        [PostType.VIDEO]: {
+          requiredFields: ['media', 'title'],
+          minMediaCount: 1,
+          maxMediaCount: 1,
+          maxTitleLength: 100,
+          maxDescriptionLength: 5_000,
+          maxTagsLength: 500,
+        },
+        // Shorts have no endpoint of their own: the same `videos.insert`, with
+        // the classification decided by YouTube from the finished file.
+        [PostType.SHORT_VIDEO]: {
+          requiredFields: ['media', 'title'],
+          minMediaCount: 1,
+          maxMediaCount: 1,
+          maxTitleLength: 100,
+          maxDescriptionLength: 5_000,
+          maxTagsLength: 500,
+        },
       },
-    },
-    media: {
-      video: {
-        acceptedSources: directUploadSources.slice(),
-        transport: 'push',
-        maxBytes: 256 * 1024 ** 3,
+      media: {
+        video: {
+          // `both` rather than `push`: a URL is accepted and downloaded here
+          // first. YouTube itself never fetches one.
+          acceptedSources: ['url', ...directUploadSources.filter(kind => kind !== 'platformRef')],
+          transport: 'both',
+          maxBytes: 256 * 1024 ** 3,
+        },
       },
-    },
-    thumbnail: { supported: true },
-    supportedVisibility: ['public', 'private', 'unlisted'],
-    auth: {
-      kind: 'oauth2',
-      docsUrl: 'https://developers.google.com/youtube/v3/docs/videos/insert',
-    },
-    sources: source('https://developers.google.com/youtube/v3/docs/videos/insert', [
-      'video upload and file size',
-    ]),
-  }),
-  vimeo: profile('vimeo', 'Vimeo', 'available', {
-    postTypes: {
-      [PostType.VIDEO]: { requiredFields: ['media'], minMediaCount: 1, maxMediaCount: 1 },
-    },
-    media: {
-      video: {
-        acceptedSources: allUploadSources.slice(),
-        transport: 'both',
-        maxBytes: 300 * 1024 ** 3,
-        maxDurationSecs: 86_400,
+      thumbnail: { supported: true },
+      supportedVisibility: ['public', 'private', 'unlisted'],
+      auth: {
+        kind: 'oauth2',
+        docsUrl: 'https://developers.google.com/youtube/v3/docs/videos/insert',
       },
+      sources: source('https://developers.google.com/youtube/v3/docs/videos/insert', [
+        'video upload and file size',
+      ]),
     },
-    auth: {
-      kind: 'oauth2',
-      scopes: ['upload', 'edit'],
-      docsUrl: 'https://developer.vimeo.com/api/upload/videos',
+    'A released adapter ships the authoritative descriptor for this network; prefer `@bozonx/social-posting-youtube` over this profile, which stays for hosts that only need to plan against the network without depending on the adapter.',
+  ),
+  vimeo: profile(
+    'vimeo',
+    'Vimeo',
+    'available',
+    {
+      postTypes: {
+        [PostType.VIDEO]: { requiredFields: ['media'], minMediaCount: 1, maxMediaCount: 1 },
+      },
+      media: {
+        video: {
+          // No `platformRef`: Vimeo has no re-usable file ids.
+          acceptedSources: ['url', 'bytes', 'blob', 'stream'],
+          transport: 'both',
+          maxBytes: 256 * 1024 ** 3,
+          requiresPubliclyFetchableUrl: true,
+        },
+      },
+      auth: {
+        kind: 'oauth2',
+        scopes: ['upload', 'edit'],
+        docsUrl: 'https://developer.vimeo.com/api/upload/videos',
+      },
+      sources: source('https://developer.vimeo.com/api/upload/videos', [
+        'upload methods',
+        'file size and duration',
+      ]),
     },
-    sources: source('https://developer.vimeo.com/api/upload/videos', [
-      'upload methods',
-      'file size and duration',
-    ]),
-  }),
+    'A released adapter ships the authoritative descriptor for this network; prefer `@bozonx/social-posting-vimeo` over this profile, which stays for hosts that only need to plan against the network without depending on the adapter.',
+  ),
   tiktok: profile(
     'tiktok',
     'TikTok',
@@ -476,16 +500,26 @@ export const platformProfiles = {
     },
     'Publishing documentation and access are region- and partner-program dependent.',
   ),
-  dailymotion: profile('dailymotion', 'Dailymotion', 'available', {
-    postTypes: {
-      [PostType.VIDEO]: { requiredFields: ['media', 'title'], minMediaCount: 1, maxMediaCount: 1 },
+  dailymotion: profile(
+    'dailymotion',
+    'Dailymotion',
+    'available',
+    {
+      postTypes: {
+        [PostType.VIDEO]: {
+          requiredFields: ['media', 'title'],
+          minMediaCount: 1,
+          maxMediaCount: 1,
+        },
+      },
+      media: pushMedia(['video']),
+      auth: { kind: 'oauth2', docsUrl: 'https://developers.dailymotion.com/guides/upload-videos/' },
+      sources: source('https://developers.dailymotion.com/guides/upload-videos/', [
+        'video upload flow',
+      ]),
     },
-    media: pushMedia(['video']),
-    auth: { kind: 'oauth2', docsUrl: 'https://developers.dailymotion.com/guides/upload-videos/' },
-    sources: source('https://developers.dailymotion.com/guides/upload-videos/', [
-      'video upload flow',
-    ]),
-  }),
+    'A released adapter ships the authoritative descriptor for this network; prefer `@bozonx/social-posting-dailymotion` over this profile, which stays for hosts that only need to plan against the network without depending on the adapter.',
+  ),
 } as const satisfies Record<string, PlatformProfile>;
 
 export type PlatformProfileKey = keyof typeof platformProfiles;

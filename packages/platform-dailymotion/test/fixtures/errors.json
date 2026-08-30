@@ -1,0 +1,55 @@
+{
+  "limitReached": {
+    "status": 400,
+    "body": {
+      "error": {
+        "code": 400,
+        "message": "You have reached your daily upload limit.",
+        "type": "limit_reached_error"
+      }
+    }
+  },
+  "rateLimited": {
+    "status": 429,
+    "headers": { "retry-after": "60" },
+    "body": {
+      "error": { "code": 429, "message": "Too many requests.", "type": "rate_limit_error" }
+    }
+  },
+  "unauthorized": {
+    "status": 401,
+    "body": {
+      "error": {
+        "code": 401,
+        "message": "Invalid or expired access token.",
+        "type": "auth_required_error"
+      }
+    }
+  },
+  "forbiddenAccount": {
+    "status": 403,
+    "body": {
+      "error": {
+        "code": 403,
+        "message": "Your account is not allowed to upload videos.",
+        "type": "access_forbidden_error"
+      }
+    }
+  },
+  "invalidParameter": {
+    "status": 400,
+    "body": {
+      "error": {
+        "code": 400,
+        "message": "The title is required.",
+        "type": "invalid_parameter_error"
+      }
+    }
+  },
+  "serverError": {
+    "status": 500,
+    "body": {
+      "error": { "code": 500, "message": "Internal server error.", "type": "server_error" }
+    }
+  }
+}

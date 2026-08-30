@@ -206,13 +206,21 @@ Do not generalize any of this. Telegram is the exception on nearly every axis.
   codecs). They are separate declared types with separate validation; a carousel is not a Story
   with more pictures.
 
-### YouTube
+### YouTube — _shipping_
 
 - Video only. There is no text post, no image post, no gallery.
 - Upload is a resumable `PUT` protocol: initiate, keep the returned session URI, send chunks that
   are multiples of 256 KiB. After an ambiguous failure, ask the server for the current offset
-  rather than restarting.
-- The session URI is a credential. It never appears in logs or in the raw response we hand back.
+  rather than restarting — the adapter does this before every resume, because a locally stored
+  offset is only what was true before the process died.
+- The session URI is a credential. It never appears in logs or in the raw response we hand back,
+  and the resume handle carries only the opaque `upload_id`, not the signed URL.
+- The access token is refreshed **before** the upload starts, not on a 401. A Google token lives
+  about an hour, which is less than a large upload takes.
+- There is no draft. `mode: 'draft'` is refused rather than mapped onto `private`: a private video
+  is uploaded, stored, and has already cost its quota.
+- `scheduledAt` maps to `status.publishAt`, which YouTube honours only while the video is private.
+  Setting it on a public video is refused, because YouTube would otherwise ignore it silently.
 - `title`, `privacyStatus` and `categoryId` are mandatory. A category default belongs in your
   account configuration.
 - **Shorts are not an endpoint.** A Short is an ordinary upload that YouTube classifies as a Short
@@ -355,17 +363,29 @@ and that API access was obtained legitimately; until that exists, it stays a cat
   `String.length` counts.
 - Up to four images per post; video goes through a separate service and is asynchronous.
 
-### Vimeo and Dailymotion
+### Vimeo and Dailymotion — _shipping_
 
 Both are video-only, both upload then process asynchronously, and for both "uploaded" is not
 "playable".
 
 The difference that matters to your users is the limit you hit. Vimeo's is the **account's storage
 quota and upload allowance**; YouTube's is a daily operation quota. Both arrive as
-`QUOTA_EXCEEDED`, and the advice differs: free up space versus try tomorrow. Dailymotion requires
-a title and gates limits on account status.
+`QUOTA_EXCEEDED`, and the advice differs: free up space versus try tomorrow. Which one applies is
+readable from `rateLimits.quotaCost.unit` — `bytes` against `quotaUnits` — rather than from the
+error code, and `vimeo.getQuota()` reports the current numbers. Dailymotion requires a title and
+gates limits on account status.
 
 Neither has a separate Shorts format — a vertical video is an ordinary upload.
+
+Two further differences, both of which change what a host can promise:
+
+- **Vimeo will fetch a URL itself** (`extra.uploadApproach: 'pull'`), which YouTube never does.
+  That saves the host's bandwidth and costs it resumability, progress, and any early warning about
+  a broken link — the failure arrives minutes later as a transcode error. The descriptor states
+  `urlMustRemainAvailableForSecs: 86400` for exactly this reason.
+- **Dailymotion's upload cannot be resumed.** Its upload endpoint is one multipart `POST` with no
+  offset protocol, so the adapter issues no resume handle for that step. A handle that cannot
+  resume is worse than none: the host would keep progress it can never continue from.
 
 ### WhatsApp Channels — not planned
 

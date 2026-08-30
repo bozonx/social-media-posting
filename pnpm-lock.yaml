@@ -68,12 +68,21 @@ importers:
       '@bozonx/social-posting':
         specifier: workspace:*
         version: link:../../packages/core
+      '@bozonx/social-posting-dailymotion':
+        specifier: workspace:*
+        version: link:../../packages/platform-dailymotion
       '@bozonx/social-posting-discord':
         specifier: workspace:*
         version: link:../../packages/platform-discord
       '@bozonx/social-posting-telegram':
         specifier: workspace:*
         version: link:../../packages/platform-telegram
+      '@bozonx/social-posting-vimeo':
+        specifier: workspace:*
+        version: link:../../packages/platform-vimeo
+      '@bozonx/social-posting-youtube':
+        specifier: workspace:*
+        version: link:../../packages/platform-youtube
       '@hono/node-server':
         specifier: ^2.1.1
         version: 2.1.1(hono@4.13.5)
@@ -126,6 +135,15 @@ importers:
         specifier: workspace:*
         version: link:../core
 
+  packages/platform-dailymotion:
+    devDependencies:
+      '@bozonx/social-posting':
+        specifier: workspace:*
+        version: link:../core
+      '@bozonx/social-posting-conformance':
+        specifier: workspace:*
+        version: link:../conformance
+
   packages/platform-discord:
     devDependencies:
       '@bozonx/social-posting':
@@ -136,6 +154,24 @@ importers:
         version: link:../conformance
 
   packages/platform-telegram:
+    devDependencies:
+      '@bozonx/social-posting':
+        specifier: workspace:*
+        version: link:../core
+      '@bozonx/social-posting-conformance':
+        specifier: workspace:*
+        version: link:../conformance
+
+  packages/platform-vimeo:
+    devDependencies:
+      '@bozonx/social-posting':
+        specifier: workspace:*
+        version: link:../core
+      '@bozonx/social-posting-conformance':
+        specifier: workspace:*
+        version: link:../conformance
+
+  packages/platform-youtube:
     devDependencies:
       '@bozonx/social-posting':
         specifier: workspace:*

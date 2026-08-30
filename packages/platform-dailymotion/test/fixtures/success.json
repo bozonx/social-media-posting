@@ -1,0 +1,48 @@
+{
+  "uploadTicket": {
+    "status": 200,
+    "body": {
+      "upload_url": "https://upload-01.dailymotion.com/upload?uuid=contract&seal=abc",
+      "progress_url": "https://upload-01.dailymotion.com/progress?uuid=contract"
+    }
+  },
+  "uploadedFile": {
+    "status": 200,
+    "body": { "url": "https://upload-01.dailymotion.com/files/contract.mp4" }
+  },
+  "createdVideo": {
+    "status": 200,
+    "body": {
+      "id": "x8abcde",
+      "title": "Contract suite video",
+      "url": "https://www.dailymotion.com/video/x8abcde",
+      "status": "processing"
+    }
+  },
+  "processing": {
+    "status": 200,
+    "body": {
+      "id": "x8abcde",
+      "url": "https://www.dailymotion.com/video/x8abcde",
+      "status": "processing",
+      "encoding_progress": 42
+    }
+  },
+  "published": {
+    "status": 200,
+    "body": {
+      "id": "x8abcde",
+      "url": "https://www.dailymotion.com/video/x8abcde",
+      "status": "published",
+      "encoding_progress": 100
+    }
+  },
+  "encodingError": {
+    "status": 200,
+    "body": {
+      "id": "x8abcde",
+      "url": "https://www.dailymotion.com/video/x8abcde",
+      "status": "encoding_error"
+    }
+  }
+}

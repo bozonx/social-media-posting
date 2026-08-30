@@ -1,0 +1,97 @@
+{
+  "quotaExceeded": {
+    "status": 403,
+    "body": {
+      "error": {
+        "code": 403,
+        "message": "The request cannot be completed because you have exceeded your quota.",
+        "status": "PERMISSION_DENIED",
+        "errors": [
+          {
+            "domain": "youtube.quota",
+            "reason": "quotaExceeded",
+            "message": "The request cannot be completed because you have exceeded your quota."
+          }
+        ]
+      }
+    }
+  },
+  "rateLimited": {
+    "status": 429,
+    "headers": { "retry-after": "30" },
+    "body": {
+      "error": {
+        "code": 429,
+        "message": "Too many requests",
+        "errors": [
+          { "domain": "usageLimits", "reason": "tooManyRequests", "message": "Too many requests" }
+        ]
+      }
+    }
+  },
+  "unauthorized": {
+    "status": 401,
+    "body": {
+      "error": {
+        "code": 401,
+        "message": "Invalid Credentials",
+        "status": "UNAUTHENTICATED",
+        "errors": [{ "domain": "global", "reason": "authError", "message": "Invalid Credentials" }]
+      }
+    }
+  },
+  "forbiddenChannel": {
+    "status": 403,
+    "body": {
+      "error": {
+        "code": 403,
+        "message": "The request is not properly authorized to upload a video.",
+        "errors": [
+          {
+            "domain": "youtube.video",
+            "reason": "forbidden",
+            "message": "The request is not properly authorized to upload a video."
+          }
+        ]
+      }
+    }
+  },
+  "invalidTitle": {
+    "status": 400,
+    "body": {
+      "error": {
+        "code": 400,
+        "message": "The video title is invalid.",
+        "errors": [
+          {
+            "domain": "youtube.video",
+            "reason": "invalidTitle",
+            "message": "The video title is invalid."
+          }
+        ]
+      }
+    }
+  },
+  "notFound": {
+    "status": 404,
+    "body": {
+      "error": {
+        "code": 404,
+        "message": "The video that you are trying to update cannot be found.",
+        "errors": [
+          { "domain": "youtube.video", "reason": "videoNotFound", "message": "Video not found" }
+        ]
+      }
+    }
+  },
+  "serverError": {
+    "status": 503,
+    "body": {
+      "error": {
+        "code": 503,
+        "message": "The service is currently unavailable.",
+        "status": "UNAVAILABLE"
+      }
+    }
+  }
+}

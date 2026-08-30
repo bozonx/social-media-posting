@@ -60,14 +60,40 @@ export abstract class BasePostService {
     let source: 'account' | 'inline';
 
     if (request.account) {
-      baseConfig = this.config.getAccount(request.account);
       source = 'account';
 
       // A host-supplied provider is the authority on this account's current
       // credentials; the ones in configuration are only a fallback.
+      //
+      // The provider is also allowed to be the *only* source. A host whose
+      // accounts live in a database — one row per channel, created while the
+      // process is running — has nothing to put in static configuration, and
+      // demanding an entry there would force it back onto inline `auth`, which
+      // is exactly the path that cannot rotate a refresh token.
+      const configured = this.config.hasAccount(request.account)
+        ? this.config.getAccount(request.account)
+        : undefined;
+
+      if (!configured && !this.credentialProvider) {
+        throw new ValidationError(
+          `Account "${request.account}" is not in configuration and no credentialProvider was supplied`,
+        );
+      }
+
+      baseConfig = configured ?? { platform: request.platform.toLowerCase(), auth: {} };
+
       if (this.credentialProvider) {
+        const settings =
+          (await this.credentialProvider.getAccountSettings?.(request.account)) ?? {};
         const credentials = await this.credentialProvider.getCredentials(request.account);
-        baseConfig = { ...baseConfig, auth: { ...baseConfig.auth, ...credentials } };
+        baseConfig = {
+          ...baseConfig,
+          ...settings,
+          // Restated after the spread: a provider must not be able to point an
+          // account at another network by returning a `platform` field.
+          platform: baseConfig.platform,
+          auth: { ...baseConfig.auth, ...credentials },
+        };
       }
     } else if (request.auth) {
       baseConfig = {
@@ -90,6 +116,7 @@ export abstract class BasePostService {
       auth: mergedAuth,
       target: normalizeTarget(baseConfig.target),
       source,
+      ...(request.account === undefined ? {} : { accountRef: request.account }),
     };
   }
 

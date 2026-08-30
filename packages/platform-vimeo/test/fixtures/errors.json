@@ -1,0 +1,43 @@
+{
+  "quotaExceeded": {
+    "status": 400,
+    "body": {
+      "error": "Your account does not have enough space to upload this video.",
+      "error_code": 4102,
+      "developer_message": "The user does not have enough free space to upload this video."
+    }
+  },
+  "periodicQuota": {
+    "status": 400,
+    "body": {
+      "error": "You have reached your weekly upload limit.",
+      "error_code": 4103
+    }
+  },
+  "rateLimited": {
+    "status": 429,
+    "headers": { "retry-after": "45" },
+    "body": { "error": "Too many requests." }
+  },
+  "unauthorized": {
+    "status": 401,
+    "body": { "error": "You must provide a valid authenticated access token.", "error_code": 8003 }
+  },
+  "forbiddenPlan": {
+    "status": 403,
+    "body": { "error": "Your account plan does not allow uploading.", "error_code": 4104 }
+  },
+  "unprocessable": {
+    "status": 422,
+    "body": {
+      "error": "The video title is too long.",
+      "error_code": 2204,
+      "invalid_parameters": [{ "field": "name", "error": "too long" }]
+    }
+  },
+  "notFound": {
+    "status": 404,
+    "body": { "error": "The requested video could not be found.", "error_code": 5000 }
+  },
+  "serverError": { "status": 503, "body": { "error": "Vimeo is temporarily unavailable." } }
+}

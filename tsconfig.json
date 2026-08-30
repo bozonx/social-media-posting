@@ -12,6 +12,9 @@
       "@bozonx/social-posting/platform": ["./packages/core/src/platform.ts"],
       "@bozonx/social-posting-telegram": ["./packages/platform-telegram/src/index.ts"],
       "@bozonx/social-posting-discord": ["./packages/platform-discord/src/index.ts"],
+      "@bozonx/social-posting-youtube": ["./packages/platform-youtube/src/index.ts"],
+      "@bozonx/social-posting-vimeo": ["./packages/platform-vimeo/src/index.ts"],
+      "@bozonx/social-posting-dailymotion": ["./packages/platform-dailymotion/src/index.ts"],
       "@bozonx/social-posting-conformance": ["./packages/conformance/src/index.ts"]
     }
   },

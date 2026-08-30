@@ -31,6 +31,7 @@ export type {
   ExtraFieldSpec,
   RateLimits,
   CapabilitySource,
+  AsyncProcessing,
 } from './platforms/capabilities.js';
 
 // Request and result types
@@ -97,7 +98,11 @@ export type { PlatformErrorOptions } from './errors/platform-error.js';
 
 // Credentials and OAuth2
 export { StaticCredentialProvider, isAccessTokenExpired } from './auth/credentials.js';
-export type { CredentialProvider, ResolvedCredentials } from './auth/credentials.js';
+export type {
+  CredentialProvider,
+  ResolvedCredentials,
+  AccountSettings,
+} from './auth/credentials.js';
 
 // Configuration
 export { PostingConfig } from './config/posting-config.js';

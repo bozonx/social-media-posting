@@ -131,7 +131,9 @@ describe('PostService', () => {
       expect((result as PostResponse).data.publishedAt).toBeDefined();
       expect(platform.publish).toHaveBeenCalledWith(
         request,
-        { ...accountConfig, source: 'account' },
+        // `accountRef` rides along so an OAuth2 adapter can hand a rotated
+        // token back to the host's provider, which addresses accounts by name.
+        { ...accountConfig, source: 'account', accountRef: 'test-channel' },
         {
           signal: expect.any(AbortSignal),
           resume: undefined,

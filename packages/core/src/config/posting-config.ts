@@ -127,6 +127,11 @@ export class PostingConfig {
    * @param accountName - Name of the account as it appears in `accounts`.
    * @throws Error if no such account is configured.
    */
+  /** Whether an account of this name is present in static configuration. */
+  hasAccount(accountName: string): boolean {
+    return this.accounts[accountName] !== undefined;
+  }
+
   getAccount(accountName: string): AccountConfig {
     const account = this.accounts[accountName];
     if (!account) {

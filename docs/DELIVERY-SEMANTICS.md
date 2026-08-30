@@ -118,6 +118,10 @@ because polling requires a scheduler and a scheduler requires durable state.
 | Telegram | none               | one Bot API call; a lost response after the message was sent | none from the API side — the Bot API cannot list a channel's recent messages, so a duplicate is only visible to a client that reads the channel                                                                                               |
 | Discord  | none               | one REST call; a lost response after the message was created | none implemented — a bot token could list recent channel messages, but a webhook cannot read the channel at all, so the adapter declares neither `reconcile()` nor an idempotency key and an unconfirmed create surfaces as `UNKNOWN_OUTCOME` |
 
+| YouTube | none | one resumable session; a lost response after the final chunk landed | the session is queried by position (`Content-Range: bytes */TOTAL`) before any resume, and a session that reports complete raises `UNKNOWN_OUTCOME` instead of uploading again |
+| Vimeo | none | one create call, then a tus session | the video is re-read by URI before a resume; a session with no open upload link raises `UNKNOWN_OUTCOME` rather than starting a second upload |
+| Dailymotion | none | the create call after the file is uploaded | none — the upload endpoint has no offset protocol, so no resume handle is issued for it; an orphaned uploaded file is discarded by Dailymotion on its own |
+
 This table grows one row per network as networks land, and each row is filled in from that
 network's documented behaviour rather than from assumption. A network is not "done" until its row
 here says what happens when its response is lost.

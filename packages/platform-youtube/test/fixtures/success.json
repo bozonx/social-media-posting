@@ -1,0 +1,61 @@
+{
+  "insertedVideo": {
+    "status": 200,
+    "body": {
+      "kind": "youtube#video",
+      "id": "dQw4w9WgXcQ",
+      "snippet": { "title": "Contract suite video", "channelId": "UC0000000000000000000" },
+      "status": { "uploadStatus": "uploaded", "privacyStatus": "private" }
+    }
+  },
+  "processing": {
+    "status": 200,
+    "body": {
+      "kind": "youtube#videoListResponse",
+      "items": [
+        {
+          "id": "dQw4w9WgXcQ",
+          "status": { "uploadStatus": "uploaded", "privacyStatus": "private" },
+          "processingDetails": {
+            "processingStatus": "processing",
+            "processingProgress": {
+              "partsTotal": "1000",
+              "partsProcessed": "400",
+              "timeLeftMs": "120000"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "succeeded": {
+    "status": 200,
+    "body": {
+      "kind": "youtube#videoListResponse",
+      "items": [
+        {
+          "id": "dQw4w9WgXcQ",
+          "status": { "uploadStatus": "processed", "privacyStatus": "public" },
+          "processingDetails": { "processingStatus": "succeeded" }
+        }
+      ]
+    }
+  },
+  "processingFailed": {
+    "status": 200,
+    "body": {
+      "kind": "youtube#videoListResponse",
+      "items": [
+        {
+          "id": "dQw4w9WgXcQ",
+          "status": { "uploadStatus": "failed", "failureReason": "codec" },
+          "processingDetails": {
+            "processingStatus": "failed",
+            "processingFailureReason": "transcodeFailed"
+          }
+        }
+      ]
+    }
+  },
+  "emptyList": { "status": 200, "body": { "kind": "youtube#videoListResponse", "items": [] } }
+}

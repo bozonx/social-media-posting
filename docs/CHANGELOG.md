@@ -22,6 +22,27 @@ consumer, rather than fifteen times later.
 
 ### Added
 
+- **Three video networks: `@bozonx/social-posting-youtube`, `@bozonx/social-posting-vimeo` and
+  `@bozonx/social-posting-dailymotion`.** All three publish `processing` rather than `published`,
+  because an accepted upload is not a watchable video, and all three carry the wait budget in
+  `capabilities.asyncProcessing` so a host stops guessing at a global timeout. YouTube and Vimeo
+  resume interrupted uploads from the offset the _network_ reports, not the one the host stored;
+  neither resume handle carries the session URL, which is a bearer secret in both protocols.
+  Dailymotion issues no upload resume handle at all, because its upload endpoint genuinely cannot
+  be resumed.
+- `capabilities.asyncProcessing` (`supported`, `typicalSecs`, `maxWaitSecs`, `pollIntervalSecs`):
+  how long a network's own processing may take. The one number a host cannot invent for itself —
+  a Telegram message is live on the first check, while a YouTube upload routinely transcodes for
+  longer than a quarter of an hour, and a single global timeout serving both either gives up on
+  YouTube or holds a Telegram job open for nothing.
+- `ResolvedAccountConfig.accountRef`: the account name the request used. An OAuth2 adapter needs
+  it to hand a rotated token back to the host's `CredentialProvider`, which addresses accounts by
+  name.
+- A `CredentialProvider` may now be the **only** source of an account. A host whose accounts live
+  in a database — one row per channel, created while the process runs — has nothing to put in
+  static configuration, and requiring an entry there forced it back onto inline `auth`, which is
+  the one path that cannot rotate a refresh token. `PostingConfig.hasAccount()` exposes the check.
+
 - `PostType.SHORT_VIDEO`, plus `thread`, `event` and `live` as reserved names;
   `CANONICAL_POST_TYPES`, `isCanonicalPostType()` and `isPlatformPostType()`. A descriptor may
   only declare a canonical name or an `x-<platform>-…` extension, and `detectPostType()` never

@@ -44,6 +44,7 @@ export type {
   RateLimits,
   QuotaState,
   CapabilitySource,
+  AsyncProcessing,
 } from './platforms/capabilities.js';
 export { validateCapabilities, mergeCapabilities } from './platforms/capabilities.js';
 export { PlatformRegistry } from './platforms/platform-registry.js';

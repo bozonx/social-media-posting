@@ -17,8 +17,11 @@
   },
   "dependencies": {
     "@bozonx/social-posting": "workspace:*",
+    "@bozonx/social-posting-dailymotion": "workspace:*",
     "@bozonx/social-posting-discord": "workspace:*",
     "@bozonx/social-posting-telegram": "workspace:*",
+    "@bozonx/social-posting-vimeo": "workspace:*",
+    "@bozonx/social-posting-youtube": "workspace:*",
     "@hono/node-server": "^2.1.1",
     "hono": "^4.13.5",
     "js-yaml": "^5.4.1",

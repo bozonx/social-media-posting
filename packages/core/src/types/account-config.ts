@@ -44,6 +44,15 @@ export interface AccountConfig {
 export interface ResolvedAccountConfig extends AccountConfig {
   /** Where the credentials came from: a named account or inline request auth. */
   source: 'account' | 'inline';
+  /**
+   * The account name the request used, when it named one.
+   *
+   * An OAuth2 adapter needs it: refreshing a token means handing the rotated
+   * pair back to the host's provider, and the provider addresses accounts by
+   * this name. Absent for inline credentials, which is exactly the case where
+   * a rotated token has nowhere to be stored.
+   */
+  accountRef?: string;
   /** Always normalized: an adapter never sees the scalar shorthand. */
   target?: PlatformTarget;
 }

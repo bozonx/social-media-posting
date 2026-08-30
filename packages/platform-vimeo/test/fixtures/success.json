@@ -1,0 +1,70 @@
+{
+  "createdVideo": {
+    "status": 201,
+    "body": {
+      "uri": "/videos/987654321",
+      "name": "Contract suite video",
+      "link": "https://vimeo.com/987654321",
+      "status": "uploading",
+      "upload": {
+        "status": "in_progress",
+        "approach": "tus",
+        "size": "524288",
+        "upload_link": "https://files.tus.vimeo.com/files/contract-session"
+      }
+    }
+  },
+  "createdByPull": {
+    "status": 201,
+    "body": {
+      "uri": "/videos/987654322",
+      "link": "https://vimeo.com/987654322",
+      "status": "uploading",
+      "upload": { "status": "in_progress", "approach": "pull" }
+    }
+  },
+  "transcoding": {
+    "status": 200,
+    "body": {
+      "uri": "/videos/987654321",
+      "link": "https://vimeo.com/987654321",
+      "status": "transcoding",
+      "transcode": { "status": "in_progress" },
+      "upload": { "status": "complete" }
+    }
+  },
+  "available": {
+    "status": 200,
+    "body": {
+      "uri": "/videos/987654321",
+      "link": "https://vimeo.com/987654321",
+      "status": "available",
+      "transcode": { "status": "complete" },
+      "upload": { "status": "complete" }
+    }
+  },
+  "transcodeError": {
+    "status": 200,
+    "body": {
+      "uri": "/videos/987654321",
+      "link": "https://vimeo.com/987654321",
+      "status": "transcoding_error",
+      "transcode": { "status": "error" },
+      "upload": { "status": "complete" }
+    }
+  },
+  "quota": {
+    "status": 200,
+    "body": {
+      "upload_quota": {
+        "space": { "free": 53687091200, "max": 107374182400, "used": 53687091200 },
+        "periodic": {
+          "free": 4294967296,
+          "max": 5368709120,
+          "used": 1073741824,
+          "reset_date": "2026-09-06T00:00:00+00:00"
+        }
+      }
+    }
+  }
+}
