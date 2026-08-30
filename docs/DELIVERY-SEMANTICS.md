@@ -121,6 +121,9 @@ because polling requires a scheduler and a scheduler requires durable state.
 | YouTube | none | one resumable session; a lost response after the final chunk landed | the session is queried by position (`Content-Range: bytes */TOTAL`) before any resume, and a session that reports complete raises `UNKNOWN_OUTCOME` instead of uploading again |
 | Vimeo | none | one create call, then a tus session | the video is re-read by URI before a resume; a session with no open upload link raises `UNKNOWN_OUTCOME` rather than starting a second upload |
 | Dailymotion | none | the create call after the file is uploaded | none — the upload endpoint has no offset protocol, so no resume handle is issued for it; an orphaned uploaded file is discarded by Dailymotion on its own |
+| Threads | none | the final `threads_publish` call after the container becomes ready | container and child IDs are resumable; a transient final-publish response becomes `UNKNOWN_OUTCOME` and is never repeated automatically |
+| Instagram | none | the final `media_publish` call after the container becomes ready | container and carousel-child IDs are resumable; an unconfirmed final publish becomes `UNKNOWN_OUTCOME` |
+| Facebook | none | direct feed/photo/video creates, gallery feed creation, and Reel finish | gallery handles retain unpublished photo IDs so upload resumes without duplicating them; an unconfirmed Reel finish becomes `UNKNOWN_OUTCOME` |
 
 This table grows one row per network as networks land, and each row is filled in from that
 network's documented behaviour rather than from assumption. A network is not "done" until its row

@@ -11,7 +11,10 @@ import {
 import type { PostServiceDeps } from '@bozonx/social-posting/platform';
 import { dailymotion } from '@bozonx/social-posting-dailymotion';
 import { discord } from '@bozonx/social-posting-discord';
+import { facebook } from '@bozonx/social-posting-facebook';
+import { instagram } from '@bozonx/social-posting-instagram';
 import { telegram } from '@bozonx/social-posting-telegram';
+import { threads } from '@bozonx/social-posting-threads';
 import { vimeo } from '@bozonx/social-posting-vimeo';
 import { youtube } from '@bozonx/social-posting-youtube';
 import { JsonLogger } from './logger.js';
@@ -28,7 +31,16 @@ import type { ServerConfig } from './config/schema.js';
  *
  * Adding one is a line here plus a dependency; nothing in the library changes.
  */
-export const PLATFORMS: PlatformModule[] = [telegram, discord, youtube, vimeo, dailymotion];
+export const PLATFORMS: PlatformModule[] = [
+  telegram,
+  discord,
+  youtube,
+  vimeo,
+  dailymotion,
+  threads,
+  instagram,
+  facebook,
+];
 
 /** Everything needed to build the HTTP app. */
 export interface CreateAppOptions {

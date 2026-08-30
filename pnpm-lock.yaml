@@ -74,9 +74,18 @@ importers:
       '@bozonx/social-posting-discord':
         specifier: workspace:*
         version: link:../../packages/platform-discord
+      '@bozonx/social-posting-facebook':
+        specifier: workspace:*
+        version: link:../../packages/platform-facebook
+      '@bozonx/social-posting-instagram':
+        specifier: workspace:*
+        version: link:../../packages/platform-instagram
       '@bozonx/social-posting-telegram':
         specifier: workspace:*
         version: link:../../packages/platform-telegram
+      '@bozonx/social-posting-threads':
+        specifier: workspace:*
+        version: link:../../packages/platform-threads
       '@bozonx/social-posting-vimeo':
         specifier: workspace:*
         version: link:../../packages/platform-vimeo
@@ -153,7 +162,34 @@ importers:
         specifier: workspace:*
         version: link:../conformance
 
+  packages/platform-facebook:
+    devDependencies:
+      '@bozonx/social-posting':
+        specifier: workspace:*
+        version: link:../core
+      '@bozonx/social-posting-conformance':
+        specifier: workspace:*
+        version: link:../conformance
+
+  packages/platform-instagram:
+    devDependencies:
+      '@bozonx/social-posting':
+        specifier: workspace:*
+        version: link:../core
+      '@bozonx/social-posting-conformance':
+        specifier: workspace:*
+        version: link:../conformance
+
   packages/platform-telegram:
+    devDependencies:
+      '@bozonx/social-posting':
+        specifier: workspace:*
+        version: link:../core
+      '@bozonx/social-posting-conformance':
+        specifier: workspace:*
+        version: link:../conformance
+
+  packages/platform-threads:
     devDependencies:
       '@bozonx/social-posting':
         specifier: workspace:*

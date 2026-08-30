@@ -919,8 +919,9 @@ API покрывает переписку бизнеса с пользовате
 ## План реализации по волнам
 
 Статус на 30 августа 2026 года: ✅ завершены волна 0 (ядро), волна 1 (`discord`), волна 2
-(`youtube`, `vimeo`, `dailymotion`) и волны A, B, C в BloggerDog. Остальные волны запланированы и
-не считаются начатыми только на основании наличия описания в этом документе.
+(`youtube`, `vimeo`, `dailymotion`) и волны A, B, C в BloggerDog. Код волны 3 реализован и
+проверен контрактными тестами; live smoke и выпуск остаются внешним гейтом до получения Meta
+app, Page и Instagram professional account.
 
 Волна 3 остаётся заблокированной не кодом: её гейт входа (волна C) закрыт, но Meta app, Page и
 Instagram professional account ещё не получены.
@@ -930,7 +931,7 @@ Instagram professional account ещё не получены.
 | 0     | ядро и каталог                       | ✅ Завершена                           | —                                            |
 | 1     | Discord                              | ✅ Завершена                           | волна A в BloggerDog ✅                      |
 | 2     | YouTube → Vimeo → Dailymotion        | ✅ Завершена                           | волна B в BloggerDog ✅                      |
-| 3     | Threads → Instagram → Facebook       | Запланирована                          | волна C в BloggerDog ✅, Meta app и аккаунты |
+| 3     | Threads → Instagram → Facebook       | Код завершён; live smoke заблокирован  | волна C в BloggerDog ✅, Meta app и аккаунты |
 | 4     | Mastodon → Pixelfed → Truth Social   | Запланирована                          | ToS-гейт для Truth Social                    |
 | 5     | Bluesky                              | Запланирована                          | тестовый PDS/account                         |
 | 6     | LinkedIn, TikTok, X, Pinterest       | Заблокирована доступами по каждой сети | app review/tier/scopes                       |
@@ -1057,6 +1058,14 @@ upload limits отражены в capabilities и пользовательски
 
 **Критерий выхода:** контейнер можно безопасно создать, дождаться обработки и опубликовать без
 повторного publish; истечение контейнера и частичные артефакты Facebook gallery обработаны явно.
+
+**Результат реализации.** Добавлены три самостоятельных пакета без runtime-зависимостей и
+подключены к HTTP shell. Threads и Instagram возвращают secret-free handle с ID контейнера и
+дочерних элементов карусели; `checkStatus()` публикует только готовый контейнер, отвергает
+истёкший и превращает неоднозначный ответ финального publish в `UNKNOWN_OUTCOME`. Facebook
+реализует отдельные feed/photo/video/gallery/Reel flows; незавершённая галерея сохраняет ID уже
+созданных unpublished photos и продолжает с первого отсутствующего элемента. Live smoke и npm
+release не объявляются завершёнными до прохождения внешнего access-гейта.
 
 ### Волна 4 — федеративные платформы
 

@@ -22,6 +22,12 @@ consumer, rather than fifteen times later.
 
 ### Added
 
+- **Meta publishing wave:** `@bozonx/social-posting-threads`,
+  `@bozonx/social-posting-instagram`, and `@bozonx/social-posting-facebook`. Threads and Instagram
+  persist container/carousel IDs and publish only after processing finishes. Facebook implements
+  its distinct feed, photo, video, gallery, and Reel flows; gallery failures preserve partial
+  unpublished-photo IDs for a safe resume. All final publish calls refuse automatic repetition
+  when their outcome is unknown.
 - **Three video networks: `@bozonx/social-posting-youtube`, `@bozonx/social-posting-vimeo` and
   `@bozonx/social-posting-dailymotion`.** All three publish `processing` rather than `published`,
   because an accepted upload is not a watchable video, and all three carry the wait budget in

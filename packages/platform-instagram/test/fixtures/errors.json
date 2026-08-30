@@ -1,0 +1,6 @@
+{
+  "$comment": "Responses recorded from the real Instagram API. Record the failures too — those are the paths that break in production.",
+  "rateLimited": { "status": 429, "headers": { "retry-after": "30" }, "body": {} },
+  "unauthorized": { "status": 401, "body": {} },
+  "serverError": { "status": 503, "body": {} }
+}
