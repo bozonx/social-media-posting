@@ -36,7 +36,8 @@
     "vitest": ">=3"
   },
   "devDependencies": {
-    "@bozonx/social-posting": "workspace:*"
+    "@bozonx/social-posting": "workspace:*",
+    "vitest": "^4.1.11"
   },
   "repository": {
     "type": "git",
