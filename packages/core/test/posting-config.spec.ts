@@ -97,7 +97,9 @@ describe('PostingConfig', () => {
               main: { platform: 'telegram', target: true as never, auth: {} },
             },
           }),
-      ).toThrow('account "main": target must be a string or a number');
+      ).toThrow(
+        'account "main": target must be a string, a number, or an object with a non-empty id',
+      );
     });
 
     it('rejects account with non-positive or non-integer maxBodyLength', () => {

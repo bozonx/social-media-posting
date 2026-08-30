@@ -20,6 +20,12 @@ export interface PlatformErrorOptions {
   cause?: unknown;
   /** Raw error payload from the platform, for logging. */
   raw?: unknown;
+  /**
+   * The call may already have published: a timeout or a bodyless 5xx on a
+   * create step. The core turns this into `UNKNOWN_OUTCOME` unless the platform
+   * can reconcile it or the request carried an idempotency key.
+   */
+  outcomeUnknown?: boolean;
 }
 
 /**
@@ -41,6 +47,8 @@ export class PlatformError extends PostingError {
   readonly resumeHandle?: ResumeHandle;
   /** Raw error payload from the platform, for logging. */
   readonly raw?: unknown;
+  /** Whether the publication may nonetheless have happened. */
+  readonly outcomeUnknown: boolean;
 
   constructor(message: string, code: ErrorCode, options: PlatformErrorOptions = {}) {
     super(message, code, { cause: options.cause, retryable: options.retryable ?? false });
@@ -49,5 +57,6 @@ export class PlatformError extends PostingError {
     this.platformCode = options.platformCode;
     this.resumeHandle = options.resumeHandle;
     this.raw = options.raw;
+    this.outcomeUnknown = options.outcomeUnknown ?? false;
   }
 }

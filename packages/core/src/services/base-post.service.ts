@@ -7,6 +7,11 @@ import type { AccountConfig, ResolvedAccountConfig } from '../types/account-conf
 import type { ILogger } from '../logger/logger.js';
 import type { CredentialProvider } from '../auth/credentials.js';
 import { ValidationError } from '../errors/posting-error.js';
+import { normalizeTarget } from '../types/target.js';
+import { isAbsoluteHttpsUrl } from '../config/posting-config.js';
+import { sanitizeResumeHandle } from '../types/resume-handle.js';
+import type { ResumeHandle } from '../types/resume-handle.js';
+import type { PlatformCapabilities } from '../platforms/capabilities.js';
 
 /**
  * Collaborators every posting service needs. Passed explicitly through the
@@ -83,8 +88,53 @@ export abstract class BasePostService {
     return {
       ...baseConfig,
       auth: mergedAuth,
+      target: normalizeTarget(baseConfig.target),
       source,
     };
+  }
+
+  /**
+   * The account's API host, checked against what the platform requires.
+   *
+   * Per-instance networks (Mastodon, Pixelfed, ATProto) have no single host to
+   * bake into a package, so the base URL is a property of the account.
+   */
+  protected validateApiBaseUrl(
+    capabilities: PlatformCapabilities,
+    accountConfig: ResolvedAccountConfig,
+  ): void {
+    const { apiBaseUrl } = accountConfig;
+    if (apiBaseUrl === undefined) {
+      if (capabilities.requiresApiBaseUrl) {
+        throw new ValidationError(
+          `Platform "${capabilities.name}" is per-instance: the account must carry an apiBaseUrl`,
+        );
+      }
+      return;
+    }
+    if (!isAbsoluteHttpsUrl(apiBaseUrl)) {
+      throw new ValidationError('Account "apiBaseUrl" must be an absolute https URL');
+    }
+  }
+
+  /**
+   * Strip anything a handle must never carry before it reaches the host, or
+   * throw in strict mode. A handle is stored by the host; a token inside one
+   * is a token in the host's database.
+   */
+  protected guardResumeHandle(handle: ResumeHandle | undefined): ResumeHandle | undefined {
+    if (!handle) {
+      return handle;
+    }
+    return sanitizeResumeHandle(handle, {
+      strict: this.config.strictResumeHandles,
+      onViolation: violation => {
+        this.logger.warn(
+          `Resume handle from "${handle.platform}" carried a secret at "${violation.path}"; it was removed. Fix the adapter: a handle must be usable from storage alone.`,
+          'ResumeHandle',
+        );
+      },
+    });
   }
 
   /**
@@ -119,6 +169,7 @@ export abstract class BasePostService {
     const accountConfig = await this.getAccountConfig(request);
 
     this.validatePlatformMatch(platformName, accountConfig);
+    this.validateApiBaseUrl(platform.capabilities, accountConfig);
     await this.authValidatorRegistry.validate(platformName, accountConfig.auth, {
       capabilities: platform.capabilities,
       accountRef: request.account,

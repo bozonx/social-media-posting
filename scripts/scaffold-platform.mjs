@@ -126,6 +126,8 @@ export const ${name.replace(/-./g, m => m[1].toUpperCase())}Capabilities: Platfo
   name: '${name}',
   displayName: '${Display}',
 
+  // Keys may only be canonical PostType names or 'x-${name}-<name>' extensions;
+  // anything else fails when the module is registered.
   postTypes: {
     [PostType.POST]: {
       requiredFields: ['body'],
@@ -134,9 +136,27 @@ export const ${name.replace(/-./g, m => m[1].toUpperCase())}Capabilities: Platfo
   },
 
   // maxBodyLength: 0,
-  // bodyLengthRule: { urlWeight: 23 },
+  // How this network counts length: 'utf16' (default), 'graphemes' (Bluesky),
+  // or 'utf8Bytes'. Add urlWeight where links count as a fixed cost.
+  // bodyLengthRule: { countUnit: 'utf16', urlWeight: 23 },
   supportedBodyFormats: ['text'],
   targetBodyFormat: 'text',
+
+  // Media. \`transport\` is required for every kind you declare: 'push' when we
+  // upload the bytes, 'pull' when the network fetches a URL, 'both' when either
+  // works. Without it the library cannot refuse an impossible source before the
+  // first HTTP call.
+  // media: {
+  //   image: {
+  //     acceptedSources: ['bytes', 'blob', 'stream'],
+  //     transport: 'push',
+  //   },
+  // },
+
+  // Parts of a composite address beyond \`id\`, validated like \`extra\`.
+  // targetSchema: [],
+  // Set for a per-instance network: the host then lives on the account.
+  // requiresApiBaseUrl: false,
 
   supportsNativeScheduling: false,
   supportsDraft: false,
@@ -158,6 +178,9 @@ import { ${name.replace(/-./g, m => m[1].toUpperCase())}Capabilities } from './c
 /** The descriptor a host registers to publish to ${Display}. */
 export const ${name.replace(/-./g, m => m[1].toUpperCase())}: PlatformModule = {
   name: '${name}',
+  // The API family this network speaks, when it shares one ('mastodon-api',
+  // 'atproto'). Metadata only — see deriveModule() for serving a family.
+  // dialect: undefined,
   capabilities: ${name.replace(/-./g, m => m[1].toUpperCase())}Capabilities,
   create: deps => new ${Pascal}Platform(deps),
   authValidator: new ${Pascal}AuthValidator(),

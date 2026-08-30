@@ -15,7 +15,7 @@ import { DrainTracker } from './middleware/drain.js';
 import { bearerAuth } from './middleware/auth.js';
 import { errorHandler } from './middleware/errors.js';
 import { healthRoutes } from './routes/health.routes.js';
-import { postRoutes } from './routes/post.routes.js';
+import { postRoutes, streamPostRoutes } from './routes/post.routes.js';
 import { buildApiPrefix, readRuntimeOptions, type ServerEnv } from './config/env.js';
 import type { ServerConfig } from './config/schema.js';
 
@@ -75,6 +75,7 @@ export function createApp(options: CreateAppOptions): CreatedApp {
     config: new PostingConfig({
       accounts: options.config.accounts,
       requestTimeoutSecs: options.config.requestTimeoutSecs,
+      strictResumeHandles: options.config.strictResumeHandles,
     }),
     platformRegistry,
     authValidatorRegistry,
@@ -100,6 +101,18 @@ export function createApp(options: CreateAppOptions): CreatedApp {
 
   api.use('*', drain.middleware());
   api.use('*', bearerAuth(runtime.authBearerTokens));
+
+  const routeDeps = {
+    postService: new PostService(deps),
+    previewService: new PreviewService(deps),
+    allowInlineAuth: runtime.allowInlineAuth,
+    includeRawResponses: runtime.includeRawResponses,
+  };
+
+  // Registered before the body limit so it is not subject to it: this is the
+  // path a video takes, and its whole purpose is not to fit in memory.
+  api.route('/', streamPostRoutes(routeDeps));
+
   api.use(
     '*',
     bodyLimit({
@@ -111,15 +124,7 @@ export function createApp(options: CreateAppOptions): CreatedApp {
         ),
     }),
   );
-  api.route(
-    '/',
-    postRoutes({
-      postService: new PostService(deps),
-      previewService: new PreviewService(deps),
-      allowInlineAuth: runtime.allowInlineAuth,
-      includeRawResponses: runtime.includeRawResponses,
-    }),
-  );
+  api.route('/', postRoutes(routeDeps));
 
   app.route(prefix, api);
 

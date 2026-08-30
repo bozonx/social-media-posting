@@ -4,6 +4,7 @@ import {
   postRequestSchema,
   statusRequestSchema,
   deleteRequestSchema,
+  streamPostRequestSchema,
   base64ToBytes,
   type mediaInputSchema,
 } from '../config/schema.js';
@@ -25,8 +26,22 @@ export interface PostRouteDeps {
   includeRawResponses: boolean;
 }
 
+/** Media kinds that must not travel through the JSON endpoint. */
+const INLINE_FORBIDDEN_KINDS = new Set(['video']);
+
 function normalizeMediaInput(media: z.infer<typeof mediaInputSchema>): MediaInput {
   const { source, ...rest } = media;
+  if (
+    (source.kind === 'base64' || source.kind === 'bytes') &&
+    media.type !== undefined &&
+    INLINE_FORBIDDEN_KINDS.has(media.type)
+  ) {
+    // Base64 in JSON costs a third more bytes and has to be held whole in
+    // memory twice over. Video goes through the streaming ingress or by URL.
+    throw new ValidationError(
+      'Video bytes are not accepted on the JSON endpoint. Publish it by URL, or stream it to POST /post/stream.',
+    );
+  }
   if (source.kind === 'base64') {
     return {
       ...rest,
@@ -126,6 +141,78 @@ export function postRoutes(deps: PostRouteDeps): Hono {
         includeRaw: deps.includeRawResponses,
       },
     );
+
+    return c.json(result);
+  });
+
+  return routes;
+}
+
+/**
+ * `POST /post/stream`: one publication whose media is the request body.
+ *
+ * Mounted outside the JSON body limit on purpose. A 2 GB video cannot be a
+ * JSON string, and materializing it to check its size would defeat the point:
+ * the bytes are handed to the adapter as a `ReadableStream` and never held
+ * whole. The post request itself travels in the `x-post-request` header as
+ * base64 JSON, which keeps the body a pure byte stream.
+ */
+export function streamPostRoutes(deps: PostRouteDeps): Hono {
+  const routes = new Hono();
+
+  routes.post('/post/stream', async c => {
+    const header = c.req.header('x-post-request');
+    if (!header) {
+      throw new ValidationError(
+        'Header "x-post-request" is required: it carries the post request as base64-encoded JSON',
+      );
+    }
+
+    let parsedHeader: unknown;
+    try {
+      parsedHeader = JSON.parse(new TextDecoder().decode(base64ToBytes(header))) as unknown;
+    } catch {
+      throw new ValidationError('Header "x-post-request" must be base64-encoded JSON');
+    }
+
+    const { resume, mediaMeta, ...rawRequest } = streamPostRequestSchema.parse(parsedHeader);
+    rejectInlineAuth(rawRequest.auth, deps.allowInlineAuth);
+
+    const body = c.req.raw.body;
+    if (!body) {
+      throw new ValidationError('POST /post/stream needs the media bytes as the request body');
+    }
+
+    let consumed = false;
+    const media: MediaInput = {
+      ...mediaMeta,
+      source: {
+        kind: 'stream',
+        sizeBytes: mediaMeta?.sizeBytes,
+        open: (openOptions?: { offsetBytes?: number }) => {
+          // One pass over one request body: a resumed upload has to be a new
+          // HTTP request, since there is nothing here to rewind.
+          if (consumed || (openOptions?.offsetBytes ?? 0) > 0) {
+            return Promise.reject(
+              new ValidationError(
+                'The streamed request body can be read once and cannot be rewound; resume by sending the request again',
+              ),
+            );
+          }
+          consumed = true;
+          return Promise.resolve(body);
+        },
+      },
+    };
+
+    const request = normalizePostRequest(rawRequest);
+    request.media = [media];
+
+    const result = await deps.postService.publish(request, {
+      signal: c.req.raw.signal,
+      resume: resume as ResumeHandle | undefined,
+      includeRaw: deps.includeRawResponses,
+    });
 
     return c.json(result);
   });

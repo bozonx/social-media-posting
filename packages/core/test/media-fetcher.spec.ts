@@ -19,6 +19,7 @@ const capabilities: PlatformCapabilities = {
   media: {
     image: {
       acceptedSources: ['url', 'bytes'],
+      transport: 'both',
       mimeTypes: ['image/jpeg', 'image/png'],
       maxBytes: 1024,
     },
@@ -92,7 +93,7 @@ describe('requiresByteUpload', () => {
     expect(
       requiresByteUpload(source, {
         ...capabilities,
-        media: { image: { acceptedSources: ['url', 'bytes'] } },
+        media: { image: { acceptedSources: ['url', 'bytes'], transport: 'both' } },
       }),
     ).toBe(false);
   });
@@ -103,7 +104,7 @@ describe('requiresByteUpload', () => {
     expect(
       requiresByteUpload(source, {
         ...capabilities,
-        media: { image: { acceptedSources: ['bytes'] } },
+        media: { image: { acceptedSources: ['bytes'], transport: 'push' } },
       }),
     ).toBe(true);
   });

@@ -1,6 +1,7 @@
 import { ErrorCode, PlatformError, PostType, ValidationError } from '@bozonx/social-posting';
 import type {
   AccountConfig,
+  PlatformTarget,
   ILogger,
   MediaInput,
   ThumbnailInput,
@@ -13,6 +14,7 @@ import {
   validateAgainstCapabilities,
   renderBody,
   resolveBodyTargetFormat,
+  normalizeTarget,
 } from '@bozonx/social-posting/platform';
 import type {
   IPlatform,
@@ -44,6 +46,8 @@ export interface TelegramPlatformDeps {
 export interface TelegramAccountConfig extends AccountConfig {
   /** Bot token. */
   auth: AccountConfig['auth'] & { apiKey?: string };
+  /** Default chat, already normalized by the core. */
+  target?: PlatformTarget;
   /** Whether to disable notifications for this account by default */
   silent?: boolean;
   /** API request timeout in seconds. */
@@ -84,7 +88,7 @@ export class TelegramPlatform implements IPlatform {
     } = validateAgainstCapabilities(
       request,
       this.capabilities,
-      this.validationHooks(accountConfig),
+      this.validationHooks(accountConfig, request),
     );
 
     if (issues.length > 0) {
@@ -103,7 +107,9 @@ export class TelegramPlatform implements IPlatform {
       accountConfig.apiTimeoutSeconds,
       this.fetch,
     );
-    const chatId = requireChatId(request, accountConfig);
+    const target = requireTarget(request, accountConfig);
+    const chatId = target.id;
+    const messageThreadId = threadIdOf(target);
 
     const { processedBody, parseMode, silent, extra } = this.prepareMessageData(
       request,
@@ -113,6 +119,10 @@ export class TelegramPlatform implements IPlatform {
 
     if (request.inReplyTo?.id) {
       extra.reply_parameters = { message_id: Number(request.inReplyTo.id) };
+    }
+
+    if (messageThreadId !== undefined) {
+      extra.message_thread_id = messageThreadId;
     }
 
     this.logger.debug(
@@ -127,7 +137,7 @@ export class TelegramPlatform implements IPlatform {
       switch (actualType) {
         case PostType.POST:
           if (request.repostOf?.id) {
-            const fromChatId = request.repostOf.target ?? chatId;
+            const fromChatId = normalizeTarget(request.repostOf.target)?.id ?? chatId;
             const messageId = Number(request.repostOf.id);
             if (processedBody) {
               result = await api.call<TelegramMessage>(
@@ -329,22 +339,21 @@ export class TelegramPlatform implements IPlatform {
     const parts: PostPart[] = Array.isArray(result)
       ? result.map(m => ({
           id: String(m.message_id),
-          target: chatId,
+          target,
           url: this.buildPostUrl(chatId, m.message_id),
         }))
       : [
           {
             id: String(messageId),
-            target: chatId,
+            target,
             url: this.buildPostUrl(chatId, messageId),
           },
         ];
 
     const ref: PostRef = {
       postId: String(messageId),
-      target: chatId,
+      target,
       parts,
-      extra: { chatId },
     };
 
     return {
@@ -371,10 +380,11 @@ export class TelegramPlatform implements IPlatform {
       this.fetch,
     );
 
-    const chatId = ref.target ?? accountConfig.target;
-    if (chatId === undefined) {
+    const target = normalizeTarget(ref.target) ?? accountConfig.target;
+    if (!target) {
       throw new ValidationError('Field "target" is required for deleting a Telegram post');
     }
+    const chatId = target.id;
 
     const messageIds: string[] = [];
     if (ref.parts && ref.parts.length > 0) {
@@ -438,7 +448,7 @@ export class TelegramPlatform implements IPlatform {
   ): Issue[] {
     const issues: Issue[] = [];
 
-    if (resolveChatId(request, accountConfig) === undefined) {
+    if (!resolveTarget(request, accountConfig)) {
       issues.push({
         code: 'TARGET_REQUIRED',
         field: 'target',
@@ -504,10 +514,14 @@ export class TelegramPlatform implements IPlatform {
   }
 
   /** The hooks bundled the way the generic validator wants them. */
-  private validationHooks(accountConfig: TelegramAccountConfig): CapabilityValidationOptions {
+  private validationHooks(
+    accountConfig: TelegramAccountConfig,
+    request?: PostRequest,
+  ): CapabilityValidationOptions {
     return {
-      validateExtra: (request: PostRequest, type: PostType) =>
-        this.validateExtra(request, accountConfig, type),
+      target: request ? resolveTarget(request, accountConfig) : accountConfig.target,
+      validateExtra: (candidate: PostRequest, type: PostType) =>
+        this.validateExtra(candidate, accountConfig, type),
     };
   }
 
@@ -548,7 +562,7 @@ export class TelegramPlatform implements IPlatform {
 
   private async sendMessage(
     api: TelegramApi,
-    chatId: string | number,
+    chatId: string,
     text: string,
     parseMode: string | undefined,
     silent: boolean,
@@ -570,7 +584,7 @@ export class TelegramPlatform implements IPlatform {
 
   private async sendPhoto(
     api: TelegramApi,
-    chatId: string | number,
+    chatId: string,
     photo: MediaInput,
     caption: string | undefined,
     parseMode: string | undefined,
@@ -596,7 +610,7 @@ export class TelegramPlatform implements IPlatform {
 
   private async sendVideo(
     api: TelegramApi,
-    chatId: string | number,
+    chatId: string,
     video: MediaInput,
     thumbnail: ThumbnailInput | undefined,
     caption: string | undefined,
@@ -624,7 +638,7 @@ export class TelegramPlatform implements IPlatform {
 
   private async sendAudio(
     api: TelegramApi,
-    chatId: string | number,
+    chatId: string,
     audio: MediaInput,
     thumbnail: ThumbnailInput | undefined,
     caption: string | undefined,
@@ -650,7 +664,7 @@ export class TelegramPlatform implements IPlatform {
 
   private async sendDocument(
     api: TelegramApi,
-    chatId: string | number,
+    chatId: string,
     document: MediaInput,
     thumbnail: ThumbnailInput | undefined,
     caption: string | undefined,
@@ -676,7 +690,7 @@ export class TelegramPlatform implements IPlatform {
 
   private async sendMediaGroup(
     api: TelegramApi,
-    chatId: string | number,
+    chatId: string,
     media: MediaInput[],
     caption: string | undefined,
     parseMode: string | undefined,
@@ -712,7 +726,7 @@ export class TelegramPlatform implements IPlatform {
     );
   }
 
-  private buildPostUrl(chatId: string | number, messageId: number): string | undefined {
+  private buildPostUrl(chatId: string, messageId: number): string | undefined {
     const chatIdStr = String(chatId);
     if (chatIdStr.startsWith('@')) {
       const channelName = chatIdStr.substring(1);
@@ -764,30 +778,31 @@ function requireValue<T>(value: T | undefined, field: string): T {
   return value;
 }
 
-function resolveChatId(
+/**
+ * The chat this request addresses.
+ *
+ * The core normalizes `target` before an adapter sees it, so there is one shape
+ * here and no scalar branch: `{ id, messageThreadId? }`.
+ */
+function resolveTarget(
   request: PostRequest,
   accountConfig: TelegramAccountConfig,
-): string | number | undefined {
-  const finalId = request.target ?? accountConfig.target;
-
-  if (finalId === undefined || finalId === '') {
-    return undefined;
-  }
-  if (typeof finalId !== 'string' && typeof finalId !== 'number') {
-    return undefined;
-  }
-  return finalId;
+): PlatformTarget | undefined {
+  return normalizeTarget(request.target) ?? normalizeTarget(accountConfig.target);
 }
 
-function requireChatId(
-  request: PostRequest,
-  accountConfig: TelegramAccountConfig,
-): string | number {
-  const chatId = resolveChatId(request, accountConfig);
-  if (chatId === undefined) {
+function requireTarget(request: PostRequest, accountConfig: TelegramAccountConfig): PlatformTarget {
+  const target = resolveTarget(request, accountConfig);
+  if (!target) {
     throw new ValidationError(
       'Field "target" is required for Telegram (provide via request.target or account config target)',
     );
   }
-  return chatId;
+  return target;
+}
+
+/** The forum topic, when the address names one. */
+function threadIdOf(target: PlatformTarget): number | undefined {
+  const value = target.messageThreadId;
+  return typeof value === 'number' ? value : undefined;
 }

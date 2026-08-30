@@ -1,9 +1,12 @@
-import { validateAgainstCapabilities } from './capability-validator.js';
+import { validateAgainstCapabilities, isFieldPresent } from './capability-validator.js';
 import { convertBody, countBodyLength, truncateBody, truncateHtml } from '../rendering/body.js';
+import { detectItemMediaKind } from '../media/media-priority.js';
+import { normalizeTarget } from '../types/target.js';
 import type { CapabilityValidationOptions } from './capability-validator.js';
 import type { PostRequest } from '../types/post-request.js';
 import type { PlatformCapabilities } from '../platforms/capabilities.js';
-import type { PreviewResult } from '../types/preview-response.js';
+import type { AdaptedRequest, PreviewResult } from '../types/preview-response.js';
+import type { PostType } from '../types/post-type.js';
 
 /**
  * Build a preview from a platform's descriptor alone.
@@ -31,32 +34,12 @@ export function previewFromCapabilities(
     targetFormat,
   );
 
-  if (issues.length > 0) {
-    return {
-      success: true,
-      data: {
-        valid: false,
-        detectedType,
-        issues,
-        warnings,
-        ignoredFields,
-        convertedBody,
-        convertedBodyLength:
-          convertedBody !== undefined
-            ? countBodyLength(convertedBody, capabilities.bodyLengthRule)
-            : undefined,
-        targetFormat,
-        truncated,
-      },
-    };
-  }
-
   return {
     success: true,
     data: {
-      valid: true,
+      valid: issues.length === 0,
       detectedType,
-      issues: [],
+      issues,
       warnings,
       ignoredFields,
       convertedBody,
@@ -66,7 +49,94 @@ export function previewFromCapabilities(
           : undefined,
       targetFormat,
       truncated,
+      requiredMediaUrlLifetimeSecs: requiredMediaUrlLifetimeSecs(request, capabilities),
+      adaptedRequest: adaptRequest(request, capabilities, detectedType),
     },
+  };
+}
+
+/**
+ * How long the host's signed media URLs must stay alive.
+ *
+ * Only networks that fetch the bytes themselves care, and only for the media
+ * kinds actually present in the request.
+ */
+export function requiredMediaUrlLifetimeSecs(
+  request: PostRequest,
+  capabilities: PlatformCapabilities,
+): number | undefined {
+  const items = [...(request.media ?? []), ...(request.thumbnail ? [request.thumbnail] : [])];
+  let longest: number | undefined;
+
+  for (const item of items) {
+    if (item.source.kind !== 'url') {
+      continue;
+    }
+    const constraints = capabilities.media?.[detectItemMediaKind(item)];
+    if (!constraints || constraints.transport === 'push') {
+      continue;
+    }
+    const secs = constraints.urlMustRemainAvailableForSecs;
+    if (secs !== undefined && (longest === undefined || secs > longest)) {
+      longest = secs;
+    }
+  }
+
+  return longest;
+}
+
+/**
+ * Build the request as the platform will receive it.
+ *
+ * Deterministic and pure: same inputs, same output, no network call. This is
+ * the thing that lets a host delete its per-network formatters.
+ *
+ * @param request - The caller's request.
+ * @param capabilities - What the platform accepts.
+ * @param detectedType - The type it publishes as; detected when omitted.
+ */
+export function adaptRequest(
+  request: PostRequest,
+  capabilities: PlatformCapabilities,
+  detectedType?: PostType,
+): AdaptedRequest {
+  const type = detectedType ?? validateAgainstCapabilities(request, capabilities).detectedType;
+  const targetFormat = resolveBodyTargetFormat(request, capabilities);
+  const { body } = renderBodyWithTruncation(request, capabilities, targetFormat);
+
+  const droppedFields = (capabilities.ignoredFields ?? []).filter(field =>
+    isFieldPresent(request, field),
+  );
+
+  const stripped = { ...request } as Record<string, unknown>;
+  for (const field of droppedFields) {
+    delete stripped[field];
+  }
+  const adaptedRequest = stripped as unknown as PostRequest;
+  adaptedRequest.type = type;
+  adaptedRequest.target = normalizeTarget(request.target);
+  adaptedRequest.body = body;
+  adaptedRequest.bodyFormat = body === undefined ? undefined : targetFormat;
+
+  const visibility = request.visibility ?? capabilities.defaultVisibility;
+  if (visibility !== undefined) {
+    adaptedRequest.visibility = visibility;
+  }
+
+  return {
+    type,
+    target: adaptedRequest.target,
+    body,
+    bodyFormat: adaptedRequest.bodyFormat,
+    visibility,
+    media: request.media?.map((item, index) => ({
+      index,
+      kind: detectItemMediaKind(item, type),
+      sourceKind: item.source.kind,
+      altText: item.altText,
+    })),
+    droppedFields,
+    request: adaptedRequest,
   };
 }
 

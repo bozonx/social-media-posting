@@ -6,17 +6,18 @@ import {
   type DeleteCallOptions,
   type PublishCallOptions,
 } from './services/post.service.js';
-import { PreviewService } from './services/preview.service.js';
+import { PreviewService, type PreviewCallOptions } from './services/preview.service.js';
 import { ConsoleLogger, type ILogger } from './logger/logger.js';
 import type { PlatformModule } from './platforms/platform-module.js';
-import type { PlatformCapabilities } from './platforms/capabilities.js';
+import type { PlatformCapabilities, QuotaState } from './platforms/capabilities.js';
+import type { ResolvedCapabilities } from './platforms/platform.interface.js';
 import type { PostRequest } from './types/post-request.js';
 import type { PostResult, StatusResult, DeleteResult, PostRef } from './types/post-response.js';
 import type { PreviewResult } from './types/preview-response.js';
 import type { ResumeHandle } from './types/resume-handle.js';
 import type { CredentialProvider } from './auth/credentials.js';
 
-export type { DeleteCallOptions, PublishCallOptions };
+export type { DeleteCallOptions, PublishCallOptions, PreviewCallOptions };
 
 /**
  * Everything needed to build a posting client.
@@ -80,8 +81,32 @@ export interface PostingClient {
   /**
    * Validate a post and report what publishing it would do, without publishing.
    * @param request - Post request to preview.
+   * @param options - Capabilities the host resolved for this account, when it has them.
    */
-  preview(request: PostRequest): Promise<PreviewResult>;
+  preview(request: PostRequest, options?: PreviewCallOptions): Promise<PreviewResult>;
+
+  /**
+   * Ask a network what it accepts for one account, right now.
+   *
+   * Nothing is cached: the answer carries `cacheableForSecs`, and where that is
+   * `0` the call belongs before every publication.
+   * @param request - Enough of a request to resolve the platform and credentials.
+   * @param signal - Aborts the lookup.
+   */
+  resolveCapabilities(
+    request: Pick<PostRequest, 'platform' | 'account' | 'auth'>,
+    signal?: AbortSignal,
+  ): Promise<ResolvedCapabilities>;
+
+  /**
+   * Remaining allowance for an account, where the network reports one.
+   * @param request - Enough of a request to resolve the platform and credentials.
+   * @param signal - Aborts the lookup.
+   */
+  getQuota(
+    request: Pick<PostRequest, 'platform' | 'account' | 'auth'>,
+    signal?: AbortSignal,
+  ): Promise<QuotaState>;
 
   /**
    * Register an additional network after construction.
@@ -166,8 +191,22 @@ export function createPostingClient(options: PostingClientOptions): PostingClien
       return postService.checkStatus(request, handle, signal);
     },
 
-    preview(request: PostRequest): Promise<PreviewResult> {
-      return previewService.preview(request);
+    preview(request: PostRequest, previewOptions?: PreviewCallOptions): Promise<PreviewResult> {
+      return previewService.preview(request, previewOptions);
+    },
+
+    resolveCapabilities(
+      request: Pick<PostRequest, 'platform' | 'account' | 'auth'>,
+      signal?: AbortSignal,
+    ): Promise<ResolvedCapabilities> {
+      return postService.resolveCapabilities(request, signal);
+    },
+
+    getQuota(
+      request: Pick<PostRequest, 'platform' | 'account' | 'auth'>,
+      signal?: AbortSignal,
+    ): Promise<QuotaState> {
+      return postService.getQuota(request, signal);
     },
 
     registerPlatform(platformModule: PlatformModule): void {

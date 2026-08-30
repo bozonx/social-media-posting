@@ -1,5 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { PlatformError, PostType } from '@bozonx/social-posting';
+import {
+  ErrorCode,
+  PlatformError,
+  PostType,
+  findResumeHandleSecrets,
+  isCanonicalPostType,
+  isPlatformPostType,
+  normalizeTarget,
+} from '@bozonx/social-posting';
 import {
   previewFromCapabilities,
   validateAgainstCapabilities,
@@ -39,10 +47,53 @@ export function describePlatformContract(options: PlatformContractOptions): void
         expect(() => validateCapabilities(platformModule.capabilities)).not.toThrow();
       });
 
+      it('names every post type canonically or in its own namespace', () => {
+        const declared = Object.keys(platformModule.capabilities.postTypes ?? {});
+        const rogue = declared.filter(
+          type => !isCanonicalPostType(type) && !isPlatformPostType(type),
+        );
+        expect(rogue).toEqual([]);
+      });
+
+      it('declares who moves the bytes for every media kind it accepts', () => {
+        for (const [kind, constraints] of Object.entries(platformModule.capabilities.media ?? {})) {
+          expect(['push', 'pull', 'both'], `media.${kind}.transport must be declared`).toContain(
+            constraints.transport,
+          );
+        }
+      });
+
       const authValidator = platformModule.authValidator;
       const authValidatorIt = authValidator ? it : it.skip;
       authValidatorIt('validates its own credential shape when it has a validator', () => {
         expect(authValidator?.providerName.toLowerCase()).toBe(platformModule.name.toLowerCase());
+      });
+    });
+
+    describe('addressing', () => {
+      it('is handed a normalized target and reads it as an object', async () => {
+        const request = firstRequest(options);
+        const target = normalizeTarget(request.target ?? harness.accountConfig.target);
+        if (!target) {
+          return;
+        }
+
+        harness.respondSuccess();
+        const result = await harness.platform.publish(
+          { ...request, target },
+          harness.accountConfig,
+        );
+
+        for (const part of result.parts ?? []) {
+          if (part.target !== undefined) {
+            expect(typeof part.target, 'PostPart.target must be a PlatformTarget').toBe('object');
+          }
+        }
+        if (result.ref?.target !== undefined) {
+          expect(typeof result.ref.target, 'PostRef.target must be a PlatformTarget').toBe(
+            'object',
+          );
+        }
       });
     });
 
@@ -227,6 +278,29 @@ export function describePlatformContract(options: PlatformContractOptions): void
       });
     });
 
+    describe('unknown outcome', () => {
+      const scenario = options.unknownOutcome;
+      const unknownIt = scenario ? it : it.skip;
+      unknownIt('never repeats an unconfirmed create', async () => {
+        const unknown = scenario ?? missingScenario();
+        unknown.arrangeAmbiguousCreate(harness);
+
+        const error = (await harness.platform
+          .publish(unknown.request, harness.accountConfig)
+          .catch((thrown: unknown) => thrown)) as PlatformError;
+
+        expect(error).toBeInstanceOf(PlatformError);
+        // Either the platform can find out what happened, or it says the
+        // outcome is unknown. What it must never do is publish a second time.
+        const answerable =
+          typeof harness.platform.reconcile === 'function' ||
+          harness.platform.capabilities.supportsIdempotencyKey === true;
+        if (!answerable) {
+          expect(error.outcomeUnknown || error.code === ErrorCode.UNKNOWN_OUTCOME).toBe(true);
+        }
+      });
+    });
+
     describe('resumable publication', () => {
       const resumable = options.resumable;
       const resumableIt = resumable ? it : it.skip;
@@ -242,6 +316,9 @@ export function describePlatformContract(options: PlatformContractOptions): void
         expect(failure.resumeHandle).toBeDefined();
         expect(failure.resumeHandle?.platform).toBe(platformModule.name);
         expect(JSON.parse(JSON.stringify(failure.resumeHandle))).toEqual(failure.resumeHandle);
+        // A handle is stored by the host: a secret in one is a secret in the
+        // host's database, and it must survive a restart without one.
+        expect(findResumeHandleSecrets(failure.resumeHandle as ResumeHandle)).toEqual([]);
 
         const handle = failure.resumeHandle as ResumeHandle;
         const callsBeforeResume = harness.callCount();

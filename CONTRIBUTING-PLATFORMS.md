@@ -39,16 +39,54 @@ fetches media itself. Fill each field from the network's own documentation.
 Where the network documents no limit, **leave the field out** rather than guessing. An invented
 limit rejects posts the network would have accepted, and nobody will ever suspect the descriptor.
 
-Declare supported media types and accepted sources:
+Declare supported media types, accepted sources, and — required — who moves the bytes:
 
 ```ts
 media: {
-  image: { acceptedSources: ['url', 'bytes', 'blob', 'stream', 'platformRef'] },
-  video: { acceptedSources: ['url', 'bytes', 'blob', 'stream', 'platformRef'] },
+  image: {
+    acceptedSources: ['url'],
+    transport: 'pull',                  // the network fetches the URL itself
+    requiresPubliclyFetchableUrl: true,
+    urlMustRemainAvailableForSecs: 3600,
+  },
+  video: {
+    acceptedSources: ['bytes', 'blob', 'stream'],
+    transport: 'push',                  // we upload the bytes
+    containers: ['mp4', 'mov'],
+    videoCodecs: ['h264'],
+    maxFrameRate: 60,
+  },
 }
 ```
 
-This specifies whether the network accepts URLs directly or requires binary upload.
+`transport` is not optional. Without it the library cannot refuse a bare URL to a network that
+only accepts uploads — or bytes to one that only fetches — before the first HTTP call, and
+refusing before the call is the entire point of the descriptor. Codec, container and frame-rate
+values are declarations for the host and for `preview()`: the core never opens a file, so it
+checks them only when the `MediaInput` states them.
+
+### Post types, and naming them
+
+`capabilities.postTypes` may only use a canonical name from `PostType` — `post`, `article`,
+`image`, `album`, `video`, `shortVideo`, `audio`, `document`, `story`, `thread`, `event`, `live`,
+`poll` — or a namespaced extension of your own, `x-<network>-<name>`. Anything else fails at
+module registration, not at publish time. That rule exists so fifteen networks do not end up with
+`shortVideo`, `short_video` and `reel` meaning the same thing.
+
+`shortVideo` and `story` are never inferred from media: a caller asks for them explicitly.
+
+### Addressing: `target` and `apiBaseUrl`
+
+An adapter never sees a scalar `target`. The core normalizes it to `{ id }` first, and any further
+parts of a composite address (a board's section, a forum topic) are declared in
+`capabilities.targetSchema` and validated exactly like `extra`:
+
+```ts
+targetSchema: [{ name: 'sectionId', type: 'string', maxLength: 40 }],
+```
+
+If your network is per-instance — Mastodon, Pixelfed, ATProto — set `requiresApiBaseUrl: true` and
+read the host from `accountConfig.apiBaseUrl`. Never bake a base URL into the package.
 
 ### 2. `publish()` translates, and classifies
 
@@ -90,7 +128,36 @@ and `publish(request, { resume })` must continue from it. Without this, a host's
 step one and creates a second uploaded file and a second post. `runChunkedUpload()` does this for
 you if your API has the usual chunked shape.
 
-The handle must survive `JSON.stringify` — the host stores it in a job record.
+The handle must survive `JSON.stringify` — the host stores it in a job record — and it must carry
+**no secrets**: no access token, no signed upload URL, no authorization header. The core scans
+every handle on its way out; in `strictResumeHandles` mode (development and tests) a leak throws,
+and in production the field is stripped and a warning logged. Derive credentials from the account
+on resume instead.
+
+`buildMultipartFormData()`, `runSinglePartUpload()` and `runUploadSequence()` cover the
+non-chunked shapes, the last one recording which of `init → upload → finalize → status` was
+reached.
+
+### 3b. A `create` whose outcome you do not know
+
+A create step that timed out, or answered 5xx with no body, may well have published. Never repeat
+it. Mark the failure and let the core decide:
+
+```ts
+throw new PlatformError('create timed out', ErrorCode.TIMEOUT_ERROR, {
+  retryable: true,
+  outcomeUnknown: true,
+  resumeHandle: { platform: 'x', step: 'create', state: { attemptId } },
+});
+```
+
+Then give the network one of the two ways out:
+
+- implement `reconcile(handle, accountConfig)` so the library can ask whether the post exists;
+- or declare `supportsIdempotencyKey: true` and send the request's `idempotencyKey`.
+
+With neither, the host gets `UNKNOWN_OUTCOME` — an outcome it must show as "check the account",
+never a second publish.
 
 ### 4. Don't implement `preview()`
 
@@ -124,7 +191,10 @@ The contract suite checks the things that actually go wrong:
 - an already-aborted signal makes no API call, and an abort mid-flight stops the publication;
 - publishing mutates no global state and writes to no ambient logger;
 - preview agrees with publish about what is valid;
-- an interrupted multi-step publication resumes rather than restarting.
+- an interrupted multi-step publication resumes rather than restarting, and its handle carries no
+  secret;
+- every post type is named canonically, and every media kind declares its transport;
+- an unconfirmed `create` is never repeated.
 
 ## Dependencies: none
 

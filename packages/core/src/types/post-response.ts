@@ -1,6 +1,7 @@
 import type { PostType } from './post-type.js';
 import type { ErrorCode } from '../errors/error-code.js';
 import type { JsonValue, ResumeHandle } from './resume-handle.js';
+import type { PlatformTarget } from './target.js';
 
 export interface Issue {
   /** Stable machine code, e.g. 'BODY_TOO_LONG', 'FIELD_REQUIRED', 'FIELD_UNSUPPORTED'. */
@@ -14,7 +15,7 @@ export interface Issue {
 
 export interface PostPart {
   id: string;
-  target?: string | number;
+  target?: PlatformTarget;
   url?: string;
   /** Adapter-defined kind; it need not be a media type. */
   kind?: string;
@@ -22,7 +23,7 @@ export interface PostPart {
 
 export interface PostRef {
   postId?: string;
-  target?: string | number;
+  target?: PlatformTarget;
   parts?: PostPart[];
   extra?: Record<string, JsonValue>;
 }

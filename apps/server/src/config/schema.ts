@@ -17,12 +17,20 @@ export function base64ToBytes(base64: string): Uint8Array {
   return bytes;
 }
 
+/** A destination: a scalar shorthand, or a composite address with an `id`. */
+export const targetSchema = z.union([
+  z.string().min(1),
+  z.number(),
+  z.looseObject({ id: z.string().min(1) }),
+]);
+
 /** One configured account: a platform, its credentials, and its defaults. */
 export const accountSchema = z
   .object({
     platform: z.string().min(1),
     auth: z.record(z.string(), z.unknown()).default({}),
-    target: z.union([z.string(), z.number()]).optional(),
+    target: targetSchema.optional(),
+    apiBaseUrl: z.url().startsWith('https://').optional(),
     maxBodyLength: z.number().int().min(1).max(MAX_BODY_LIMIT).optional(),
     silent: z.boolean().optional(),
   })
@@ -33,6 +41,8 @@ export const accountSchema = z
  */
 export const serverConfigSchema = z.object({
   requestTimeoutSecs: z.number().int().min(1).max(600).default(60),
+  /** Fail loudly when an adapter puts a secret in a resume handle. On in dev. */
+  strictResumeHandles: z.boolean().default(false),
   accounts: z.record(z.string(), accountSchema).default({}),
 });
 
@@ -73,6 +83,11 @@ export const mediaInputSchema = z
     durationSecs: z.number().nonnegative().optional(),
     width: z.number().int().positive().optional(),
     height: z.number().int().positive().optional(),
+    sizeBytes: z.number().int().nonnegative().optional(),
+    container: z.string().max(20).optional(),
+    videoCodec: z.string().max(20).optional(),
+    audioCodec: z.string().max(20).optional(),
+    frameRate: z.number().positive().optional(),
   })
   .refine(media => (media.width === undefined) === (media.height === undefined), {
     message: 'width and height must be provided together',
@@ -88,7 +103,7 @@ export const resumeHandleSchema = z.object({
 
 export const platformObjectRefSchema = z.object({
   id: z.string().min(1),
-  target: z.union([z.string(), z.number()]).optional(),
+  target: targetSchema.optional(),
   extra: z.record(z.string(), z.unknown()).optional(),
 });
 
@@ -110,9 +125,23 @@ export const locationInputSchema = z.object({
 /**
  * The request body of `POST /post` and `POST /preview`.
  */
+/** A long-form document: `PostType.ARTICLE` takes one of these, not a body. */
+export const articleDocumentSchema = z.object({
+  title: z.string().min(1).max(MAX_TITLE_LENGTH),
+  subtitle: z.string().max(MAX_TITLE_LENGTH).optional(),
+  blocks: z.array(z.looseObject({ type: z.string().min(1) })).min(1),
+});
+
+/** One message of a thread. Never produced by splitting a body. */
+export const postSegmentSchema = z.object({
+  body: z.string().max(MAX_BODY_LIMIT).optional(),
+  media: z.array(mediaInputSchema).optional(),
+  poll: z.lazy(() => pollInputSchema).optional(),
+});
+
 export const postRequestSchema = z.object({
   platform: z.string().min(1),
-  target: z.union([z.string().min(1), z.number().int()]).optional(),
+  target: targetSchema.optional(),
   account: z.string().max(1000).optional(),
   auth: z.record(z.string(), z.unknown()).optional(),
   body: z.string().max(MAX_BODY_LIMIT).optional(),
@@ -122,6 +151,8 @@ export const postRequestSchema = z.object({
   description: z.string().max(MAX_DESCRIPTION_LENGTH).optional(),
   tags: z.array(z.string().max(MAX_TAG_LENGTH)).max(MAX_TAGS).optional(),
   language: z.string().max(50).optional(),
+  article: articleDocumentSchema.optional(),
+  thread: z.array(postSegmentSchema).optional(),
   media: z.array(mediaInputSchema).optional(),
   thumbnail: mediaInputSchema.optional(),
   visibility: z.string().max(50).optional(),
@@ -158,12 +189,12 @@ export const deleteRequestSchema = z.object({
     z.number(),
     z.object({
       postId: z.string().optional(),
-      target: z.union([z.string(), z.number()]).optional(),
+      target: targetSchema.optional(),
       parts: z
         .array(
           z.object({
             id: z.string(),
-            target: z.union([z.string(), z.number()]).optional(),
+            target: targetSchema.optional(),
             url: z.string().optional(),
             kind: z.string().optional(),
           }),
@@ -173,4 +204,28 @@ export const deleteRequestSchema = z.object({
     }),
   ]),
   resume: resumeHandleSchema.optional(),
+});
+
+/**
+ * The metadata half of `POST /post/stream`: the post request itself, minus the
+ * media, which arrives as the request body.
+ */
+export const streamPostRequestSchema = postRequestSchema.omit({ media: true }).extend({
+  /** Describes the single media item carried in the body. */
+  mediaMeta: z
+    .object({
+      type: z.enum(['image', 'video', 'audio', 'document']),
+      mimeType: z.string().max(255).optional(),
+      fileName: z.string().max(255).optional(),
+      sizeBytes: z.number().int().nonnegative().optional(),
+      altText: z.string().max(MAX_DESCRIPTION_LENGTH).optional(),
+      durationSecs: z.number().nonnegative().optional(),
+      width: z.number().int().positive().optional(),
+      height: z.number().int().positive().optional(),
+      container: z.string().max(20).optional(),
+      videoCodec: z.string().max(20).optional(),
+      audioCodec: z.string().max(20).optional(),
+      frameRate: z.number().positive().optional(),
+    })
+    .optional(),
 });

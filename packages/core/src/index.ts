@@ -9,12 +9,20 @@ export type {
   PostingClientOptions,
   DeleteCallOptions,
   PublishCallOptions,
+  PreviewCallOptions,
 } from './client.js';
 
 // Platform module descriptor (read-only / registration types)
 export type { PlatformModule, PlatformDeps } from './platforms/platform-module.js';
+export { deriveModule } from './platforms/platform-module.js';
+export type {
+  ResolvedCapabilities,
+  RuntimeCapabilities,
+  ReconcileOutcome,
+} from './platforms/platform.interface.js';
 export type {
   PlatformCapabilities,
+  QuotaState,
   PostTypeCapabilities,
   MediaConstraints,
   BodyLengthRule,
@@ -28,6 +36,7 @@ export type {
 // Request and result types
 export type {
   PostRequest,
+  PostSegment,
   PlatformObjectRef,
   PollInput,
   LocationInput,
@@ -47,8 +56,19 @@ export type {
   DeleteOutcome,
   DeleteResult,
 } from './types/post-response.js';
-export type { ResumeHandle, JsonValue } from './types/resume-handle.js';
-export type { PreviewResult } from './types/preview-response.js';
+export type { ResumeHandle, JsonValue, ResumeHandleViolation } from './types/resume-handle.js';
+export { findResumeHandleSecrets, sanitizeResumeHandle } from './types/resume-handle.js';
+export type { PreviewResult, AdaptedRequest } from './types/preview-response.js';
+export type { PlatformTarget, TargetInput } from './types/target.js';
+export { normalizeTarget, isValidTargetInput } from './types/target.js';
+export type {
+  ArticleDocument,
+  ArticleBlock,
+  ArticleBlockType,
+  InlineNode,
+  InlineMark,
+} from './types/article-document.js';
+export { ARTICLE_BLOCK_TYPES, INLINE_MARKS } from './types/article-document.js';
 export type {
   MediaInput,
   MediaSourceInput,
@@ -59,7 +79,12 @@ export type {
 export type { AccountConfig, ResolvedAccountConfig } from './types/account-config.js';
 
 // Types & const objects
-export { PostType } from './types/post-type.js';
+export {
+  PostType,
+  CANONICAL_POST_TYPES,
+  isCanonicalPostType,
+  isPlatformPostType,
+} from './types/post-type.js';
 export type { PostType as PostTypeValue } from './types/post-type.js';
 export { BodyFormat } from './types/body-format.js';
 export type { BodyFormat as BodyFormatValue } from './types/body-format.js';

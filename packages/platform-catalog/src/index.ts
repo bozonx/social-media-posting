@@ -1,4 +1,9 @@
-import { PostType, type PlatformCapabilities } from '@bozonx/social-posting';
+import {
+  PostType,
+  type MediaConstraints,
+  type MediaType as MediaKindName,
+  type PlatformCapabilities,
+} from '@bozonx/social-posting';
 
 export type PlatformApiAvailability = 'available' | 'restricted' | 'unavailable';
 
@@ -15,20 +20,25 @@ const directUploadSources = ['bytes', 'blob', 'stream', 'platformRef'] as const;
 const verifiedAt = '2026-08-29';
 
 export const platformProfiles = {
-  facebook: profile('facebook', 'Facebook', 'available', {
-    postTypes: {
-      [PostType.POST]: { requiredFields: ['body'], maxBodyLength: 63_206 },
-      [PostType.IMAGE]: { requiredFields: ['media'], minMediaCount: 1 },
-      [PostType.VIDEO]: { requiredFields: ['media'], minMediaCount: 1, maxMediaCount: 1 },
+  facebook: profile(
+    'facebook',
+    'Facebook',
+    'available',
+    {
+      postTypes: {
+        [PostType.POST]: { requiredFields: ['body'], maxBodyLength: 63_206 },
+        [PostType.IMAGE]: { requiredFields: ['media'], minMediaCount: 1 },
+        [PostType.VIDEO]: { requiredFields: ['media'], minMediaCount: 1, maxMediaCount: 1 },
+      },
+      auth: {
+        kind: 'oauth2',
+        requiresTarget: true,
+        docsUrl: 'https://developers.facebook.com/docs/pages-api/posts/',
+      },
+      sources: source('https://developers.facebook.com/docs/pages-api/posts/', ['Page publishing']),
     },
-    media: genericVisualMedia(),
-    auth: {
-      kind: 'oauth2',
-      requiresTarget: true,
-      docsUrl: 'https://developers.facebook.com/docs/pages-api/posts/',
-    },
-    sources: source('https://developers.facebook.com/docs/pages-api/posts/', ['Page publishing']),
-  }),
+    'Media transport and per-kind limits are not stated by the cited source and are deliberately absent.',
+  ),
   threads: profile('threads', 'Threads', 'available', {
     postTypes: {
       [PostType.POST]: { requiredFields: ['body'], maxBodyLength: 500 },
@@ -51,7 +61,7 @@ export const platformProfiles = {
         maxBodyLength: 500,
       },
     },
-    media: genericVisualMedia(['url']),
+    media: pullMedia(['image', 'video']),
     supportsReply: true,
     auth: { kind: 'oauth2', docsUrl: 'https://developers.facebook.com/docs/threads/posts/' },
     sources: source('https://developers.facebook.com/docs/threads/posts/', [
@@ -78,13 +88,24 @@ export const platformProfiles = {
         maxMediaCount: 10,
         maxBodyLength: 2_200,
       },
+      [PostType.SHORT_VIDEO]: {
+        requiredFields: ['media'],
+        minMediaCount: 1,
+        maxMediaCount: 1,
+        maxBodyLength: 2_200,
+      },
       [PostType.STORY]: { requiredFields: ['media'], minMediaCount: 1, maxMediaCount: 1 },
     },
     maxTags: 30,
     tagFormat: 'hashtag',
     media: {
-      image: { acceptedSources: ['url'], mimeTypes: ['image/jpeg'] },
-      video: { acceptedSources: ['url', 'bytes', 'blob', 'stream', 'platformRef'] },
+      image: {
+        acceptedSources: ['url'],
+        transport: 'pull',
+        requiresPubliclyFetchableUrl: true,
+        mimeTypes: ['image/jpeg'],
+      },
+      video: { acceptedSources: ['url'], transport: 'pull', requiresPubliclyFetchableUrl: true },
     },
     rateLimits: { postsPerDay: 100, note: 'Rolling 24-hour content publishing limit.' },
     auth: {
@@ -117,7 +138,7 @@ export const platformProfiles = {
     media: {
       video: {
         acceptedSources: directUploadSources.slice(),
-        mimeTypes: ['application/octet-stream'],
+        transport: 'push',
         maxBytes: 256 * 1024 ** 3,
       },
     },
@@ -138,6 +159,7 @@ export const platformProfiles = {
     media: {
       video: {
         acceptedSources: allUploadSources.slice(),
+        transport: 'both',
         maxBytes: 300 * 1024 ** 3,
         maxDurationSecs: 86_400,
       },
@@ -158,15 +180,21 @@ export const platformProfiles = {
     'restricted',
     {
       postTypes: {
-        [PostType.VIDEO]: { requiredFields: ['media'], minMediaCount: 1, maxMediaCount: 1 },
-        [PostType.ALBUM]: { requiredFields: ['media'], minMediaCount: 1, maxMediaCount: 35 },
+        [PostType.SHORT_VIDEO]: { requiredFields: ['media'], minMediaCount: 1, maxMediaCount: 1 },
+        [PostType.ALBUM]: { requiredFields: ['media'], minMediaCount: 2, maxMediaCount: 35 },
       },
       media: {
         video: {
           acceptedSources: ['url', 'bytes', 'blob', 'stream'],
+          transport: 'both',
           mimeTypes: ['video/mp4', 'video/quicktime', 'video/webm'],
         },
-        image: { acceptedSources: ['url'] },
+        image: {
+          acceptedSources: ['url'],
+          transport: 'pull',
+          requiresPubliclyFetchableUrl: true,
+          requiresCover: true,
+        },
       },
       auth: {
         kind: 'oauth2',
@@ -191,7 +219,7 @@ export const platformProfiles = {
         [PostType.VIDEO]: { requiredFields: ['media'], minMediaCount: 1, maxMediaCount: 1 },
         [PostType.POLL]: { requiredFields: ['poll'] },
       },
-      media: genericMedia(),
+      media: pushMedia(['image', 'video', 'audio', 'document']),
       supportsContentWarning: true,
       supportsReply: true,
       sensitive: { supportedValues: [false, true] },
@@ -224,7 +252,7 @@ export const platformProfiles = {
       [PostType.POLL]: { requiredFields: ['poll'], maxBodyLength: 280 },
     },
     bodyLengthRule: { urlWeight: 23 },
-    media: genericVisualMedia(directUploadSources.slice()),
+    media: pushMedia(['image', 'video']),
     supportsReply: true,
     supportsRepost: true,
     supportsQuote: true,
@@ -249,7 +277,7 @@ export const platformProfiles = {
         maxBodyLength: 300,
       },
     },
-    media: genericVisualMedia(directUploadSources.slice()),
+    media: pushMedia(['image', 'video']),
     supportsReply: true,
     supportsRepost: true,
     supportsQuote: true,
@@ -266,7 +294,6 @@ export const platformProfiles = {
       postTypes: {
         [PostType.STORY]: { requiredFields: ['media'], minMediaCount: 1, maxMediaCount: 1 },
       },
-      media: genericVisualMedia(directUploadSources.slice()),
       auth: {
         kind: 'oauth2',
         docsUrl: 'https://developers.snap.com/api/marketing-api/Public-Profile-API/Introduction',
@@ -301,7 +328,7 @@ export const platformProfiles = {
       },
       [PostType.POLL]: { requiredFields: ['poll'] },
     },
-    media: genericMedia(),
+    media: pushMedia(['image', 'video', 'audio', 'document']),
     altText: { supported: true, maxLength: 1_024 },
     auth: {
       kind: 'apiKey',
@@ -329,7 +356,10 @@ export const platformProfiles = {
         maxDescriptionLength: 800,
       },
     },
-    media: genericVisualMedia(),
+    media: {
+      image: { acceptedSources: ['url', 'bytes', 'blob'], transport: 'both' },
+      video: { acceptedSources: directUploadSources.slice(), transport: 'push' },
+    },
     thumbnail: { supported: true },
     auth: {
       kind: 'oauth2',
@@ -369,7 +399,7 @@ export const platformProfiles = {
           maxBodyLength: 3_000,
         },
       },
-      media: genericMedia(directUploadSources.slice()),
+      media: pushMedia(['image', 'video', 'document']),
       auth: {
         kind: 'oauth2',
         docsUrl:
@@ -406,7 +436,6 @@ export const platformProfiles = {
           maxTitleLength: 300,
         },
       },
-      media: genericVisualMedia(),
       sensitive: { supportedValues: [false, true] },
       auth: {
         kind: 'oauth2',
@@ -427,7 +456,7 @@ export const platformProfiles = {
       postTypes: {
         [PostType.VIDEO]: { requiredFields: ['media'], minMediaCount: 1, maxMediaCount: 1 },
       },
-      media: { video: { acceptedSources: directUploadSources.slice() } },
+      media: pushMedia(['video']),
       auth: { kind: 'oauth2', docsUrl: 'https://dev.twitch.tv/docs/api/videos/' },
       sources: source('https://dev.twitch.tv/docs/api/videos/', ['video API availability']),
     },
@@ -441,7 +470,7 @@ export const platformProfiles = {
       postTypes: {
         [PostType.VIDEO]: { requiredFields: ['media'], minMediaCount: 1, maxMediaCount: 1 },
       },
-      media: { video: { acceptedSources: directUploadSources.slice() } },
+      media: pushMedia(['video']),
       auth: { kind: 'oauth2', docsUrl: 'https://developers.kwai.com/' },
       sources: source('https://developers.kwai.com/', ['developer program']),
     },
@@ -451,7 +480,7 @@ export const platformProfiles = {
     postTypes: {
       [PostType.VIDEO]: { requiredFields: ['media', 'title'], minMediaCount: 1, maxMediaCount: 1 },
     },
-    media: { video: { acceptedSources: directUploadSources.slice() } },
+    media: pushMedia(['video']),
     auth: { kind: 'oauth2', docsUrl: 'https://developers.dailymotion.com/guides/upload-videos/' },
     sources: source('https://developers.dailymotion.com/guides/upload-videos/', [
       'video upload flow',
@@ -500,17 +529,30 @@ function source(url: string, supports: string[]) {
   return [{ url, supports, verifiedAt }];
 }
 
-function genericVisualMedia(acceptedSources = allUploadSources.slice()) {
-  return {
-    image: { acceptedSources: [...acceptedSources] },
-    video: { acceptedSources: [...acceptedSources] },
-  };
+/**
+ * Media a network takes as an upload from us.
+ *
+ * There is no "generic" media block any more: a descriptor either states a
+ * transport backed by the cited source, or states no media at all. A guessed
+ * value reads exactly like a verified one at the call site, which is how a
+ * catalogue stops being useful.
+ */
+function pushMedia(kinds: MediaKindName[], acceptedSources = directUploadSources.slice()) {
+  return Object.fromEntries(
+    kinds.map(kind => [kind, { acceptedSources: [...acceptedSources], transport: 'push' }]),
+  ) as Partial<Record<MediaKindName, MediaConstraints>>;
 }
 
-function genericMedia(acceptedSources = allUploadSources.slice()) {
-  return {
-    ...genericVisualMedia(acceptedSources),
-    audio: { acceptedSources: [...acceptedSources] },
-    document: { acceptedSources: [...acceptedSources] },
-  };
+/** Media the network fetches itself from a URL we hand it. */
+function pullMedia(kinds: MediaKindName[]) {
+  return Object.fromEntries(
+    kinds.map(kind => [
+      kind,
+      {
+        acceptedSources: ['url'],
+        transport: 'pull',
+        requiresPubliclyFetchableUrl: true,
+      },
+    ]),
+  ) as Partial<Record<MediaKindName, MediaConstraints>>;
 }

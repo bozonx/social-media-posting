@@ -76,6 +76,46 @@ are easy to get subtly wrong in each network separately:
 Only `fetch`, `URLSearchParams` and Web Crypto are used, so the same code runs on Node, Workers,
 Deno and Bun.
 
+## Per-instance client credentials
+
+On Mastodon and Pixelfed the client id and secret are issued **by each instance**, so they are not
+package constants — they are account state. `OAuth2TokenRefresher` therefore takes either a config
+object or a function of the account:
+
+```ts
+new OAuth2TokenRefresher(
+  account => ({
+    tokenEndpoint: `${account.apiBaseUrl}/oauth/token`,
+    clientId: account.auth.clientId as string,
+    clientSecret: account.auth.clientSecret as string,
+  }),
+  credentialProvider,
+);
+```
+
+The `CredentialProvider` stores `clientId` and `clientSecret` next to the tokens, and the host must
+persist them: an instance's app registration cannot be recovered from anywhere else.
+
+Registering the application is one request, and the library builds it:
+
+```ts
+const { url, init } = buildAppRegistrationRequest({
+  apiBaseUrl: 'https://mastodon.social',
+  clientName: 'Your App',
+  redirectUris: ['https://yourapp.example/oauth/callback'],
+  scopes: ['write:statuses', 'write:media'],
+});
+```
+
+Performing it, and the redirect flow that follows, stays with the host — only the host has storage
+and an HTTP endpoint to be redirected to.
+
+## OAuth2 is not the only path
+
+`IPlatform` does not require it. ATProto authenticates with an app password and refreshes its own
+session; a network with an API key never refreshes at all. Nothing in the core assumes a token
+endpoint exists, and a platform is free to keep its own refresh mechanism.
+
 ## Telling the host to re-authorize
 
 When only a human can fix the situation, the failure comes back as `AUTH_REFRESH_REQUIRED`:

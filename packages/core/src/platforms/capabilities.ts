@@ -1,6 +1,8 @@
 import type { PostType } from '../types/post-type.js';
+import { isCanonicalPostType, isPlatformPostType } from '../types/post-type.js';
 import type { MediaType, MediaSourceInput } from '../types/media-input.js';
 import type { Visibility } from '../types/post-request.js';
+import type { ArticleBlockType, InlineMark } from '../types/article-document.js';
 import { ValidationError } from '../errors/posting-error.js';
 
 export type RequestField =
@@ -63,6 +65,36 @@ export interface MediaConstraints {
   maxWidth?: number;
   minHeight?: number;
   maxHeight?: number;
+
+  // — video traits —
+  /** Frame rate bounds. Checked only when the `MediaInput` states its frame rate. */
+  minFrameRate?: number;
+  maxFrameRate?: number;
+  /** Accepted container formats, lower-case: 'mp4', 'mov', 'webm'. */
+  containers?: string[];
+  /** Accepted video codecs, lower-case: 'h264', 'hevc', 'vp9'. */
+  videoCodecs?: string[];
+  /** Accepted audio codecs, lower-case. */
+  audioCodecs?: string[];
+  /** A cover image is mandatory (Pinterest, TikTok photo posts). */
+  requiresCover?: boolean;
+
+  // — transport —
+  /**
+   * Who moves the bytes.
+   *
+   * - `push`: the library uploads them, so a bare `url` cannot be published.
+   * - `pull`: the network fetches the URL itself, so raw bytes cannot be sent.
+   * - `both`: either works.
+   *
+   * Required: a descriptor that does not say this cannot be validated before
+   * the first HTTP call, which is the whole point of the descriptor.
+   */
+  transport: 'push' | 'pull' | 'both';
+  /** A pulled URL must be reachable by the network without credentials. */
+  requiresPubliclyFetchableUrl?: boolean;
+  /** How long a pulled URL must keep working after publication, in seconds. */
+  urlMustRemainAvailableForSecs?: number;
 }
 
 /** Rules for one post type on one platform. */
@@ -101,6 +133,19 @@ export interface CapabilitySource {
 
 /** How a platform counts the length of a body. */
 export interface BodyLengthRule {
+  /**
+   * What one unit of length is.
+   *
+   * Networks disagree, and the disagreement is not cosmetic: Bluesky's 300 is
+   * 300 *graphemes*, so one emoji costs one there and two in `String.length`.
+   * Counting in the wrong unit rejects posts a network would have taken, or
+   * lets through posts it refuses.
+   *
+   * - `utf16` (default): `String.length`, what JavaScript counts.
+   * - `graphemes`: user-perceived characters (Bluesky).
+   * - `utf8Bytes`: encoded bytes (ATProto facet offsets, several APIs' limits).
+   */
+  countUnit?: 'utf16' | 'graphemes' | 'utf8Bytes';
   /**
    * Characters a URL costs regardless of its real length, for platforms that
    * shorten links (X counts every URL as 23). Omit when URLs count literally.
@@ -141,8 +186,31 @@ export interface RateLimits {
   postsPerHour?: number;
   /** Posts allowed per account per day. */
   postsPerDay?: number;
+  /**
+   * What one publication costs where the network bills in its own units
+   * (YouTube spends 1600 `quotaUnits` per upload against a daily budget).
+   */
+  quotaCost?: { unit: string; perPublish?: number };
+  /** What the quota actually counts. */
+  quotaKind?: 'operations' | 'storage' | 'rollingWindow';
   /** Free-text note about limits that do not fit the fields above. */
   note?: string;
+}
+
+/** What a network reports about an account's remaining allowance. */
+export interface QuotaState {
+  /** Unit the numbers are in, matching `rateLimits.quotaCost.unit` when set. */
+  unit: string;
+  /** Allowance left, in `unit`. */
+  remaining?: number;
+  /** Total allowance for the period, in `unit`. */
+  limit?: number;
+  /** When the allowance resets (ISO 8601). */
+  resetsAt?: string;
+  /** When this reading was taken (ISO 8601). */
+  fetchedAt: string;
+  /** Raw payload, for logging. */
+  raw?: unknown;
 }
 
 /**
@@ -178,6 +246,14 @@ export interface PlatformCapabilities {
   maxTagsLength?: number;
   tagFormat?: 'plain' | 'hashtag';
 
+  /**
+   * Parts of a composite `target` beyond `id`, validated exactly like `extra`.
+   * Omitted when a single identifier addresses the destination.
+   */
+  targetSchema?: ExtraFieldSpec[];
+  /** The account must carry an `apiBaseUrl` (per-instance networks). */
+  requiresApiBaseUrl?: boolean;
+
   // media
   media?: Partial<Record<MediaType, MediaConstraints>>;
   altText?: { supported: boolean; required?: boolean; maxLength?: number };
@@ -189,6 +265,21 @@ export interface PlatformCapabilities {
   supportsContentWarning?: boolean;
   sensitive?: ToggleCapabilities;
   commentsEnabled?: ToggleCapabilities;
+
+  /** What `PostType.ARTICLE` accepts. Absent means articles are unsupported. */
+  article?: {
+    blocks: ArticleBlockType[];
+    marks: InlineMark[];
+    maxTitleLength?: number;
+    maxBlocks?: number;
+  };
+
+  /** Threads, when the network publishes a chain as one conversation. */
+  thread?: {
+    supported: boolean;
+    maxSegments?: number;
+    maxSegmentBodyLength?: number;
+  };
 
   // structure
   supportsReply?: boolean;
@@ -216,6 +307,8 @@ export interface PlatformCapabilities {
   supportsDraft?: boolean;
   supportsIdempotencyKey?: boolean;
   supportsDeletion?: boolean;
+  /** Whether `IPlatform.edit()` is implemented. Declared, not yet implemented anywhere. */
+  supportsEdit?: boolean;
 
   // Hints for documentation/configuration, not a complete OAuth flow contract.
   auth?: {
@@ -264,6 +357,10 @@ export function validateCapabilities(capabilities: PlatformCapabilities): void {
     for (const [type, rules] of Object.entries(capabilities.postTypes)) {
       if (type === 'auto') {
         errors.push(`${label}: postTypes must not include 'auto'`);
+      } else if (!isCanonicalPostType(type) && !isPlatformPostType(type)) {
+        errors.push(
+          `${label}: post type '${type}' is neither a canonical type name nor a namespaced platform extension ('x-${capabilities.name}-<name>')`,
+        );
       }
       if (rules) {
         if (
@@ -299,6 +396,28 @@ export function validateCapabilities(capabilities: PlatformCapabilities): void {
       if (!Array.isArray(constraints.acceptedSources) || constraints.acceptedSources.length === 0) {
         errors.push(
           `${label}: media constraints for '${kind}' must declare at least one acceptedSource`,
+        );
+      }
+
+      if (!['push', 'pull', 'both'].includes(constraints.transport)) {
+        errors.push(
+          `${label}: media constraints for '${kind}' must declare transport as 'push', 'pull' or 'both'`,
+        );
+      }
+
+      if (
+        constraints.minFrameRate !== undefined &&
+        constraints.maxFrameRate !== undefined &&
+        constraints.minFrameRate > constraints.maxFrameRate
+      ) {
+        errors.push(
+          `${label}: media constraints for '${kind}' minFrameRate cannot exceed maxFrameRate`,
+        );
+      }
+
+      if (constraints.transport === 'pull' && !constraints.acceptedSources.includes('url')) {
+        errors.push(
+          `${label}: media constraints for '${kind}' declare transport 'pull' but do not accept a 'url' source`,
         );
       }
 
@@ -383,7 +502,75 @@ export function validateCapabilities(capabilities: PlatformCapabilities): void {
     }
   }
 
+  if (capabilities.article) {
+    if (!capabilities.postTypes.article) {
+      errors.push(`${label}: article rules are declared but 'article' is not a published type`);
+    }
+    if (!Array.isArray(capabilities.article.blocks) || capabilities.article.blocks.length === 0) {
+      errors.push(`${label}: article.blocks must list at least one supported block`);
+    }
+  }
+
+  if (capabilities.postTypes.article && !capabilities.article) {
+    errors.push(
+      `${label}: post type 'article' requires an 'article' section listing supported blocks and marks`,
+    );
+  }
+
+  if (capabilities.thread?.supported && !capabilities.thread.maxSegments) {
+    errors.push(`${label}: thread.supported requires maxSegments`);
+  }
+
+  for (const spec of capabilities.targetSchema ?? []) {
+    if (spec.name === 'id') {
+      errors.push(
+        `${label}: targetSchema must not redeclare 'id'; it is part of every PlatformTarget`,
+      );
+    }
+  }
+
   if (errors.length > 0) {
     throw new ValidationError(errors);
   }
+}
+
+/**
+ * Fold runtime capabilities over the static descriptor.
+ *
+ * One implementation in the core rather than one per adapter, with rules stated
+ * once: a runtime scalar overrides a static one, a runtime list replaces the
+ * static list whole (a network that shrinks its accepted MIME types means
+ * exactly those), and anything the runtime does not mention keeps its static
+ * value.
+ *
+ * @param base - The descriptor the package ships.
+ * @param runtime - What the network reported for this account.
+ * @returns The merged descriptor. Neither input is mutated.
+ */
+export function mergeCapabilities(
+  base: PlatformCapabilities,
+  runtime: Partial<PlatformCapabilities>,
+): PlatformCapabilities {
+  return mergeValue(base, runtime) as PlatformCapabilities;
+}
+
+function mergeValue(base: unknown, runtime: unknown): unknown {
+  if (runtime === undefined) {
+    return base;
+  }
+  if (Array.isArray(runtime) || Array.isArray(base)) {
+    return runtime;
+  }
+  if (isPlainRecord(base) && isPlainRecord(runtime)) {
+    const merged: Record<string, unknown> = { ...base };
+    for (const [key, value] of Object.entries(runtime)) {
+      merged[key] = mergeValue(base[key], value);
+    }
+    return merged;
+  }
+  return runtime;
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

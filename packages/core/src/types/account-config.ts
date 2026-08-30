@@ -1,4 +1,5 @@
 import type { ResolvedCredentials } from '../auth/credentials.js';
+import type { PlatformTarget, TargetInput } from './target.js';
 
 /**
  * Account configuration.
@@ -16,8 +17,18 @@ export interface AccountConfig {
    */
   auth: ResolvedCredentials;
 
-  /** Platform-specific target identifier (channel, page, board, community, profile). */
-  target?: string | number;
+  /** Default target (channel, page, board, community, profile) for this account. */
+  target?: TargetInput;
+
+  /**
+   * Base URL of the API this account talks to.
+   *
+   * A property of the account, not of the package: Mastodon, Pixelfed and
+   * ATProto accounts each live on their own host. Networks with one host leave
+   * it unset and the adapter supplies its default. Must be an absolute
+   * `https:` URL when present.
+   */
+  apiBaseUrl?: string;
 
   /** Maximum body length for this account (characters). */
   maxBodyLength?: number;
@@ -33,4 +44,6 @@ export interface AccountConfig {
 export interface ResolvedAccountConfig extends AccountConfig {
   /** Where the credentials came from: a named account or inline request auth. */
   source: 'account' | 'inline';
+  /** Always normalized: an adapter never sees the scalar shorthand. */
+  target?: PlatformTarget;
 }

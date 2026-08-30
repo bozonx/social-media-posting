@@ -25,6 +25,8 @@ export function createTestApp(options: {
   return createApp({
     config: {
       requestTimeoutSecs: options.config?.requestTimeoutSecs ?? 10,
+      // Tests are development: a leaked secret in a resume handle must fail here.
+      strictResumeHandles: options.config?.strictResumeHandles ?? true,
       accounts: options.config?.accounts ?? {},
     },
     env: { ALLOW_INLINE_AUTH: 'true', ...options.env },

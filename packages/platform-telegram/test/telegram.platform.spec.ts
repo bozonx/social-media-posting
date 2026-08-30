@@ -72,7 +72,7 @@ describe('TelegramPlatform', () => {
     auth: {
       apiKey: 'test-token',
     },
-    target: 'test-chat-id',
+    target: { id: 'test-chat-id' },
     silent: false,
   };
 
@@ -305,7 +305,7 @@ describe('TelegramPlatform', () => {
         auth: {
           apiKey: 'test-token',
         },
-        target: '@publicchannel',
+        target: { id: '@publicchannel' },
       };
 
       const request: PostRequest = {
@@ -816,6 +816,7 @@ describe('TelegramPlatform', () => {
   describe('preview', () => {
     const preview = (request: PostRequest) =>
       previewFromCapabilities(request, platform.capabilities, {
+        target: mockAccountConfig.target,
         validateExtra: (r: PostRequest, type: PostType) =>
           platform.validateExtra(r, mockAccountConfig, type),
       });
@@ -911,7 +912,7 @@ describe('TelegramPlatform', () => {
     });
 
     it('throws ValidationError when target is completely missing from both request and account', async () => {
-      const accountWithoutTarget = { ...mockAccountConfig, target: '' };
+      const accountWithoutTarget = { ...mockAccountConfig, target: undefined };
       const request: PostRequest = {
         platform: 'telegram',
         body: 'Hello',

@@ -6,6 +6,7 @@ import { assertValidPostRequest } from '../validation/validate-post-request.js';
 import { detectPostType } from '../validation/detect-post-type.js';
 import { validateAgainstCapabilities } from '../validation/capability-validator.js';
 import type { PostRequest } from '../types/post-request.js';
+import type { PostType } from '../types/post-type.js';
 import type {
   ErrorPayload,
   ErrorResponse,
@@ -16,6 +17,12 @@ import type {
   PostRef,
 } from '../types/post-response.js';
 import type { ResumeHandle } from '../types/resume-handle.js';
+import { normalizeTarget } from '../types/target.js';
+import type { PlatformCapabilities } from '../platforms/capabilities.js';
+import type { IPlatform, ResolvedCapabilities } from '../platforms/platform.interface.js';
+import type { QuotaState } from '../platforms/capabilities.js';
+import { mergeCapabilities } from '../platforms/capabilities.js';
+import type { ResolvedAccountConfig } from '../types/account-config.js';
 
 const LOG_CONTEXT = 'PostService';
 
@@ -33,6 +40,13 @@ export interface PublishCallOptions {
   resume?: ResumeHandle;
   /** Include the platform's diagnostic payload in the result. Defaults to false. */
   includeRaw?: boolean;
+  /**
+   * Capabilities the host resolved for this account through
+   * `IPlatform.resolveCapabilities()`. The library caches nothing, so a host
+   * that wants runtime limits honoured passes what it fetched. Omitted means
+   * the static descriptor applies.
+   */
+  capabilities?: PlatformCapabilities;
 }
 
 /**
@@ -65,16 +79,17 @@ export class PostService extends BasePostService {
       assertValidPostRequest(request);
 
       const { platform, accountConfig } = await this.validateRequest(request);
-      const effectiveCapabilities =
-        accountConfig.maxBodyLength !== undefined
-          ? {
-              ...platform.capabilities,
-              maxBodyLength:
-                platform.capabilities.maxBodyLength !== undefined
-                  ? Math.min(platform.capabilities.maxBodyLength, accountConfig.maxBodyLength)
-                  : accountConfig.maxBodyLength,
-            }
-          : platform.capabilities;
+      const effectiveCapabilities = applyAccountBodyLimit(
+        options.capabilities ?? platform.capabilities,
+        accountConfig,
+      );
+
+      // Adapters see one target shape and one only: the normalized object,
+      // with the account's default already applied.
+      request = {
+        ...request,
+        target: normalizeTarget(request.target) ?? accountConfig.target,
+      };
 
       const validateExtra = platform.validateExtra?.bind(platform);
       const validation = validateAgainstCapabilities(request, effectiveCapabilities, {
@@ -104,34 +119,50 @@ export class PostService extends BasePostService {
         LOG_CONTEXT,
       );
 
-      const result = await this.withRequestTimeout(
-        signal => platform.publish(request, accountConfig, { signal, resume: options.resume }),
+      const attempt = await this.withRequestTimeout(
+        signal =>
+          platform
+            .publish(request, accountConfig, {
+              signal,
+              resume: options.resume,
+              capabilities: options.capabilities,
+            })
+            // The failure travels as a value rather than as a throw: a publish
+            // whose outcome nobody confirmed is a third answer, not an error,
+            // and choosing between the three is the next few lines' job.
+            .then(
+              published => ({ ok: true, published }) as const,
+              (failure: unknown) => ({ ok: false, failure }) as const,
+            ),
         options.signal,
       );
 
-      const response: PostResponse = {
-        success: true,
-        data: {
-          status: result.status,
-          postId: result.postId,
-          url: result.url,
-          parts: result.parts,
-          ref: result.ref ?? {
-            postId: result.postId,
-            target: request.target,
-            parts: result.parts,
-          },
-          handle: result.handle,
-          checkAfterMs: result.checkAfterMs,
-          platform: request.platform,
-          type: postType,
-          publishedAt: new Date().toISOString(),
-          raw: options.includeRaw ? result.raw : undefined,
-          requestId,
-        },
-      };
+      if (!attempt.ok) {
+        const failure = attempt.failure;
+        if (!(failure instanceof PlatformError) || !failure.outcomeUnknown) {
+          return this.toErrorResponse(failure, request, requestId, options.includeRaw ?? false);
+        }
+        const resolved = await this.resolveUnknownOutcome(
+          failure,
+          platform,
+          accountConfig,
+          request,
+          effectiveCapabilities,
+        );
+        if (!resolved.ok) {
+          return this.toErrorResponse(
+            resolved.failure,
+            request,
+            requestId,
+            options.includeRaw ?? false,
+          );
+        }
+        return this.buildResponse(resolved.published, request, postType, requestId, options);
+      }
 
-      return response;
+      const result = attempt.published;
+
+      return this.buildResponse(result, request, postType, requestId, options);
     } catch (error) {
       return this.toErrorResponse(error, request, requestId, options.includeRaw ?? false);
     }
@@ -173,7 +204,7 @@ export class PostService extends BasePostService {
 
       const effectiveRef: PostRef = {
         ...ref,
-        target: ref.target ?? request.target ?? accountConfig.target,
+        target: normalizeTarget(ref.target ?? request.target) ?? accountConfig.target,
       };
 
       this.logger.log(
@@ -191,7 +222,7 @@ export class PostService extends BasePostService {
         data: {
           status: result.status,
           parts: result.parts,
-          handle: result.handle,
+          handle: this.guardResumeHandle(result.handle),
         },
       };
     } catch (error) {
@@ -257,6 +288,156 @@ export class PostService extends BasePostService {
     }
   }
 
+  /**
+   * Decide what a failure whose outcome is unknown means.
+   *
+   * A `create` that timed out may or may not have published. Repeating it is
+   * how a network ends up with two identical posts, so the core never does:
+   * it asks the platform to find out (`reconcile`), accepts an idempotency key
+   * as a guarantee that a repeat is safe, and otherwise hands the host
+   * `UNKNOWN_OUTCOME` — an outcome to show, not an error to retry.
+   */
+  private async resolveUnknownOutcome(
+    error: PlatformError,
+    platform: IPlatform,
+    accountConfig: ResolvedAccountConfig,
+    request: PostRequest,
+    capabilities: PlatformCapabilities,
+  ): Promise<
+    | { ok: true; published: Awaited<ReturnType<IPlatform['publish']>> }
+    | { ok: false; failure: unknown }
+  > {
+    const reconcile = platform.reconcile?.bind(platform);
+    if (reconcile && error.resumeHandle) {
+      this.logger.warn(
+        `Outcome of the publication to ${platform.name} is unknown; reconciling`,
+        LOG_CONTEXT,
+      );
+      const outcome = await reconcile(error.resumeHandle, accountConfig);
+      if (outcome.status === 'published') {
+        return {
+          ok: true,
+          published: {
+            status: 'published',
+            postId: outcome.postId,
+            url: outcome.url,
+            parts: outcome.parts,
+            ref: outcome.ref,
+          },
+        };
+      }
+      if (outcome.status === 'absent') {
+        // Nothing was created, so repeating the call is safe after all.
+        return { ok: false, failure: error };
+      }
+    }
+
+    if (capabilities.supportsIdempotencyKey && request.idempotencyKey) {
+      // A repeat is deduplicated by the platform itself.
+      return { ok: false, failure: error };
+    }
+
+    return {
+      ok: false,
+      failure: new PlatformError(
+        `${platform.name} did not confirm the outcome of this publication, and it cannot be checked or safely repeated. Verify the account before publishing again.`,
+        ErrorCode.UNKNOWN_OUTCOME,
+        {
+          retryable: false,
+          httpStatus: error.httpStatus,
+          platformCode: error.platformCode,
+          resumeHandle: error.resumeHandle,
+          cause: error,
+          raw: error.raw,
+        },
+      ),
+    };
+  }
+
+  /** The success payload, from whichever path produced the publication. */
+  private buildResponse(
+    result: Awaited<ReturnType<IPlatform['publish']>>,
+    request: PostRequest,
+    postType: PostType,
+    requestId: string,
+    options: PublishCallOptions,
+  ): PostResponse {
+    return {
+      success: true,
+      data: {
+        status: result.status,
+        postId: result.postId,
+        url: result.url,
+        parts: result.parts,
+        ref: result.ref ?? {
+          postId: result.postId,
+          target: normalizeTarget(request.target),
+          parts: result.parts,
+        },
+        handle: this.guardResumeHandle(result.handle),
+        checkAfterMs: result.checkAfterMs,
+        platform: request.platform,
+        type: postType,
+        publishedAt: new Date().toISOString(),
+        raw: options.includeRaw ? result.raw : undefined,
+        requestId,
+      },
+    };
+  }
+
+  /**
+   * Ask a network what it accepts for one account, right now.
+   *
+   * The result is returned, never stored: `cacheableForSecs` says how long the
+   * host may reuse it, and `0` — TikTok's Creator Info — means fetch again
+   * before every publication. A library-side cache would be a cache the host
+   * cannot invalidate.
+   *
+   * @param request - Enough of a request to resolve the platform and credentials.
+   * @param signal - Aborts the lookup.
+   * @returns The merged descriptor, with its freshness.
+   */
+  async resolveCapabilities(
+    request: Pick<PostRequest, 'platform' | 'account' | 'auth'>,
+    signal?: AbortSignal,
+  ): Promise<ResolvedCapabilities> {
+    const { platform, accountConfig } = await this.validateRequest(request);
+    const resolve = platform.resolveCapabilities?.bind(platform);
+
+    if (!resolve) {
+      return {
+        capabilities: platform.capabilities,
+        fetchedAt: new Date().toISOString(),
+      };
+    }
+
+    const runtime = await resolve(accountConfig, signal);
+    return {
+      capabilities: mergeCapabilities(platform.capabilities, runtime.capabilities),
+      cacheableForSecs: runtime.cacheableForSecs,
+      fetchedAt: runtime.fetchedAt,
+    };
+  }
+
+  /**
+   * Remaining allowance for an account, where the network reports one.
+   *
+   * @param request - Enough of a request to resolve the platform and credentials.
+   * @param signal - Aborts the lookup.
+   * @throws ValidationError when the platform has no quota endpoint.
+   */
+  async getQuota(
+    request: Pick<PostRequest, 'platform' | 'account' | 'auth'>,
+    signal?: AbortSignal,
+  ): Promise<QuotaState> {
+    const { platform, accountConfig } = await this.validateRequest(request);
+    const getQuota = platform.getQuota?.bind(platform);
+    if (!getQuota) {
+      throw new ValidationError(`Platform "${platform.name}" does not report quota`);
+    }
+    return getQuota(accountConfig, signal);
+  }
+
   private toErrorResponse(
     error: unknown,
     request: PostRequest,
@@ -272,7 +453,25 @@ export class PostService extends BasePostService {
       LOG_CONTEXT,
     );
 
-    return { success: false, error: errorPayload(error, requestId, includeRaw) };
+    const payload = errorPayload(error, requestId, includeRaw);
+    try {
+      return {
+        success: false,
+        error: { ...payload, resumeHandle: this.guardResumeHandle(payload.resumeHandle) },
+      };
+    } catch (guardError) {
+      // Strict mode: an adapter put a secret in a handle. That is a bug in the
+      // adapter, and in development it must be the thing the caller sees.
+      return {
+        success: false,
+        error: {
+          code: ErrorCode.INTERNAL_ERROR,
+          message: guardError instanceof Error ? guardError.message : 'Invalid resume handle',
+          retryable: false,
+          requestId,
+        },
+      };
+    }
   }
 
   /**
@@ -361,5 +560,22 @@ function errorPayload(error: unknown, requestId: string, includeRaw = true): Err
     retryable: false,
     raw: includeRaw ? error : undefined,
     requestId,
+  };
+}
+
+/** Narrow a descriptor's body limit to the account's own, when it has one. */
+function applyAccountBodyLimit(
+  capabilities: PlatformCapabilities,
+  accountConfig: ResolvedAccountConfig,
+): PlatformCapabilities {
+  if (accountConfig.maxBodyLength === undefined) {
+    return capabilities;
+  }
+  return {
+    ...capabilities,
+    maxBodyLength:
+      capabilities.maxBodyLength !== undefined
+        ? Math.min(capabilities.maxBodyLength, accountConfig.maxBodyLength)
+        : accountConfig.maxBodyLength,
   };
 }

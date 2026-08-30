@@ -11,6 +11,7 @@ describe('createApp', () => {
         target: '@my_channel',
       },
     },
+    strictResumeHandles: false,
     requestTimeoutSecs: 30,
   };
 

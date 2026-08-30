@@ -65,6 +65,17 @@ export interface ResumableScenario {
   arrangeResume(harness: ContractHarness, handle: ResumeHandle): void;
 }
 
+/**
+ * A publication whose outcome the platform never confirmed: a timed-out or
+ * bodyless-5xx `create`. What must not happen is a second post.
+ */
+export interface UnknownOutcomeScenario {
+  /** A request that reaches the create step. */
+  request: PostRequest;
+  /** Arrange the transport so the create step answers ambiguously. */
+  arrangeAmbiguousCreate(harness: ContractHarness): void;
+}
+
 /** Everything the contract suite needs to exercise one platform. */
 export interface PlatformContractOptions {
   /** The descriptor the platform package exports. */
@@ -81,4 +92,6 @@ export interface PlatformContractOptions {
   sampleDeleteRef?: PostRef;
   /** A multi-step publication, for platforms that have one. */
   resumable?: ResumableScenario;
+  /** An ambiguous `create`, for platforms whose publication is not atomic. */
+  unknownOutcome?: UnknownOutcomeScenario;
 }

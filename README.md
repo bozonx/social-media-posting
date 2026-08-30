@@ -71,8 +71,18 @@ if (result.success) {
 }
 ```
 
-`client.preview(request)` runs the same validation without publishing.
-`client.getCapabilities('telegram')` returns what the network accepts, as data.
+`client.preview(request)` runs the same validation without publishing, and returns the request as
+the network will actually receive it (`adaptedRequest`), so a host needs no formatter of its own.
+`client.getCapabilities('telegram')` returns what the network accepts, as data;
+`client.resolveCapabilities(request)` asks a network what it accepts for one account, right now —
+the library caches nothing and hands back `cacheableForSecs` for the host to honour.
+
+`target` is a scalar shorthand or a structural address, and the library normalizes the first into
+the second before any adapter sees it:
+
+```ts
+target: { id: '@my_channel', messageThreadId: 42 }
+```
 
 Two clients can live in one process with different accounts and different loggers: the library
 mutates no global state and never touches an ambient logger.
@@ -106,6 +116,7 @@ if (!result.success) {
 | `PLATFORM_ERROR`        | The network failed on its side.                                   |
 | `NETWORK_ERROR`         | The network could not be reached.                                 |
 | `TIMEOUT_ERROR`         | The call did not finish within `requestTimeoutSecs`.              |
+| `UNKNOWN_OUTCOME`       | The post may or may not exist. Check the account; never resend.   |
 | `INTERNAL_ERROR`        | An unexpected failure inside this library.                        |
 
 Store `resumeHandle` before scheduling a retry. It is plain JSON precisely so it fits in a job

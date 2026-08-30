@@ -20,6 +20,14 @@ export interface MediaInput {
   durationSecs?: number;
   width?: number;
   height?: number;
+  /** Container format, lower-case (`mp4`, `mov`, `webm`). Checked only when supplied. */
+  container?: string;
+  /** Video codec, lower-case (`h264`, `hevc`, `vp9`). Checked only when supplied. */
+  videoCodec?: string;
+  /** Audio codec, lower-case (`aac`, `opus`). Checked only when supplied. */
+  audioCodec?: string;
+  /** Frames per second. Checked only when supplied. */
+  frameRate?: number;
   thumbnail?: ThumbnailInput;
   source: MediaSourceInput;
 }

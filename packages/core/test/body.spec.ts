@@ -147,3 +147,24 @@ describe('convertBody', () => {
     expect(htmlToPlainText(escapeHtml('a & b < c'))).toBe('a & b < c');
   });
 });
+
+describe('countUnit', () => {
+  it('counts graphemes the way Bluesky counts its 300', () => {
+    // One family emoji: 11 UTF-16 units, one user-perceived character.
+    const text = '👨‍👩‍👧‍👦';
+    expect(countBodyLength(text)).toBe(text.length);
+    expect(countBodyLength(text, { countUnit: 'graphemes' })).toBe(1);
+  });
+
+  it('counts UTF-8 bytes where the network measures encoded length', () => {
+    expect(countBodyLength('é', { countUnit: 'utf8Bytes' })).toBe(2);
+    expect(countBodyLength('é')).toBe(1);
+  });
+
+  it('applies a URL weight in the platform’s own unit', () => {
+    const body = 'see https://example.com/a-very-long-path-indeed';
+    expect(countBodyLength(body, { urlWeight: 23, countUnit: 'graphemes' })).toBe(
+      'see '.length + 23,
+    );
+  });
+});

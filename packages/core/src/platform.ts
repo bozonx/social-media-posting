@@ -9,6 +9,9 @@ export type {
   PlatformStatusResponse,
   PublishOptions,
   DeleteOptions,
+  ResolvedCapabilities,
+  RuntimeCapabilities,
+  ReconcileOutcome,
 } from './platforms/platform.interface.js';
 export type {
   Issue,
@@ -29,6 +32,7 @@ export type {
   AuthValidationContext,
 } from './platforms/auth-validator.interface.js';
 export type { PlatformModule, PlatformDeps } from './platforms/platform-module.js';
+export { deriveModule } from './platforms/platform-module.js';
 export type {
   PlatformCapabilities,
   PostTypeCapabilities,
@@ -38,9 +42,10 @@ export type {
   ToggleCapabilities,
   ExtraFieldSpec,
   RateLimits,
+  QuotaState,
   CapabilitySource,
 } from './platforms/capabilities.js';
-export { validateCapabilities } from './platforms/capabilities.js';
+export { validateCapabilities, mergeCapabilities } from './platforms/capabilities.js';
 export { PlatformRegistry } from './platforms/platform-registry.js';
 export { AuthValidatorRegistry } from './platforms/auth-validator-registry.js';
 
@@ -49,8 +54,8 @@ export { PlatformError } from './errors/platform-error.js';
 export type { PlatformErrorOptions } from './errors/platform-error.js';
 
 // OAuth2
-export { OAuth2TokenRefresher } from './auth/oauth2.js';
-export type { OAuth2Config } from './auth/oauth2.js';
+export { OAuth2TokenRefresher, buildAppRegistrationRequest } from './auth/oauth2.js';
+export type { OAuth2Config, OAuth2ConfigSource, AppRegistrationRequest } from './auth/oauth2.js';
 
 // Media pipeline
 export { MediaFetcher } from './media/media-fetcher.js';
@@ -78,18 +83,37 @@ export type {
   ChunkContext,
   ResumePosition,
 } from './media/chunked-uploader.js';
+export {
+  buildMultipartFormData,
+  runSinglePartUpload,
+  runUploadSequence,
+  UPLOAD_SEQUENCE_STEPS,
+} from './media/multipart.js';
+export type {
+  MultipartPart,
+  SinglePartUploadOptions,
+  UploadSequence,
+  UploadSequenceOptions,
+  UploadSequenceStep,
+} from './media/multipart.js';
 
 // Validation & rendering helpers for adapters
 export { MediaInputHelper } from './media/media-input.helper.js';
 export { detectPrimaryMediaField, detectItemMediaKind } from './media/media-priority.js';
 export { validateMediaUrl } from './media/media-url.js';
-export { validateAgainstCapabilities } from './validation/capability-validator.js';
+export {
+  validateAgainstCapabilities,
+  validateFieldSpecs,
+  isFieldPresent,
+} from './validation/capability-validator.js';
 export type {
   CapabilityValidation,
   CapabilityValidationOptions,
 } from './validation/capability-validator.js';
 export {
   previewFromCapabilities,
+  adaptRequest,
+  requiredMediaUrlLifetimeSecs,
   renderBody,
   renderBodyWithTruncation,
   resolveBodyTargetFormat,
@@ -98,6 +122,7 @@ export { detectPostType } from './validation/detect-post-type.js';
 export {
   convertBody,
   countBodyLength,
+  countUnits,
   truncateBody,
   truncateHtml,
   escapeHtml,
@@ -119,10 +144,13 @@ export {
 
 // HTTP transport
 export { httpRequest } from './http/http-request.js';
+export { sanitizeResumeHandle, findResumeHandleSecrets } from './types/resume-handle.js';
+export { normalizeTarget } from './types/target.js';
 export type { HttpRequestOptions } from './http/http-request.js';
 
 // Services (for hosts assembling custom pipelines)
 export { PostService } from './services/post.service.js';
 export { PreviewService } from './services/preview.service.js';
+export type { PreviewCallOptions } from './services/preview.service.js';
 export { BasePostService } from './services/base-post.service.js';
 export type { PostServiceDeps } from './services/base-post.service.js';

@@ -6,6 +6,8 @@ import { ErrorCode } from '../errors/error-code.js';
 import { PostingError, ValidationError } from '../errors/posting-error.js';
 import { PlatformError } from '../errors/platform-error.js';
 import type { PostRequest } from '../types/post-request.js';
+import { normalizeTarget } from '../types/target.js';
+import type { PlatformCapabilities } from '../platforms/capabilities.js';
 import type { PreviewResult } from '../types/preview-response.js';
 import type { ErrorPayload } from '../types/post-response.js';
 
@@ -14,13 +16,24 @@ const LOG_CONTEXT = 'PreviewService';
 /**
  * Validates a post and reports what publishing it would do, without publishing.
  */
+/** Options for one `preview()` call. */
+export interface PreviewCallOptions {
+  /**
+   * Capabilities the host resolved for this account. Without them the static
+   * descriptor is used, and a network with per-account limits will be
+   * previewed optimistically.
+   */
+  capabilities?: PlatformCapabilities;
+}
+
 export class PreviewService extends BasePostService {
   /**
    * Preview a post.
    * @param request - Post request to preview.
+   * @param options - Resolved capabilities, when the host fetched them.
    * @returns The platform's preview or capability preview result.
    */
-  async preview(request: PostRequest): Promise<PreviewResult> {
+  async preview(request: PostRequest, options: PreviewCallOptions = {}): Promise<PreviewResult> {
     const structuralIssues = validatePostRequest(request);
     if (structuralIssues.length > 0) {
       const detectedType = detectPostType(request);
@@ -38,23 +51,29 @@ export class PreviewService extends BasePostService {
 
     try {
       const { platform, accountConfig } = await this.validateRequest(request);
+      const base = options.capabilities ?? platform.capabilities;
       const effectiveCapabilities =
         accountConfig.maxBodyLength !== undefined
           ? {
-              ...platform.capabilities,
+              ...base,
               maxBodyLength:
-                platform.capabilities.maxBodyLength !== undefined
-                  ? Math.min(platform.capabilities.maxBodyLength, accountConfig.maxBodyLength)
+                base.maxBodyLength !== undefined
+                  ? Math.min(base.maxBodyLength, accountConfig.maxBodyLength)
                   : accountConfig.maxBodyLength,
             }
-          : platform.capabilities;
+          : base;
+
+      const normalized: PostRequest = {
+        ...request,
+        target: normalizeTarget(request.target) ?? accountConfig.target,
+      };
 
       if (platform.preview) {
-        return await platform.preview(request, accountConfig);
+        return await platform.preview(normalized, accountConfig);
       }
 
       const validateExtra = platform.validateExtra?.bind(platform);
-      return previewFromCapabilities(request, effectiveCapabilities, {
+      return previewFromCapabilities(normalized, effectiveCapabilities, {
         detectType: platform.detectType?.bind(platform),
         validateExtra: validateExtra
           ? (previewRequest, detectedType) =>

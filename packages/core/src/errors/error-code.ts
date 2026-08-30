@@ -26,6 +26,16 @@ export enum ErrorCode {
   CONTENT_REJECTED = 'CONTENT_REJECTED',
   /** A per-period quota (daily post limit, upload volume) is exhausted. */
   QUOTA_EXCEEDED = 'QUOTA_EXCEEDED',
+  /**
+   * The call may or may not have published.
+   *
+   * A `create` that timed out, or answered 5xx with no body, cannot be repeated:
+   * repeating it is how a network ends up with two identical posts. When the
+   * platform can neither reconcile the outcome nor deduplicate on an
+   * idempotency key, the host gets this instead of a retry — and must show it
+   * as "check the account", not as a failure.
+   */
+  UNKNOWN_OUTCOME = 'UNKNOWN_OUTCOME',
   /** Unexpected failure inside this library. */
   INTERNAL_ERROR = 'INTERNAL_ERROR',
 }

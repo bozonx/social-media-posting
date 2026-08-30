@@ -7,7 +7,10 @@ import type {
 import type { MediaInput } from '../types/media-input.js';
 import type { Issue } from '../types/post-response.js';
 import { PostType } from '../types/post-type.js';
+import { isValidTargetInput } from '../types/target.js';
 import { ValidationError } from '../errors/posting-error.js';
+import type { ArticleDocument, ArticleBlock, InlineNode } from '../types/article-document.js';
+import { ARTICLE_BLOCK_TYPES, INLINE_MARKS } from '../types/article-document.js';
 
 /** Absolute maximum body length in characters. */
 export const MAX_BODY_LIMIT = 500_000;
@@ -335,8 +338,170 @@ function hasAnyContent(request: PostRequest): boolean {
   const hasLocation = isPlainObject(request.location);
   const hasRepost = isPlainObject(request.repostOf);
   const hasReply = isPlainObject(request.inReplyTo);
+  const hasArticle = isPlainObject(request.article);
+  const hasThread = Array.isArray(request.thread) && request.thread.length > 0;
 
-  return hasBody || hasMedia || hasThumbnail || hasPoll || hasLocation || hasRepost || hasReply;
+  return (
+    hasBody ||
+    hasMedia ||
+    hasThumbnail ||
+    hasPoll ||
+    hasLocation ||
+    hasRepost ||
+    hasReply ||
+    hasArticle ||
+    hasThread
+  );
+}
+
+function validateInlineContent(value: unknown, field: string, issues: Issue[]): void {
+  if (!Array.isArray(value)) {
+    issues.push({
+      code: 'INVALID_FIELD_TYPE',
+      field,
+      message: `Field '${field}' must be an array of inline nodes`,
+    });
+    return;
+  }
+  value.forEach((node, index) => {
+    const nodeField = `${field}[${index}]`;
+    if (!isPlainObject(node)) {
+      issues.push({
+        code: 'INVALID_FIELD_TYPE',
+        field: nodeField,
+        message: `Field '${nodeField}' must be an inline node object`,
+      });
+      return;
+    }
+    const inline = node as Partial<InlineNode>;
+    if (typeof inline.text !== 'string') {
+      issues.push({
+        code: 'INVALID_FIELD_TYPE',
+        field: `${nodeField}.text`,
+        message: `Field '${nodeField}.text' must be a string`,
+      });
+    }
+    if (inline.marks !== undefined) {
+      if (!Array.isArray(inline.marks) || inline.marks.some(m => !INLINE_MARKS.includes(m))) {
+        issues.push({
+          code: 'INVALID_INLINE_MARK',
+          field: `${nodeField}.marks`,
+          message: `Field '${nodeField}.marks' may only contain ${INLINE_MARKS.join(', ')}`,
+        });
+      } else if (inline.marks.includes('link') && typeof inline.href !== 'string') {
+        issues.push({
+          code: 'FIELD_REQUIRED',
+          field: `${nodeField}.href`,
+          message: `Field '${nodeField}.href' is required when the node carries a 'link' mark`,
+        });
+      }
+    }
+  });
+}
+
+function validateArticleBlock(block: unknown, field: string, issues: Issue[]): void {
+  if (!isPlainObject(block)) {
+    issues.push({
+      code: 'INVALID_FIELD_TYPE',
+      field,
+      message: `Field '${field}' must be a block object`,
+    });
+    return;
+  }
+
+  const type = (block as Partial<ArticleBlock>).type;
+  if (typeof type !== 'string' || !ARTICLE_BLOCK_TYPES.includes(type)) {
+    issues.push({
+      code: 'INVALID_ARTICLE_BLOCK',
+      field: `${field}.type`,
+      message: `Field '${field}.type' must be one of ${ARTICLE_BLOCK_TYPES.join(', ')}`,
+    });
+    return;
+  }
+
+  const raw = block;
+  switch (type) {
+    case 'paragraph':
+    case 'quote':
+      validateInlineContent(raw.content, `${field}.content`, issues);
+      break;
+    case 'heading':
+      validateInlineContent(raw.content, `${field}.content`, issues);
+      if (
+        typeof raw.level !== 'number' ||
+        !Number.isInteger(raw.level) ||
+        raw.level < 1 ||
+        raw.level > 6
+      ) {
+        issues.push({
+          code: 'INVALID_FIELD_VALUE',
+          field: `${field}.level`,
+          message: `Field '${field}.level' must be an integer between 1 and 6`,
+        });
+      }
+      break;
+    case 'list':
+      if (!Array.isArray(raw.items) || raw.items.length === 0) {
+        issues.push({
+          code: 'INVALID_FIELD_TYPE',
+          field: `${field}.items`,
+          message: `Field '${field}.items' must be a non-empty array`,
+        });
+      } else {
+        raw.items.forEach((item, index) =>
+          validateInlineContent(item, `${field}.items[${index}]`, issues),
+        );
+      }
+      break;
+    case 'code':
+      if (typeof raw.text !== 'string') {
+        issues.push({
+          code: 'INVALID_FIELD_TYPE',
+          field: `${field}.text`,
+          message: `Field '${field}.text' must be a string`,
+        });
+      }
+      break;
+    case 'image':
+      validateMediaInput(raw.media, `${field}.media`, issues);
+      if (raw.caption !== undefined) {
+        validateInlineContent(raw.caption, `${field}.caption`, issues);
+      }
+      break;
+  }
+}
+
+function validateArticleDocument(article: unknown, issues: Issue[]): void {
+  if (!isPlainObject(article)) {
+    issues.push({
+      code: 'INVALID_FIELD_TYPE',
+      field: 'article',
+      message: "Field 'article' must be an object",
+    });
+    return;
+  }
+
+  const doc = article as Partial<ArticleDocument>;
+  if (typeof doc.title !== 'string' || doc.title.trim().length === 0) {
+    issues.push({
+      code: 'FIELD_REQUIRED',
+      field: 'article.title',
+      message: "Field 'article.title' is required and must be a non-empty string",
+    });
+  }
+
+  if (!Array.isArray(doc.blocks) || doc.blocks.length === 0) {
+    issues.push({
+      code: 'INVALID_FIELD_TYPE',
+      field: 'article.blocks',
+      message: "Field 'article.blocks' must be a non-empty array of blocks",
+    });
+    return;
+  }
+
+  doc.blocks.forEach((block, index) =>
+    validateArticleBlock(block, `article.blocks[${index}]`, issues),
+  );
 }
 
 /**
@@ -404,16 +569,13 @@ export function validatePostRequest(request: PostRequest): Issue[] {
   validateOptionalString(request.contentWarning, 'contentWarning', MAX_DESCRIPTION_LENGTH, issues);
   validateOptionalString(request.idempotencyKey, 'idempotencyKey', 500, issues);
 
-  if (request.target !== undefined) {
-    const validString = typeof request.target === 'string' && request.target.trim().length > 0;
-    const validNumber = typeof request.target === 'number' && Number.isInteger(request.target);
-    if (!validString && !validNumber) {
-      issues.push({
-        code: 'INVALID_FIELD_TYPE',
-        field: 'target',
-        message: "Field 'target' must be a non-empty string or an integer number",
-      });
-    }
+  if (request.target !== undefined && !isValidTargetInput(request.target)) {
+    issues.push({
+      code: 'INVALID_FIELD_TYPE',
+      field: 'target',
+      message:
+        "Field 'target' must be a non-empty string, a number, or an object with a non-empty 'id'",
+    });
   }
 
   if (request.auth !== undefined && !isPlainObject(request.auth)) {
@@ -526,6 +688,58 @@ export function validatePostRequest(request: PostRequest): Issue[] {
 
   if (request.repostOf !== undefined) {
     validateObjectRef(request.repostOf, 'repostOf', issues);
+  }
+
+  if (request.article !== undefined) {
+    validateArticleDocument(request.article, issues);
+  }
+
+  if (request.thread !== undefined) {
+    if (!Array.isArray(request.thread) || request.thread.length === 0) {
+      issues.push({
+        code: 'INVALID_FIELD_TYPE',
+        field: 'thread',
+        message: "Field 'thread' must be a non-empty array of segments",
+      });
+    } else {
+      request.thread.forEach((segment, index) => {
+        const field = `thread[${index}]`;
+        if (!isPlainObject(segment)) {
+          issues.push({
+            code: 'INVALID_FIELD_TYPE',
+            field,
+            message: `Field '${field}' must be a segment object`,
+          });
+          return;
+        }
+        const hasBody = typeof segment.body === 'string' && segment.body.trim().length > 0;
+        const hasMedia = Array.isArray(segment.media) && segment.media.length > 0;
+        const hasPoll = isPlainObject(segment.poll);
+        if (!hasBody && !hasMedia && !hasPoll) {
+          issues.push({
+            code: 'EMPTY_THREAD_SEGMENT',
+            field,
+            message: `Segment '${field}' must carry body, media or a poll`,
+          });
+        }
+        if (segment.media !== undefined) {
+          if (!Array.isArray(segment.media)) {
+            issues.push({
+              code: 'INVALID_FIELD_TYPE',
+              field: `${field}.media`,
+              message: `Field '${field}.media' must be an array of media objects`,
+            });
+          } else {
+            segment.media.forEach((item, mediaIndex) =>
+              validateMediaInput(item, `${field}.media[${mediaIndex}]`, issues),
+            );
+          }
+        }
+        if (segment.poll !== undefined) {
+          validatePoll(segment.poll, issues);
+        }
+      });
+    }
   }
 
   if (!hasAnyContent(request)) {

@@ -75,21 +75,31 @@ export const telegramCapabilities: PlatformCapabilities = {
   targetBodyFormat: 'html',
   passthroughBodyFormats: ['MarkdownV2'],
 
+  // Telegram fetches the URL itself (or re-uses a file_id it already holds);
+  // this adapter never uploads bytes, so the transport is 'pull' throughout.
   media: {
     image: {
       acceptedSources: ['url', 'platformRef'],
+      transport: 'pull',
+      requiresPubliclyFetchableUrl: true,
       maxBytesBySource: { url: MAX_URL_PHOTO_BYTES },
     },
     video: {
       acceptedSources: ['url', 'platformRef'],
+      transport: 'pull',
+      requiresPubliclyFetchableUrl: true,
       maxBytesBySource: { url: MAX_URL_FILE_BYTES },
     },
     audio: {
       acceptedSources: ['url', 'platformRef'],
+      transport: 'pull',
+      requiresPubliclyFetchableUrl: true,
       maxBytesBySource: { url: MAX_URL_FILE_BYTES },
     },
     document: {
       acceptedSources: ['url', 'platformRef'],
+      transport: 'pull',
+      requiresPubliclyFetchableUrl: true,
       maxBytesBySource: { url: MAX_URL_FILE_BYTES },
     },
   },
@@ -118,8 +128,18 @@ export const telegramCapabilities: PlatformCapabilities = {
     requiresName: false,
   },
 
+  // A forum topic is part of the address, not an option: it lives in `target`.
+  targetSchema: [
+    {
+      name: 'messageThreadId',
+      type: 'number',
+      min: 1,
+      label: 'Forum topic id',
+      description: 'Message thread of a forum-enabled supergroup.',
+    },
+  ],
+
   extraFields: [
-    { name: 'message_thread_id', type: 'number', min: 1 },
     { name: 'protect_content', type: 'boolean' },
     { name: 'has_spoiler', type: 'boolean' },
     { name: 'is_anonymous', type: 'boolean' },
@@ -143,6 +163,12 @@ export const telegramCapabilities: PlatformCapabilities = {
 
   rateLimits: {
     note: 'Bot API limits depend on chat type; hosts must honour retry_after from 429 responses.',
+  },
+
+  auth: {
+    kind: 'apiKey',
+    requiresTarget: true,
+    docsUrl: 'https://core.telegram.org/bots/api#sendmessage',
   },
 
   supportsNativeScheduling: false,

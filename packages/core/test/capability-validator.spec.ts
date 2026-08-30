@@ -114,6 +114,7 @@ describe('validateAgainstCapabilities', () => {
       media: {
         video: {
           acceptedSources: ['url'],
+          transport: 'pull',
           minDurationSecs: 5,
           maxDurationSecs: 60,
           minAspectRatio: 0.5,
@@ -184,6 +185,7 @@ describe('validateAgainstCapabilities', () => {
           media: {
             image: {
               acceptedSources: ['url'],
+              transport: 'pull',
               maxBytesBySource: { url: 10 },
             },
           },

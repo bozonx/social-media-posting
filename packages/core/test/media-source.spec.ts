@@ -62,7 +62,7 @@ describe('media-source', () => {
       const capabilities: PlatformCapabilities = {
         ...baseCapabilities,
         media: {
-          image: { acceptedSources: ['url', 'bytes'] },
+          image: { acceptedSources: ['url', 'bytes'], transport: 'both' },
         },
       };
       expect(requiresByteUpload(source, capabilities, 'image')).toBe(false);
@@ -73,7 +73,7 @@ describe('media-source', () => {
       const capabilities: PlatformCapabilities = {
         ...baseCapabilities,
         media: {
-          image: { acceptedSources: ['bytes'] },
+          image: { acceptedSources: ['bytes'], transport: 'push' },
         },
       };
       expect(requiresByteUpload(source, capabilities, 'image')).toBe(true);

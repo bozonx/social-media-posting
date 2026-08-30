@@ -130,6 +130,7 @@ describe('readConfigFromEnv', () => {
   it('applies defaults for fields CONFIG_JSON omits', () => {
     expect(readConfigFromEnv({ CONFIG_JSON: '{}' })).toEqual({
       requestTimeoutSecs: 60,
+      strictResumeHandles: false,
       accounts: {},
     });
   });

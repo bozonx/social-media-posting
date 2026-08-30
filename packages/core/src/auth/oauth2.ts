@@ -3,6 +3,17 @@ import { PlatformError } from '../errors/platform-error.js';
 import { httpRequest } from '../http/http-request.js';
 import { isAccessTokenExpired } from './credentials.js';
 import type { CredentialProvider, ResolvedCredentials } from './credentials.js';
+import type { ResolvedAccountConfig } from '../types/account-config.js';
+
+/**
+ * How a platform's OAuth2 configuration is obtained.
+ *
+ * A function, not a constant, because on Mastodon and Pixelfed the client id
+ * and secret are issued per instance: they belong to the account, not to the
+ * package. Networks with one set of app credentials pass a plain object.
+ */
+export type OAuth2ConfigSource =
+  OAuth2Config | ((accountConfig: ResolvedAccountConfig) => OAuth2Config);
 
 /** What a platform must state to have its tokens refreshed. */
 export interface OAuth2Config {
@@ -45,9 +56,24 @@ export class OAuth2TokenRefresher {
   private readonly inFlight = new Map<string, Promise<ResolvedCredentials>>();
 
   constructor(
-    private readonly config: OAuth2Config,
+    private readonly configSource: OAuth2ConfigSource,
     private readonly credentialProvider: CredentialProvider,
   ) {}
+
+  /** The configuration for one account, resolved per call. */
+  private configFor(accountConfig?: ResolvedAccountConfig): OAuth2Config {
+    if (typeof this.configSource !== 'function') {
+      return this.configSource;
+    }
+    if (!accountConfig) {
+      throw new PlatformError(
+        'This platform builds its OAuth2 configuration from the account, so the account must be passed to the refresher',
+        ErrorCode.AUTH_ERROR,
+        { retryable: false },
+      );
+    }
+    return this.configSource(accountConfig);
+  }
 
   /**
    * Return credentials that are good to use, refreshing first if they are not.
@@ -62,11 +88,13 @@ export class OAuth2TokenRefresher {
     accountRef: string,
     credentials: ResolvedCredentials,
     signal?: AbortSignal,
+    accountConfig?: ResolvedAccountConfig,
   ): Promise<ResolvedCredentials> {
-    if (!isAccessTokenExpired(credentials, this.config.clockSkewSecs ?? 60)) {
+    const config = this.configFor(accountConfig);
+    if (!isAccessTokenExpired(credentials, config.clockSkewSecs ?? 60)) {
       return credentials;
     }
-    return this.refresh(accountRef, credentials, signal);
+    return this.refresh(accountRef, credentials, signal, accountConfig);
   }
 
   /**
@@ -82,15 +110,18 @@ export class OAuth2TokenRefresher {
     accountRef: string,
     credentials: ResolvedCredentials,
     signal?: AbortSignal,
+    accountConfig?: ResolvedAccountConfig,
   ): Promise<ResolvedCredentials> {
     const pending = this.inFlight.get(accountRef);
     if (pending) {
       return pending;
     }
 
-    const promise = this.performRefresh(accountRef, credentials, signal).finally(() => {
-      this.inFlight.delete(accountRef);
-    });
+    const promise = this.performRefresh(accountRef, credentials, signal, accountConfig).finally(
+      () => {
+        this.inFlight.delete(accountRef);
+      },
+    );
     this.inFlight.set(accountRef, promise);
     return promise;
   }
@@ -99,7 +130,9 @@ export class OAuth2TokenRefresher {
     accountRef: string,
     credentials: ResolvedCredentials,
     signal?: AbortSignal,
+    accountConfig?: ResolvedAccountConfig,
   ): Promise<ResolvedCredentials> {
+    const config = this.configFor(accountConfig);
     const refreshToken = credentials.refreshToken;
     if (typeof refreshToken !== 'string' || refreshToken.length === 0) {
       throw new PlatformError(
@@ -112,16 +145,16 @@ export class OAuth2TokenRefresher {
     const body = new URLSearchParams({
       grant_type: 'refresh_token',
       refresh_token: refreshToken,
-      client_id: this.config.clientId,
+      client_id: config.clientId,
     });
-    if (this.config.clientSecret) {
-      body.set('client_secret', this.config.clientSecret);
+    if (config.clientSecret) {
+      body.set('client_secret', config.clientSecret);
     }
-    if (this.config.scopes?.length) {
-      body.set('scope', this.config.scopes.join(' '));
+    if (config.scopes?.length) {
+      body.set('scope', config.scopes.join(' '));
     }
 
-    const response = await httpRequest(this.config.tokenEndpoint, {
+    const response = await httpRequest(config.tokenEndpoint, {
       method: 'POST',
       headers: {
         'content-type': 'application/x-www-form-urlencoded',
@@ -179,4 +212,57 @@ function refreshFailure(accountRef: string, status: number, payload: TokenRespon
       platformCode: payload.error,
     },
   );
+}
+
+/** An application registration on a per-instance network. */
+export interface AppRegistrationRequest {
+  /** Instance base URL, e.g. `https://mastodon.social`. */
+  apiBaseUrl: string;
+  clientName: string;
+  redirectUris: string[];
+  scopes?: string[];
+  website?: string;
+}
+
+/**
+ * Build the request that registers an application on one instance.
+ *
+ * Mastodon-family instances issue client credentials per instance
+ * (`POST /api/v1/apps`), so a host adding a new instance must register first
+ * and then persist what comes back **alongside the tokens** — the credentials
+ * are account state, not package constants.
+ *
+ * Only the request is built here: performing it and storing the answer is the
+ * host's, because only the host has storage and a redirect endpoint.
+ *
+ * @param request - Instance URL and the app's identity.
+ * @returns URL and init for `fetch`.
+ */
+export function buildAppRegistrationRequest(request: AppRegistrationRequest): {
+  url: string;
+  init: RequestInit;
+} {
+  const base = request.apiBaseUrl.replace(/\/+$/, '');
+  const body = new URLSearchParams({
+    client_name: request.clientName,
+    redirect_uris: request.redirectUris.join(' '),
+  });
+  if (request.scopes?.length) {
+    body.set('scopes', request.scopes.join(' '));
+  }
+  if (request.website) {
+    body.set('website', request.website);
+  }
+
+  return {
+    url: `${base}/api/v1/apps`,
+    init: {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/x-www-form-urlencoded',
+        accept: 'application/json',
+      },
+      body: body.toString(),
+    },
+  };
 }

@@ -33,6 +33,17 @@ before writing any code against it:
 
 ## Cross-cutting rules
 
+### One name per concept
+
+Post type names are a closed vocabulary: `post`, `article`, `image`, `album`, `video`,
+`shortVideo`, `audio`, `document`, `story`, `thread`, `event`, `live`, `poll`. A network that
+needs something of its own names it `x-<network>-<name>`. Anything else is refused when the module
+is registered, so a fleet of adapters cannot end up with `shortVideo`, `short_video` and `reel`
+meaning the same surface.
+
+`thread`, `event` and `live` are reserved: the names exist so adding them later does not rename
+anything you have already stored.
+
 ### Post type is your decision, not ours
 
 The library detects `post` / `image` / `album` / `video` from the media you attach. It does
@@ -52,10 +63,48 @@ string with attachments beside it. If a network has no article API, the request 
 unsupported and you must choose `post` — the library will not flatten an article for you, because
 flattening loses the image positions and the result is not the document you wrote.
 
+### Length is counted in the network's own unit
+
+`bodyLengthRule.countUnit` says what one unit is: `utf16` (the default, `String.length`),
+`graphemes` (Bluesky counts 300 of them, so one family emoji costs one, not eleven), or
+`utf8Bytes`. Preview, validation and truncation all use it, so a limit means the same thing to you
+as it does to the network.
+
+### Threads are an explicit input
+
+`thread: PostSegment[]` publishes a chain as one conversation, and the result comes back in
+`parts[]`. The library never splits a long `body` into segments — where a text is cut is an
+editorial decision, and a library that guesses it will eventually cut a sentence in half in
+public.
+
+### Addressing: `target` is structural
+
+`target` is either a scalar shorthand or an object with an `id`. The core normalizes the shorthand
+into `{ id }` before any adapter sees it, so composite addresses — a Pinterest board plus its
+section, a Telegram forum topic — are the same shape as simple ones:
+
+```ts
+target: { id: '@my_channel', messageThreadId: 42 }
+```
+
+Which extra parts a network accepts is data, in `capabilities.targetSchema`, and unknown parts are
+refused locally.
+
+### Per-instance networks: the host is part of the account
+
+Mastodon, Pixelfed and ATProto have no single API host. Those adapters declare
+`requiresApiBaseUrl: true`, and each account carries its own `apiBaseUrl` (absolute `https`).
+Their OAuth client credentials are also per instance, so they live with the account's credentials
+rather than in the package — see `docs/OAUTH.md`.
+
 ### Pull-based networks need public URLs, and that is your problem
 
 Meta (Facebook, Instagram, Threads) and TikTok's photo flow do not accept your bytes. You give
 them a URL and their servers fetch it. That means:
+
+`preview()` tells you how long that URL has to keep working: `requiredMediaUrlLifetimeSecs` comes
+straight from the network's declared `urlMustRemainAvailableForSecs`, so a signed URL can be sized
+from it rather than guessed.
 
 - The URL must be reachable from the public internet with **no interactive authorization**. A
   signed, unguessable URL is fine; a login page is not.

@@ -13,7 +13,7 @@ const accountConfig: ResolvedAccountConfig = {
   platform: 'telegram',
   source: 'account',
   auth: { apiKey: '123456789:ABC-DEF1234ghIkl-zyx57W2v1u123ew11' },
-  target: '@contract_channel',
+  target: { id: '@contract_channel' },
 };
 
 /**
@@ -86,7 +86,7 @@ function createHarness(): ContractHarness {
 const base = {
   platform: 'telegram',
   account: 'contract',
-  target: '@contract_channel',
+  target: { id: '@contract_channel' },
 };
 
 describePlatformContract({

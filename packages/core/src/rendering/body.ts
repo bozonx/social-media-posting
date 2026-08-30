@@ -15,15 +15,46 @@ const URL_PATTERN = /https?:\/\/\S+/g;
  * @returns The length the platform will see.
  */
 export function countBodyLength(body: string, rule?: BodyLengthRule): number {
+  const unitsOf = (text: string): number => countUnits(text, rule?.countUnit);
+
   if (!rule?.urlWeight) {
-    return body.length;
+    return unitsOf(body);
   }
 
-  let length = body.length;
+  let length = unitsOf(body);
   for (const match of body.matchAll(URL_PATTERN)) {
-    length += rule.urlWeight - match[0].length;
+    length += rule.urlWeight - unitsOf(match[0]);
   }
   return length;
+}
+
+/** Segmenter is expensive to build and stateless once built. */
+let graphemeSegmenter: Intl.Segmenter | undefined;
+
+/**
+ * Length of a string in the unit a platform counts in.
+ *
+ * @param text - The text to measure.
+ * @param unit - The platform's unit; `utf16` when unstated.
+ */
+export function countUnits(text: string, unit: BodyLengthRule['countUnit'] = 'utf16'): number {
+  if (unit === 'utf8Bytes') {
+    return new TextEncoder().encode(text).length;
+  }
+  if (unit === 'graphemes') {
+    if (typeof Intl.Segmenter === 'function') {
+      graphemeSegmenter ??= new Intl.Segmenter(undefined, { granularity: 'grapheme' });
+      let count = 0;
+      for (const _ of graphemeSegmenter.segment(text)) {
+        count += 1;
+      }
+      return count;
+    }
+    // Without Intl.Segmenter, code points are closer than UTF-16 units: it
+    // still counts an emoji as one where the pair would have counted two.
+    return [...text].length;
+  }
+  return text.length;
 }
 
 /**

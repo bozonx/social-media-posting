@@ -67,6 +67,7 @@ accounts:
   it('starts on defaults when the file is absent', () => {
     expect(loadYamlConfig(join(dir, 'missing.yaml'))).toEqual({
       requestTimeoutSecs: 60,
+      strictResumeHandles: false,
       accounts: {},
     });
   });

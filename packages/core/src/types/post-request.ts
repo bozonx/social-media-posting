@@ -1,6 +1,8 @@
 import type { PostType } from './post-type.js';
 import type { MediaInput, ThumbnailInput } from './media-input.js';
 import type { JsonValue } from './resume-handle.js';
+import type { TargetInput } from './target.js';
+import type { ArticleDocument } from './article-document.js';
 
 /**
  * Everything needed to publish a single post.
@@ -8,14 +10,22 @@ import type { JsonValue } from './resume-handle.js';
  * A plain structural type on purpose: the core carries no decorator runtime and
  * no validation framework, so hosts can build this object any way they like.
  * Structural validation lives in `validatePostRequest()`.
+ *
+ * `TExtra` is compile-time ergonomics for a host that knows which network it is
+ * addressing (`PostRequest<TelegramExtra>`); the runtime authority on `extra`
+ * remains `capabilities.extraFields`.
  */
-export interface PostRequest {
+export interface PostRequest<TExtra = Record<string, unknown>> {
   // — routing —
   platform: string;
   account?: string;
   auth?: Record<string, unknown>;
-  /** Where on the platform to publish: channel, page, board, community, profile. */
-  target?: string | number;
+  /**
+   * Where on the platform to publish: channel, page, board, community, profile.
+   * A scalar is shorthand for `{ id: String(value) }`; adapters only ever see
+   * the normalized {@link PlatformTarget}.
+   */
+  target?: TargetInput;
 
   // — content —
   body?: string;
@@ -25,6 +35,13 @@ export interface PostRequest {
   description?: string;
   tags?: string[];
   language?: string;
+  /** Required by `PostType.ARTICLE`, refused by every other type. */
+  article?: ArticleDocument;
+  /**
+   * Segments to publish as one chain. Never produced by splitting `body`:
+   * where a text is cut is the caller's decision, never the library's.
+   */
+  thread?: PostSegment[];
 
   // — media —
   /** The only publishable media collection. Its order is preserved. */
@@ -54,7 +71,14 @@ export interface PostRequest {
   idempotencyKey?: string;
 
   // — escape hatch, declared by the platform —
-  extra?: Record<string, unknown>;
+  extra?: TExtra;
+}
+
+/** One message of a thread. */
+export interface PostSegment {
+  body?: string;
+  media?: MediaInput[];
+  poll?: PollInput;
 }
 
 /** Standard audiences, plus any value a platform declares. */
@@ -64,7 +88,7 @@ export interface PlatformObjectRef {
   /** Platform-native object identifier. */
   id: string;
   /** Source channel/community when an id alone is not globally addressable. */
-  target?: string | number;
+  target?: TargetInput;
   /** Adapter-defined addressing data, e.g. a Telegram source chat id. */
   extra?: Record<string, JsonValue>;
 }

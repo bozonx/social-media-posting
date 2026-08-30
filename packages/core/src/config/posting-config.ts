@@ -1,4 +1,17 @@
 import type { AccountConfig } from '../types/account-config.js';
+import { isValidTargetInput } from '../types/target.js';
+
+/** Whether a value is an absolute `https:` URL, as `apiBaseUrl` must be. */
+export function isAbsoluteHttpsUrl(value: unknown): boolean {
+  if (typeof value !== 'string') {
+    return false;
+  }
+  try {
+    return new URL(value).protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
 
 /** Lowest and highest accepted request timeout, in seconds. */
 const MIN_REQUEST_TIMEOUT_SECS = 1;
@@ -24,6 +37,15 @@ export interface PostingConfigInput {
   requestTimeoutSecs?: number;
   /** Log level for the built-in console logger (default: 'warn'). */
   logLevel?: LogLevel;
+  /**
+   * Throw when a platform puts a secret in a resume handle, instead of
+   * stripping it and warning (default: false).
+   *
+   * Turn it on in development and in tests: an adapter that leaks a token into
+   * a handle the host persists should fail loudly there, and quietly in
+   * production rather than taking a publication down with it.
+   */
+  strictResumeHandles?: boolean;
 }
 
 function requireInteger(
@@ -54,6 +76,7 @@ export class PostingConfig {
   readonly accounts: Record<string, AccountConfig>;
   readonly requestTimeoutSecs: number;
   readonly logLevel: LogLevel;
+  readonly strictResumeHandles: boolean;
 
   constructor(input: PostingConfigInput) {
     const errors: string[] = [];
@@ -88,6 +111,11 @@ export class PostingConfig {
       errors.push(`logLevel must be one of ${LOG_LEVELS.join(', ')}`);
     }
     this.logLevel = LOG_LEVELS.includes(logLevel) ? logLevel : 'warn';
+
+    if (input.strictResumeHandles !== undefined && typeof input.strictResumeHandles !== 'boolean') {
+      errors.push('strictResumeHandles must be a boolean');
+    }
+    this.strictResumeHandles = input.strictResumeHandles === true;
 
     if (errors.length > 0) {
       throw new Error(`Posting config validation error: ${errors.join('; ')}`);
@@ -145,7 +173,7 @@ function validateAccount(name: string, account: unknown): string[] {
     return [`${prefix}: must be an object`];
   }
 
-  const { platform, auth, target, maxBodyLength } = account as Partial<AccountConfig>;
+  const { platform, auth, target, maxBodyLength, apiBaseUrl } = account as Partial<AccountConfig>;
 
   if (typeof platform !== 'string' || platform.trim().length === 0) {
     errors.push(`${prefix}: platform must be a non-empty string`);
@@ -158,8 +186,11 @@ function validateAccount(name: string, account: unknown): string[] {
   ) {
     errors.push(`${prefix}: auth must be an object`);
   }
-  if (target !== undefined && typeof target !== 'string' && typeof target !== 'number') {
-    errors.push(`${prefix}: target must be a string or a number`);
+  if (target !== undefined && !isValidTargetInput(target)) {
+    errors.push(`${prefix}: target must be a string, a number, or an object with a non-empty id`);
+  }
+  if (apiBaseUrl !== undefined && !isAbsoluteHttpsUrl(apiBaseUrl)) {
+    errors.push(`${prefix}: apiBaseUrl must be an absolute https URL`);
   }
   if (
     maxBodyLength !== undefined &&

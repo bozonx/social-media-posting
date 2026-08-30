@@ -8,9 +8,13 @@ import type {
   PlatformCapabilities,
   RequestField,
   ExtraFieldSpec,
+  MediaConstraints,
 } from '../platforms/capabilities.js';
 import type { MediaInput, MediaType } from '../types/media-input.js';
 import type { Issue } from '../types/post-response.js';
+import { normalizeTarget } from '../types/target.js';
+import type { PlatformTarget } from '../types/target.js';
+import { PostType as PostTypeValues } from '../types/post-type.js';
 
 /** What a capability check found. */
 export interface CapabilityValidation {
@@ -32,6 +36,12 @@ export interface CapabilityValidationOptions {
   detectType?: (request: PostRequest) => PostType;
   /** Platform-specific rules; returns issues or error messages. */
   validateExtra?: (request: PostRequest, detectedType: PostType) => Issue[] | string[];
+  /**
+   * The address actually in effect, when the account supplies a default the
+   * request does not carry. The core resolves this before publishing; an
+   * adapter validating on its own passes what it resolved.
+   */
+  target?: PlatformTarget;
 }
 
 export function isFieldPresent(request: PostRequest, field: RequestField): boolean {
@@ -134,7 +144,10 @@ export function validateAgainstCapabilities(
     });
   }
 
+  validateTarget(request, capabilities, issues, label, options.target);
   validateMediaConstraints(request, detectedType, capabilities, issues, label);
+  validateArticle(request, detectedType, capabilities, issues, label);
+  validateThread(request, capabilities, issues, label);
   validateBodyAgainstCapabilities(request, detectedType, capabilities, issues, label);
   validateTextFieldsAgainstCapabilities(request, detectedType, capabilities, issues);
   validateAudienceAndStructure(request, capabilities, issues, label);
@@ -280,6 +293,9 @@ function validateOneMediaItem(
   const constraints = capabilities.media?.[kind];
 
   if (constraints) {
+    validateMediaTransport(media, kind, field, constraints, issues, label);
+    validateMediaEncoding(media, kind, field, constraints, issues, label);
+
     if (!constraints.acceptedSources.includes(media.source.kind)) {
       issues.push({
         code: 'UNSUPPORTED_MEDIA_SOURCE',
@@ -381,6 +397,14 @@ function validateOneMediaItem(
     }
   }
 
+  if (constraints?.requiresCover && media.thumbnail === undefined) {
+    issues.push({
+      code: 'COVER_REQUIRED',
+      field: `${field}.thumbnail`,
+      message: `${label} requires a cover image for ${kind}`,
+    });
+  }
+
   // AltText
   if (capabilities.altText) {
     if (capabilities.altText.required && (!media.altText || media.altText.trim().length === 0)) {
@@ -408,6 +432,281 @@ function validateOneMediaItem(
         message: `altText on ${field} must not exceed ${capabilities.altText.maxLength} characters`,
       });
     }
+  }
+}
+
+/**
+ * Refuse a media source the network's transport cannot move, before any HTTP
+ * call: a pull-only network cannot be handed bytes, and a push-only network
+ * cannot be handed a URL it will never fetch.
+ */
+function validateMediaTransport(
+  media: MediaInput,
+  kind: MediaType,
+  field: string,
+  constraints: MediaConstraints,
+  issues: Issue[],
+  label: string,
+): void {
+  const sourceKind = media.source.kind;
+  if (sourceKind === 'platformRef') {
+    return;
+  }
+
+  if (sourceKind === 'url') {
+    if (constraints.transport === 'push') {
+      issues.push({
+        code: 'MEDIA_TRANSPORT_PUSH_ONLY',
+        field: `${field}.source`,
+        message: `${label} uploads ${kind} bytes itself and cannot fetch a URL; supply bytes, a blob or a stream`,
+      });
+      return;
+    }
+    if (constraints.requiresPubliclyFetchableUrl && !isPubliclyFetchableUrl(media.source.url)) {
+      issues.push({
+        code: 'MEDIA_URL_NOT_PUBLIC',
+        field: `${field}.source.url`,
+        message: `${label} fetches ${kind} itself, so the URL must be an absolute http(s) URL reachable without credentials`,
+      });
+    }
+    return;
+  }
+
+  if (constraints.transport === 'pull') {
+    issues.push({
+      code: 'MEDIA_TRANSPORT_PULL_ONLY',
+      field: `${field}.source`,
+      message: `${label} fetches ${kind} from a URL and accepts no uploaded bytes; supply a 'url' source`,
+    });
+  }
+}
+
+function isPubliclyFetchableUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'https:' || parsed.protocol === 'http:';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Container, codec and frame-rate rules.
+ *
+ * These are declarations for the host and for `preview()`, not guarantees: the
+ * core never opens a file, so it checks them only when the `MediaInput` states
+ * them.
+ */
+function validateMediaEncoding(
+  media: MediaInput,
+  kind: MediaType,
+  field: string,
+  constraints: MediaConstraints,
+  issues: Issue[],
+  label: string,
+): void {
+  const inList = (list: string[] | undefined, value: string | undefined): boolean =>
+    !list || list.length === 0 || value === undefined || list.includes(value.toLowerCase());
+
+  if (!inList(constraints.containers, media.container)) {
+    issues.push({
+      code: 'UNSUPPORTED_CONTAINER',
+      field: `${field}.container`,
+      message: `Container '${media.container}' is not supported for ${kind} on ${label}; accepted: ${constraints.containers?.join(', ')}`,
+    });
+  }
+  if (!inList(constraints.videoCodecs, media.videoCodec)) {
+    issues.push({
+      code: 'UNSUPPORTED_VIDEO_CODEC',
+      field: `${field}.videoCodec`,
+      message: `Video codec '${media.videoCodec}' is not supported for ${kind} on ${label}; accepted: ${constraints.videoCodecs?.join(', ')}`,
+    });
+  }
+  if (!inList(constraints.audioCodecs, media.audioCodec)) {
+    issues.push({
+      code: 'UNSUPPORTED_AUDIO_CODEC',
+      field: `${field}.audioCodec`,
+      message: `Audio codec '${media.audioCodec}' is not supported for ${kind} on ${label}; accepted: ${constraints.audioCodecs?.join(', ')}`,
+    });
+  }
+
+  if (media.frameRate !== undefined) {
+    if (constraints.minFrameRate !== undefined && media.frameRate < constraints.minFrameRate) {
+      issues.push({
+        code: 'FRAME_RATE_TOO_LOW',
+        field: `${field}.frameRate`,
+        message: `${kind} frame rate ${media.frameRate} is below the ${constraints.minFrameRate} minimum on ${label}`,
+      });
+    }
+    if (constraints.maxFrameRate !== undefined && media.frameRate > constraints.maxFrameRate) {
+      issues.push({
+        code: 'FRAME_RATE_TOO_HIGH',
+        field: `${field}.frameRate`,
+        message: `${kind} frame rate ${media.frameRate} exceeds the ${constraints.maxFrameRate} maximum on ${label}`,
+      });
+    }
+  }
+}
+
+/** The composite address, checked against `capabilities.targetSchema`. */
+function validateTarget(
+  request: PostRequest,
+  capabilities: PlatformCapabilities,
+  issues: Issue[],
+  label: string,
+  effectiveTarget?: PlatformTarget,
+): void {
+  const target = normalizeTarget(request.target) ?? effectiveTarget;
+  if (!target) {
+    if (capabilities.auth?.requiresTarget) {
+      issues.push({
+        code: 'TARGET_REQUIRED',
+        field: 'target',
+        message: `${label} needs a target (request.target or the account's default)`,
+      });
+    }
+    return;
+  }
+
+  const specs = capabilities.targetSchema ?? [];
+  const values = Object.fromEntries(
+    Object.entries(target).filter(([key]) => key !== 'id'),
+  ) as Record<string, unknown>;
+
+  validateFieldSpecs(specs, values, 'target', undefined, issues, specs.length === 0);
+}
+
+/** `PostType.ARTICLE` needs a document, and only blocks the network publishes. */
+function validateArticle(
+  request: PostRequest,
+  detectedType: PostType,
+  capabilities: PlatformCapabilities,
+  issues: Issue[],
+  label: string,
+): void {
+  if (detectedType === PostTypeValues.ARTICLE) {
+    if (!request.article) {
+      issues.push({
+        code: 'FIELD_REQUIRED',
+        field: 'article',
+        message: `Type 'article' requires an 'article' document on ${label}`,
+      });
+      return;
+    }
+  } else if (request.article) {
+    issues.push({
+      code: 'FIELD_FORBIDDEN',
+      field: 'article',
+      message: `Field 'article' belongs to type 'article', not '${detectedType}'`,
+    });
+    return;
+  }
+
+  const article = request.article;
+  const rules = capabilities.article;
+  if (!article) {
+    return;
+  }
+  if (!rules) {
+    issues.push({
+      code: 'ARTICLE_UNSUPPORTED',
+      field: 'article',
+      message: `${label} does not publish articles`,
+    });
+    return;
+  }
+
+  if (rules.maxTitleLength !== undefined && article.title.length > rules.maxTitleLength) {
+    issues.push({
+      code: 'TITLE_TOO_LONG',
+      field: 'article.title',
+      message: `Article title length ${article.title.length} exceeds the maximum ${rules.maxTitleLength} on ${label}`,
+    });
+  }
+  if (rules.maxBlocks !== undefined && article.blocks.length > rules.maxBlocks) {
+    issues.push({
+      code: 'TOO_MANY_BLOCKS',
+      field: 'article.blocks',
+      message: `Article has ${article.blocks.length} blocks, more than the ${rules.maxBlocks} ${label} accepts`,
+    });
+  }
+
+  article.blocks.forEach((block, index) => {
+    if (!rules.blocks.includes(block.type)) {
+      issues.push({
+        code: 'ARTICLE_BLOCK_UNSUPPORTED',
+        field: `article.blocks[${index}].type`,
+        message: `${label} does not support '${block.type}' blocks; supported: ${rules.blocks.join(', ')}`,
+      });
+    }
+    const inlineRuns =
+      block.type === 'list'
+        ? block.items.flat()
+        : block.type === 'code'
+          ? []
+          : block.type === 'image'
+            ? (block.caption ?? [])
+            : block.content;
+    for (const node of inlineRuns) {
+      for (const mark of node.marks ?? []) {
+        if (!rules.marks.includes(mark)) {
+          issues.push({
+            code: 'ARTICLE_MARK_UNSUPPORTED',
+            field: `article.blocks[${index}]`,
+            message: `${label} does not support the '${mark}' inline mark; supported: ${rules.marks.join(', ')}`,
+          });
+        }
+      }
+    }
+  });
+}
+
+/** Threads are an explicit input; the core never splits a body into one. */
+function validateThread(
+  request: PostRequest,
+  capabilities: PlatformCapabilities,
+  issues: Issue[],
+  label: string,
+): void {
+  const thread = request.thread;
+  if (!thread || thread.length === 0) {
+    return;
+  }
+
+  const rules = capabilities.thread;
+  if (!rules?.supported) {
+    issues.push({
+      code: 'THREAD_UNSUPPORTED',
+      field: 'thread',
+      message: `${label} does not publish threads`,
+    });
+    return;
+  }
+
+  if (rules.maxSegments !== undefined && thread.length > rules.maxSegments) {
+    issues.push({
+      code: 'TOO_MANY_THREAD_SEGMENTS',
+      field: 'thread',
+      message: `A thread on ${label} may hold at most ${rules.maxSegments} segments, got ${thread.length}`,
+    });
+  }
+
+  const segmentLimit = rules.maxSegmentBodyLength ?? capabilities.maxBodyLength;
+  if (segmentLimit !== undefined) {
+    thread.forEach((segment, index) => {
+      if (segment.body === undefined) {
+        return;
+      }
+      const length = countBodyLength(segment.body, capabilities.bodyLengthRule);
+      if (length > segmentLimit) {
+        issues.push({
+          code: 'BODY_TOO_LONG',
+          field: `thread[${index}].body`,
+          message: `Segment body length ${length} exceeds the ${segmentLimit} characters ${label} accepts`,
+          params: { maxLength: segmentLimit, actualLength: length },
+        });
+      }
+    });
   }
 }
 
@@ -719,45 +1018,75 @@ function validateExtraFields(
   capabilities: PlatformCapabilities,
   issues: Issue[],
 ): void {
-  const extra = request.extra ?? {};
-  const declaredSpecs = capabilities.extraFields ?? [];
-  const specMap = new Map<string, ExtraFieldSpec>(declaredSpecs.map(s => [s.name, s]));
+  validateFieldSpecs(
+    capabilities.extraFields ?? [],
+    request.extra ?? {},
+    'extra',
+    detectedType,
+    issues,
+    capabilities.allowUnknownExtraFields ?? false,
+    capabilities.name,
+  );
+}
 
-  // Check unknown extra fields
-  if (!capabilities.allowUnknownExtraFields) {
-    for (const key of Object.keys(extra)) {
+/**
+ * Check a bag of declared fields — `extra` or the non-`id` parts of a composite
+ * `target` — against its specs. One implementation, so both are validated the
+ * same way rather than nearly the same way.
+ */
+export function validateFieldSpecs(
+  specs: ExtraFieldSpec[],
+  values: Record<string, unknown>,
+  prefix: string,
+  detectedType: PostType | undefined,
+  issues: Issue[],
+  allowUnknown: boolean,
+  platformName = 'this platform',
+): void {
+  const specMap = new Map<string, ExtraFieldSpec>(specs.map(spec => [spec.name, spec]));
+
+  if (!allowUnknown) {
+    for (const key of Object.keys(values)) {
       if (!specMap.has(key)) {
         issues.push({
           code: 'UNKNOWN_EXTRA_FIELD',
-          field: `extra.${key}`,
-          message: `Unknown extra field '${key}' is not declared for ${capabilities.name}`,
+          field: `${prefix}.${key}`,
+          message: `Unknown ${prefix} field '${key}' is not declared for ${platformName}`,
         });
       }
     }
   }
 
-  // Validate declared fields
-  for (const spec of declaredSpecs) {
-    const applies = !spec.forTypes || spec.forTypes.includes(detectedType);
-    const value = extra[spec.name];
+  for (const spec of specs) {
+    const applies =
+      !spec.forTypes || (detectedType !== undefined && spec.forTypes.includes(detectedType));
+    const value = values[spec.name];
 
     if (applies && spec.required && value === undefined) {
       issues.push({
         code: 'FIELD_REQUIRED',
-        field: `extra.${spec.name}`,
-        message: `Extra field '${spec.name}' is required for type '${detectedType}'`,
+        field: `${prefix}.${spec.name}`,
+        message:
+          detectedType !== undefined
+            ? `Field '${prefix}.${spec.name}' is required for type '${detectedType}'`
+            : `Field '${prefix}.${spec.name}' is required`,
       });
       continue;
     }
 
     if (value !== undefined) {
-      validateExtraFieldValue(spec, value, issues);
+      validateExtraFieldValue(spec, value, issues, prefix);
     }
   }
 }
 
-function validateExtraFieldValue(spec: ExtraFieldSpec, value: unknown, issues: Issue[]): void {
-  const fieldName = `extra.${spec.name}`;
+function validateExtraFieldValue(
+  spec: ExtraFieldSpec,
+  value: unknown,
+  issues: Issue[],
+  prefix = 'extra',
+): void {
+  const fieldName = `${prefix}.${spec.name}`;
 
   switch (spec.type) {
     case 'string':
@@ -765,21 +1094,21 @@ function validateExtraFieldValue(spec: ExtraFieldSpec, value: unknown, issues: I
         issues.push({
           code: 'INVALID_FIELD_TYPE',
           field: fieldName,
-          message: `Extra field '${spec.name}' must be a string`,
+          message: `Field '${fieldName}' must be a string`,
         });
       } else {
         if (spec.maxLength !== undefined && value.length > spec.maxLength) {
           issues.push({
             code: 'FIELD_TOO_LONG',
             field: fieldName,
-            message: `Extra field '${spec.name}' must not exceed ${spec.maxLength} characters`,
+            message: `Field '${fieldName}' must not exceed ${spec.maxLength} characters`,
           });
         }
         if (spec.pattern && !new RegExp(spec.pattern).test(value)) {
           issues.push({
             code: 'INVALID_PATTERN',
             field: fieldName,
-            message: `Extra field '${spec.name}' does not match pattern ${spec.pattern}`,
+            message: `Field '${fieldName}' does not match pattern ${spec.pattern}`,
           });
         }
       }
@@ -790,21 +1119,21 @@ function validateExtraFieldValue(spec: ExtraFieldSpec, value: unknown, issues: I
         issues.push({
           code: 'INVALID_FIELD_TYPE',
           field: fieldName,
-          message: `Extra field '${spec.name}' must be a finite number`,
+          message: `Field '${fieldName}' must be a finite number`,
         });
       } else {
         if (spec.min !== undefined && value < spec.min) {
           issues.push({
             code: 'VALUE_TOO_SMALL',
             field: fieldName,
-            message: `Extra field '${spec.name}' must be at least ${spec.min}`,
+            message: `Field '${fieldName}' must be at least ${spec.min}`,
           });
         }
         if (spec.max !== undefined && value > spec.max) {
           issues.push({
             code: 'VALUE_TOO_LARGE',
             field: fieldName,
-            message: `Extra field '${spec.name}' must be at most ${spec.max}`,
+            message: `Field '${fieldName}' must be at most ${spec.max}`,
           });
         }
       }
@@ -815,7 +1144,7 @@ function validateExtraFieldValue(spec: ExtraFieldSpec, value: unknown, issues: I
         issues.push({
           code: 'INVALID_FIELD_TYPE',
           field: fieldName,
-          message: `Extra field '${spec.name}' must be a boolean`,
+          message: `Field '${fieldName}' must be a boolean`,
         });
       }
       break;
@@ -825,7 +1154,7 @@ function validateExtraFieldValue(spec: ExtraFieldSpec, value: unknown, issues: I
         issues.push({
           code: 'INVALID_ENUM_VALUE',
           field: fieldName,
-          message: `Extra field '${spec.name}' must be one of: ${(spec.values ?? []).join(', ')}`,
+          message: `Field '${fieldName}' must be one of: ${(spec.values ?? []).join(', ')}`,
         });
       }
       break;
@@ -835,21 +1164,21 @@ function validateExtraFieldValue(spec: ExtraFieldSpec, value: unknown, issues: I
         issues.push({
           code: 'INVALID_FIELD_TYPE',
           field: fieldName,
-          message: `Extra field '${spec.name}' must be an array of strings`,
+          message: `Field '${fieldName}' must be an array of strings`,
         });
       } else {
         if (spec.minItems !== undefined && value.length < spec.minItems) {
           issues.push({
             code: 'TOO_FEW_ITEMS',
             field: fieldName,
-            message: `Extra field '${spec.name}' must contain at least ${spec.minItems} items`,
+            message: `Field '${fieldName}' must contain at least ${spec.minItems} items`,
           });
         }
         if (spec.maxItems !== undefined && value.length > spec.maxItems) {
           issues.push({
             code: 'TOO_MANY_ITEMS',
             field: fieldName,
-            message: `Extra field '${spec.name}' must contain at most ${spec.maxItems} items`,
+            message: `Field '${fieldName}' must contain at most ${spec.maxItems} items`,
           });
         }
       }
@@ -860,7 +1189,7 @@ function validateExtraFieldValue(spec: ExtraFieldSpec, value: unknown, issues: I
         issues.push({
           code: 'INVALID_FIELD_TYPE',
           field: fieldName,
-          message: `Extra field '${spec.name}' must be an object`,
+          message: `Field '${fieldName}' must be an object`,
         });
       }
       break;
