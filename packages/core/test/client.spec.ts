@@ -10,7 +10,6 @@ import type { CredentialProvider } from '../src/auth/credentials.js';
 
 type FakePlatform = IPlatform & {
   publish: ReturnType<typeof vi.fn>;
-  preview: ReturnType<typeof vi.fn>;
   delete: ReturnType<typeof vi.fn>;
 };
 
@@ -29,19 +28,6 @@ function fakePlatform(name = 'fake'): FakePlatform {
       url: `https://${name}/1`,
       parts: [{ id: '1' }],
       ref: { postId: '1', parts: [{ id: '1' }] },
-    }),
-    preview: vi.fn().mockResolvedValue({
-      success: true,
-      data: {
-        valid: true,
-        detectedType: PostType.POST,
-        convertedBody: 'hi',
-        targetFormat: 'text',
-        convertedBodyLength: 2,
-        issues: [],
-        ignoredFields: [],
-        truncated: false,
-      },
     }),
     delete: vi.fn().mockResolvedValue({
       status: 'deleted',

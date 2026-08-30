@@ -254,9 +254,11 @@ export function describePlatformContract(options: PlatformContractOptions): void
         harness.respondSuccess();
         const request = firstRequest(options);
 
-        const result = harness.platform.preview
-          ? await harness.platform.preview(request, harness.accountConfig)
-          : previewFromCapabilities(request, harness.platform.capabilities, hooks(harness));
+        const result = previewFromCapabilities(
+          request,
+          harness.platform.capabilities,
+          hooks(harness),
+        );
 
         expect(result.success).toBe(true);
         if (result.success) {

@@ -68,10 +68,6 @@ export class PreviewService extends BasePostService {
         target: normalizeTarget(request.target) ?? accountConfig.target,
       };
 
-      if (platform.preview) {
-        return await platform.preview(normalized, accountConfig);
-      }
-
       const validateExtra = platform.validateExtra?.bind(platform);
       return previewFromCapabilities(normalized, effectiveCapabilities, {
         detectType: platform.detectType?.bind(platform),

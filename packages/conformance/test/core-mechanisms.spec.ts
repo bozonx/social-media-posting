@@ -10,6 +10,7 @@ import type {
   PlatformCapabilities,
   PlatformModule,
   PostRequest,
+  ResumeHandle,
   ResolvedAccountConfig,
 } from '@bozonx/social-posting';
 import {
@@ -281,7 +282,11 @@ describe('unknown outcome', () => {
       );
     }
 
-    reconcile(): Promise<
+    reconcile(
+      _handle?: ResumeHandle,
+      _account?: ResolvedAccountConfig,
+      _signal?: AbortSignal,
+    ): Promise<
       { status: 'published'; postId: string } | { status: 'absent' } | { status: 'unknown' }
     > {
       if (this.reconcileAnswer === 'published') {
@@ -333,6 +338,20 @@ describe('unknown outcome', () => {
     if (result.success) {
       expect(result.data.postId).toBe('found-1');
     }
+  });
+
+  it('marks an absent reconciled create retryable and passes an abort signal to reconciliation', async () => {
+    const platform = new AmbiguousPlatform();
+    platform.reconcileAnswer = 'absent';
+    const reconcile = vi.spyOn(platform, 'reconcile');
+
+    const result = await clientFor(platform).post(request);
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.retryable).toBe(true);
+    }
+    expect(reconcile).toHaveBeenCalledWith(expect.anything(), expect.anything(), expect.anything());
   });
 
   it('keeps the original retryable error when nothing was created', async () => {

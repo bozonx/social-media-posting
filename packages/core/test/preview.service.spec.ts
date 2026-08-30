@@ -7,7 +7,6 @@ import { PostType } from '../src/types/post-type.js';
 import type { ILogger } from '../src/logger/logger.js';
 import type { IPlatform } from '../src/platforms/platform.interface.js';
 import type { PostRequest } from '../src/types/post-request.js';
-import type { PreviewResult } from '../src/types/preview-response.js';
 
 const telegramAccount = {
   platform: 'telegram',
@@ -15,21 +14,6 @@ const telegramAccount = {
 };
 
 const silentLogger: ILogger = { debug: () => {}, log: () => {}, warn: () => {}, error: () => {} };
-
-const previewResult: PreviewResult = {
-  success: true,
-  data: {
-    valid: true,
-    detectedType: PostType.POST,
-    convertedBody: 'Test message',
-    targetFormat: 'html',
-    convertedBodyLength: 12,
-    issues: [],
-    warnings: [],
-    ignoredFields: [],
-    truncated: false,
-  },
-};
 
 function createService(
   accounts: Record<string, unknown> = { 'test-channel': telegramAccount },
@@ -52,7 +36,6 @@ function createService(
       targetBodyFormat: 'html',
     },
     publish: vi.fn(),
-    preview: vi.fn().mockResolvedValue(previewResult),
     ...platformOverrides,
   } satisfies IPlatform;
 
@@ -156,13 +139,14 @@ describe('PreviewService', () => {
         expect(result.data.valid).toBe(false);
         expect(result.data.issues.some(i => i.code === 'EMPTY_POST_REQUEST')).toBe(true);
       }
-      expect(platform.preview).not.toHaveBeenCalled();
+      expect(platform.publish).not.toHaveBeenCalled();
     });
   });
 
-  describe('platform delegation', () => {
-    it('passes the resolved account configuration to the platform', async () => {
-      const { service, platform } = createService();
+  describe('capability preview', () => {
+    it('passes resolved capabilities and account configuration through the shared preview path', async () => {
+      const validateExtra = vi.fn().mockReturnValue([]);
+      const { service, platform } = createService(undefined, { validateExtra });
       const request: PostRequest = {
         platform: 'telegram',
         body: 'Test message',
@@ -171,37 +155,20 @@ describe('PreviewService', () => {
 
       const result = await service.preview(request);
 
-      expect(platform.preview).toHaveBeenCalledWith(request, {
-        ...telegramAccount,
-        source: 'account',
-      });
-      expect(result).toBe(previewResult);
+      expect(result.success).toBe(true);
+      expect(validateExtra).toHaveBeenCalledWith(
+        expect.objectContaining({ target: undefined }),
+        expect.objectContaining({ source: 'account' }),
+        PostType.POST,
+      );
+      expect(platform.publish).not.toHaveBeenCalled();
     });
 
-    it('builds an inline account configuration from request credentials', async () => {
-      const { service, platform } = createService();
-      const request: PostRequest = {
-        platform: 'telegram',
-        body: 'Test message',
-        auth: { apiKey: 'test-token', chatId: '@test_channel' },
-      };
-
-      const result = await service.preview(request);
-
-      expect(platform.preview).toHaveBeenCalledWith(request, {
-        platform: 'telegram',
-        auth: request.auth,
-        source: 'inline',
-      });
-      expect(result).toBe(previewResult);
-    });
-
-    it('falls back to capability preview when platform.preview is omitted', async () => {
+    it('uses capability preview for every platform', async () => {
       const validateExtra = vi.fn().mockReturnValue([]);
       const { service } = createService(
         { 'test-channel': { ...telegramAccount } },
         {
-          preview: undefined,
           validateExtra,
         },
       );

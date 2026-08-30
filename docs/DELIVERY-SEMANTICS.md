@@ -57,9 +57,11 @@ sending, can.
 A handle is JSON the host stores in a job row, so it may not contain an access token, a signed
 upload URL or an authorization header — those become secrets in the host's database, and they
 expire long before the job might resume. Credentials are re-derived from the account when the
-resume runs. The core scans every handle on its way out: with `strictResumeHandles` on
-(development, tests) a leak throws; in production the offending field is stripped and a warning is
-logged.
+resume runs. The core scans every handle on its way out. `strictResumeHandles` is an explicit
+host policy: enable it in development and tests to make a leak throw; disable it in production to
+strip the offending field and log a warning. The library deliberately does not inspect `NODE_ENV`.
+Newly produced handles carry `version: 1`; hosts must persist that field and adapters must reject
+future versions they cannot interpret.
 
 ## Recommended host pattern
 

@@ -156,6 +156,7 @@ export async function runUploadSequence<TSession, TResult>(
   let session: TSession;
 
   const handleAt = (at: UploadSequenceStep, current: TSession): ResumeHandle => ({
+    version: 1,
     platform: options.platform,
     step: at,
     state: sequence.serializeSession(current),

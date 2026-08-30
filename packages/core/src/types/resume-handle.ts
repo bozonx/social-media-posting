@@ -20,6 +20,12 @@ export type JsonValue =
  *   authorization header. Those are re-derived from the account on resume.
  */
 export interface ResumeHandle {
+  /**
+   * Serialization format version. Hosts must retain it with the handle and
+   * adapters must reject versions they do not understand instead of silently
+   * interpreting old progress as current state.
+   */
+  version?: 1;
   /** Platform that produced the handle; another platform must refuse it. */
   platform: string;
   /** Platform-defined name of the step that was reached. */

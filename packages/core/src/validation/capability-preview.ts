@@ -32,6 +32,7 @@ export function previewFromCapabilities(
     request,
     capabilities,
     targetFormat,
+    detectedType,
   );
 
   return {
@@ -102,7 +103,7 @@ export function adaptRequest(
 ): AdaptedRequest {
   const type = detectedType ?? validateAgainstCapabilities(request, capabilities).detectedType;
   const targetFormat = resolveBodyTargetFormat(request, capabilities);
-  const { body } = renderBodyWithTruncation(request, capabilities, targetFormat);
+  const { body } = renderBodyWithTruncation(request, capabilities, targetFormat, type);
 
   const droppedFields = (capabilities.ignoredFields ?? []).filter(field =>
     isFieldPresent(request, field),
@@ -117,6 +118,19 @@ export function adaptRequest(
   adaptedRequest.target = normalizeTarget(request.target);
   adaptedRequest.body = body;
   adaptedRequest.bodyFormat = body === undefined ? undefined : targetFormat;
+  if (request.thread) {
+    const segmentLimit = capabilities.thread?.maxSegmentBodyLength ?? capabilities.maxBodyLength;
+    adaptedRequest.thread = request.thread.map(segment => ({
+      ...segment,
+      body: adaptThreadBody(
+        segment.body,
+        request.bodyFormat,
+        targetFormat,
+        capabilities,
+        segmentLimit,
+      ),
+    }));
+  }
 
   const visibility = request.visibility ?? capabilities.defaultVisibility;
   if (visibility !== undefined) {
@@ -148,13 +162,15 @@ export function renderBodyWithTruncation(
   request: PostRequest,
   capabilities: PlatformCapabilities,
   targetFormat = capabilities.targetBodyFormat ?? request.bodyFormat ?? 'text',
+  detectedType?: PostType,
 ): { body: string | undefined; truncated: boolean } {
   if (request.body === undefined) {
     return { body: undefined, truncated: false };
   }
 
   const converted = convertBody(request.body, request.bodyFormat ?? 'text', targetFormat);
-  const limit = capabilities.maxBodyLength;
+  const type = detectedType ?? validateAgainstCapabilities(request, capabilities).detectedType;
+  const limit = capabilities.postTypes[type]?.maxBodyLength ?? capabilities.maxBodyLength;
 
   if (limit === undefined || countBodyLength(converted, capabilities.bodyLengthRule) <= limit) {
     return { body: converted, truncated: false };
@@ -166,6 +182,23 @@ export function renderBodyWithTruncation(
       : truncateBody(converted, limit, capabilities.bodyLengthRule);
 
   return { body, truncated: true };
+}
+
+function adaptThreadBody(
+  body: string | undefined,
+  inputFormat: string | undefined,
+  targetFormat: string,
+  capabilities: PlatformCapabilities,
+  limit: number | undefined,
+): string | undefined {
+  if (body === undefined) return undefined;
+  const converted = convertBody(body, inputFormat ?? 'text', targetFormat);
+  if (limit === undefined || countBodyLength(converted, capabilities.bodyLengthRule) <= limit) {
+    return converted;
+  }
+  return targetFormat === 'html'
+    ? truncateHtml(converted, limit, capabilities.bodyLengthRule)
+    : truncateBody(converted, limit, capabilities.bodyLengthRule);
 }
 
 /**

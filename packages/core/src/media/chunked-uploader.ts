@@ -131,6 +131,7 @@ export async function runChunkedUpload<TSession, TResult>(
   let pending: Uint8Array<ArrayBuffer> = new Uint8Array(0);
 
   const handleFor = (at: number): ResumeHandle => ({
+    version: 1,
     platform: options.platform,
     step: UPLOAD_STEP,
     state: { ...driver.serializeSession(session), offsetBytes: at },

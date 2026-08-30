@@ -21,7 +21,7 @@ import { normalizeTarget } from '../types/target.js';
 import type { PlatformCapabilities } from '../platforms/capabilities.js';
 import type { IPlatform, ResolvedCapabilities } from '../platforms/platform.interface.js';
 import type { QuotaState } from '../platforms/capabilities.js';
-import { mergeCapabilities } from '../platforms/capabilities.js';
+import { mergeCapabilities, validateCapabilities } from '../platforms/capabilities.js';
 import type { ResolvedAccountConfig } from '../types/account-config.js';
 
 const LOG_CONTEXT = 'PostService';
@@ -125,7 +125,7 @@ export class PostService extends BasePostService {
             .publish(request, accountConfig, {
               signal,
               resume: options.resume,
-              capabilities: options.capabilities,
+              capabilities: effectiveCapabilities,
             })
             // The failure travels as a value rather than as a throw: a publish
             // whose outcome nobody confirmed is a third answer, not an error,
@@ -148,6 +148,7 @@ export class PostService extends BasePostService {
           accountConfig,
           request,
           effectiveCapabilities,
+          options.signal,
         );
         if (!resolved.ok) {
           return this.toErrorResponse(
@@ -303,17 +304,22 @@ export class PostService extends BasePostService {
     accountConfig: ResolvedAccountConfig,
     request: PostRequest,
     capabilities: PlatformCapabilities,
+    signal?: AbortSignal,
   ): Promise<
     | { ok: true; published: Awaited<ReturnType<IPlatform['publish']>> }
     | { ok: false; failure: unknown }
   > {
     const reconcile = platform.reconcile?.bind(platform);
     if (reconcile && error.resumeHandle) {
+      const handle = error.resumeHandle;
       this.logger.warn(
         `Outcome of the publication to ${platform.name} is unknown; reconciling`,
         LOG_CONTEXT,
       );
-      const outcome = await reconcile(error.resumeHandle, accountConfig);
+      const outcome = await this.withRequestTimeout(
+        reconcileSignal => reconcile(handle, accountConfig, reconcileSignal),
+        signal,
+      );
       if (outcome.status === 'published') {
         return {
           ok: true,
@@ -328,13 +334,13 @@ export class PostService extends BasePostService {
       }
       if (outcome.status === 'absent') {
         // Nothing was created, so repeating the call is safe after all.
-        return { ok: false, failure: error };
+        return { ok: false, failure: retryableFailure(error) };
       }
     }
 
     if (capabilities.supportsIdempotencyKey && request.idempotencyKey) {
       // A repeat is deduplicated by the platform itself.
-      return { ok: false, failure: error };
+      return { ok: false, failure: retryableFailure(error) };
     }
 
     return {
@@ -406,14 +412,19 @@ export class PostService extends BasePostService {
 
     if (!resolve) {
       return {
-        capabilities: platform.capabilities,
+        capabilities: applyAccountBodyLimit(platform.capabilities, accountConfig),
         fetchedAt: new Date().toISOString(),
       };
     }
 
     const runtime = await resolve(accountConfig, signal);
+    const capabilities = applyAccountBodyLimit(
+      mergeCapabilities(platform.capabilities, runtime.capabilities),
+      accountConfig,
+    );
+    validateCapabilities(capabilities);
     return {
-      capabilities: mergeCapabilities(platform.capabilities, runtime.capabilities),
+      capabilities,
       cacheableForSecs: runtime.cacheableForSecs,
       fetchedAt: runtime.fetchedAt,
     };
@@ -561,6 +572,19 @@ function errorPayload(error: unknown, requestId: string, includeRaw = true): Err
     raw: includeRaw ? error : undefined,
     requestId,
   };
+}
+
+/** Preserve diagnostics while marking a proven-safe repeat as retryable. */
+function retryableFailure(error: PlatformError): PlatformError {
+  return new PlatformError(error.message, error.code, {
+    retryable: true,
+    retryAfterMs: error.retryAfterMs,
+    httpStatus: error.httpStatus,
+    platformCode: error.platformCode,
+    resumeHandle: error.resumeHandle,
+    cause: error.cause,
+    raw: error.raw,
+  });
 }
 
 /** Narrow a descriptor's body limit to the account's own, when it has one. */

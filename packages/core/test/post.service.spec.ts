@@ -20,7 +20,6 @@ import type { ResumeHandle } from '../src/types/resume-handle.js';
 
 type MockPlatform = IPlatform & {
   publish: Mock<IPlatform['publish']>;
-  preview: Mock<NonNullable<IPlatform['preview']>>;
   detectType: Mock<NonNullable<IPlatform['detectType']>>;
 };
 
@@ -83,7 +82,6 @@ function createService(configOverrides: Record<string, unknown> = {}) {
       targetBodyFormat: 'html',
     },
     publish: vi.fn<IPlatform['publish']>(),
-    preview: vi.fn<NonNullable<IPlatform['preview']>>(),
     detectType: vi.fn<NonNullable<IPlatform['detectType']>>(() => PostType.POST),
   };
 
@@ -134,7 +132,11 @@ describe('PostService', () => {
       expect(platform.publish).toHaveBeenCalledWith(
         request,
         { ...accountConfig, source: 'account' },
-        { signal: expect.any(AbortSignal), resume: undefined },
+        {
+          signal: expect.any(AbortSignal),
+          resume: undefined,
+          capabilities: platform.capabilities,
+        },
       );
     });
 

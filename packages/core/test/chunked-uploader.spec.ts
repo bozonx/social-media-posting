@@ -107,6 +107,7 @@ describe('runChunkedUpload', () => {
 
       expect(error).toBeInstanceOf(PlatformError);
       expect(error.resumeHandle).toEqual({
+        version: 1,
         platform: 'demo',
         step: UPLOAD_STEP,
         state: { uploadId: 'u-1', offsetBytes: 1000 },

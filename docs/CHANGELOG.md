@@ -16,7 +16,7 @@ consumer, rather than fifteen times later.
 | `PostRequest<TExtra>`                      | a flat `extra` mixing several networks' keys                           |
 | `transport` on `MediaConstraints`          | every existing media descriptor: the field is required                 |
 | `UNKNOWN_OUTCOME` in `ErrorCode`           | exhaustive `switch` statements over error codes                        |
-| `ResumeHandle` without secrets             | stored handles that carried a token or a signed upload URL             |
+| Versioned, secret-free `ResumeHandle`      | stored handles with secrets; adapters must reject unknown versions     |
 | `ArticleDocument` for `PostType.ARTICLE`   | an `article` made of one `body` plus `media[]`                         |
 | `adaptedRequest` in `preview()`            | host-side per-network formatters                                       |
 
@@ -41,7 +41,9 @@ consumer, rather than fifteen times later.
   unconfirmed `create` is reconciled, deduplicated by idempotency key, or reported — never
   repeated.
 - Resume handles are scanned for secrets on their way out (`findResumeHandleSecrets()`,
-  `sanitizeResumeHandle()`, `strictResumeHandles` in the client and server config).
+  `sanitizeResumeHandle()`, `strictResumeHandles` in the client and server config). New handles
+  are emitted as format version `1`; strictness is an explicit host policy, never inferred from
+  `NODE_ENV`.
 - `buildMultipartFormData()`, `runSinglePartUpload()` and `runUploadSequence()` — Web-API upload
   helpers alongside the existing chunked uploader.
 - `ArticleDocument` for `PostType.ARTICLE`, `thread: PostSegment[]` with `capabilities.thread`,
@@ -49,6 +51,11 @@ consumer, rather than fifteen times later.
 - `BodyLengthRule.countUnit` (`utf16` | `graphemes` | `utf8Bytes`) and `countUnits()`, so a
   network is measured in its own unit — Bluesky's 300 is 300 graphemes, not 300 UTF-16 units.
 - `adaptRequest()` and `adaptedRequest`/`requiredMediaUrlLifetimeSecs` in `preview()`.
+- Preview has one authoritative path through the capability descriptor and `validateExtra`; custom
+  adapter preview hooks were removed. Type-specific body limits and every thread segment are
+  reflected in `adaptedRequest`.
+- Reconciliation uses the request timeout and abort signal. An `absent` reconciliation or an
+  idempotency key proves a retry safe, so the returned failure is retryable.
 - `PlatformModule.dialect` and `deriveModule()`, so one package can serve a family of networks.
 - `POST /post/stream` in the HTTP shell: media as an `application/octet-stream` body, outside the
   JSON body limit, handed to the adapter as a `ReadableStream`. Video bytes are refused on the

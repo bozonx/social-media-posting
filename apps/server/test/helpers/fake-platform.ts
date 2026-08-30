@@ -5,7 +5,6 @@ import type { IPlatform } from '@bozonx/social-posting/platform';
 
 export type FakePlatform = IPlatform & {
   publish: Mock<IPlatform['publish']>;
-  preview: Mock<NonNullable<IPlatform['preview']>>;
   checkStatus: Mock<NonNullable<IPlatform['checkStatus']>>;
   capabilities: PlatformCapabilities;
 };
@@ -31,7 +30,6 @@ export function fakePlatform(
     name,
     capabilities: resolved,
     publish: vi.fn<IPlatform['publish']>().mockResolvedValue({ status: 'published', postId: '1' }),
-    preview: vi.fn<NonNullable<IPlatform['preview']>>(),
     checkStatus: vi.fn<NonNullable<IPlatform['checkStatus']>>(),
   };
 

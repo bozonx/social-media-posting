@@ -1,6 +1,5 @@
 import type { PostType } from '../types/post-type.js';
 import type { PostRequest } from '../types/post-request.js';
-import type { PreviewResult } from '../types/preview-response.js';
 import type { ResolvedAccountConfig } from '../types/account-config.js';
 import type { JsonValue, ResumeHandle } from '../types/resume-handle.js';
 import type { PlatformError } from '../errors/platform-error.js';
@@ -149,11 +148,6 @@ export interface IPlatform {
     accountConfig: ResolvedAccountConfig,
     options?: DeleteOptions,
   ): Promise<DeleteOutcome>;
-
-  /**
-   * Validate a post and report what would happen, without publishing.
-   */
-  preview?(request: PostRequest, accountConfig: ResolvedAccountConfig): Promise<PreviewResult>;
 
   /**
    * Type detection for a network whose type system does not match the generic

@@ -232,20 +232,8 @@ describe('POST /api/v1/post', () => {
 });
 
 describe('POST /api/v1/preview', () => {
-  it('returns the platform preview', async () => {
-    const { platform, platformModule } = fakePlatform();
-    const previewData = {
-      valid: true as const,
-      detectedType: PostType.POST,
-      convertedBody: '<b>Bold text</b>',
-      targetFormat: 'html',
-      convertedBodyLength: 16,
-      issues: [],
-      warnings: [],
-      ignoredFields: [],
-      truncated: false,
-    };
-    platform.preview.mockResolvedValue({ success: true, data: previewData });
+  it('returns the descriptor-derived preview', async () => {
+    const { platformModule } = fakePlatform();
 
     const { app } = createTestApp({ platforms: [platformModule], config: { accounts } });
 
@@ -257,7 +245,10 @@ describe('POST /api/v1/preview', () => {
     });
 
     expect(status).toBe(200);
-    expect(body).toEqual({ success: true, data: previewData });
+    expect(body).toMatchObject({
+      success: true,
+      data: { valid: true, detectedType: PostType.POST, convertedBody: '**Bold text**' },
+    });
   });
 });
 

@@ -12,7 +12,6 @@ import type {
   PlatformCapabilities,
   PlatformModule,
   PostRequest,
-  PreviewResult,
   ResolvedAccountConfig,
 } from '@bozonx/social-posting';
 import type {
@@ -87,37 +86,6 @@ class PastebinPlatform implements IPlatform {
     this.logger.log(`Published paste ${created.id}`, 'PastebinPlatform');
 
     return { status: 'published', postId: created.id, url: created.url };
-  }
-
-  preview(request: PostRequest): Promise<PreviewResult> {
-    if (!request.body?.trim()) {
-      return Promise.resolve({
-        success: true,
-        data: {
-          valid: false,
-          detectedType: PostType.POST,
-          issues: [{ code: 'BODY_REQUIRED', message: "Field 'body' is required for pastebin" }],
-          warnings: [],
-          ignoredFields: [],
-          truncated: false,
-        },
-      });
-    }
-
-    return Promise.resolve({
-      success: true,
-      data: {
-        valid: true,
-        detectedType: PostType.POST,
-        convertedBody: request.body,
-        targetFormat: 'text',
-        convertedBodyLength: request.body.length,
-        issues: [],
-        warnings: [],
-        ignoredFields: Array.isArray(request.tags) && request.tags.length > 0 ? ['tags'] : [],
-        truncated: false,
-      },
-    });
   }
 }
 

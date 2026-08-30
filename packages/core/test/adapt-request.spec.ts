@@ -58,6 +58,35 @@ describe('adaptRequest', () => {
     adaptRequest(request, capabilities);
     expect({ ...request, media: undefined }).toEqual(original);
   });
+
+  it('uses the type-specific body limit in both preview and adapted request', () => {
+    const typedCapabilities: PlatformCapabilities = {
+      ...capabilities,
+      maxBodyLength: 100,
+      postTypes: { [PostType.IMAGE]: { maxBodyLength: 8, requiredFields: ['media'] } },
+    };
+    const result = previewFromCapabilities({ ...request, body: '123456789' }, typedCapabilities);
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.valid).toBe(false);
+      expect(result.data.truncated).toBe(true);
+      expect(result.data.convertedBody).toHaveLength(8);
+      expect(result.data.adaptedRequest?.body).toBe(result.data.convertedBody);
+    }
+  });
+
+  it('converts and truncates each thread segment in the adapted request', () => {
+    const adapted = adaptRequest(
+      {
+        ...request,
+        thread: [{ body: '**long segment**' }],
+      },
+      { ...capabilities, thread: { supported: true, maxSegments: 3, maxSegmentBodyLength: 8 } },
+    );
+
+    expect(adapted.request.thread?.[0]?.body).toBe('<b>…</b>');
+  });
 });
 
 describe('preview', () => {
