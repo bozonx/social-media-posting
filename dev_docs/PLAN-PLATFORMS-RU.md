@@ -933,7 +933,7 @@ Instagram professional account ещё не получены.
 | 2     | YouTube → Vimeo → Dailymotion        | ✅ Завершена                           | волна B в BloggerDog ✅                      |
 | 3     | Threads → Instagram → Facebook       | Код завершён; live smoke заблокирован  | волна C в BloggerDog ✅, Meta app и аккаунты |
 | 4     | Mastodon → Pixelfed → Truth Social   | Код завершён; Truth Social restricted  | ToS-гейт для Truth Social                    |
-| 5     | Bluesky                              | Запланирована                          | тестовый PDS/account                         |
+| 5     | Bluesky                              | Код завершён; live smoke ожидает PDS   | тестовый PDS/account                         |
 | 6     | LinkedIn, TikTok, X, Pinterest       | Заблокирована доступами по каждой сети | app review/tier/scopes                       |
 | 7     | консолидация библиотеки и BloggerDog | Запланирована                          | завершённые целевые адаптеры                 |
 
@@ -1067,7 +1067,7 @@ upload limits отражены в capabilities и пользовательски
 созданных unpublished photos и продолжает с первого отсутствующего элемента. Live smoke и npm
 release не объявляются завершёнными до прохождения внешнего access-гейта.
 
-### Волна 4 — федеративные платформы
+### ✅Волна 4 — федеративные платформы
 
 `mastodon`, из него дескрипторами `pixelfed` и (при подтверждённых ToS) `truthSocial`. Приёмочный
 тест федеративной модели: `apiBaseUrl` (13), `resolveCapabilities()` из `/api/v1/instance` (14),
@@ -1089,7 +1089,7 @@ Mastodon и полученный через `deriveModule()` Pixelfed с общ�
 `Idempotency-Key`; `apiBaseUrl` обязателен для каждого аккаунта. Truth Social оставлен
 `restricted` в каталоге: подтверждения юридического гейта в репозитории нет.
 
-### Волна 5 — AT Protocol: Bluesky
+### ✅Волна 5 — AT Protocol: Bluesky
 
 `bluesky`. Отдельная волна, потому что не делит механику ни с чем: клиент сам строит запись
 лексикона, `facets` считаются в **байтах UTF-8**, лимит — в **графемах**, аутентификация не
@@ -1098,6 +1098,13 @@ OAuth2. Построение facets — отдельный тестируемы�
 **Критерий выхода:** facets корректны для кириллицы, emoji и комбинируемых символов; отдельно
 проверяются лимиты графем и байтов; session refresh и video processing не используют OAuth2
 абстракцию.
+
+**Результат реализации.** Добавлен `packages/platform-bluesky`: записи
+`app.bsky.feed.post`, UTF-8 facets для ссылок, хештегов и mentions, загрузка image blobs,
+асинхронная обработка video с secret-free handle, replies и явные threads. Лимит текста считается
+по графемам, byte ranges тестируются на кириллице, emoji и комбинируемых символах. Ротация
+`accessJwt`/`refreshJwt` реализована напрямую через ATProto session endpoints и требует callback
+хоста для сохранения новых credentials. Live smoke остаётся гейтом тестового PDS/account.
 
 ### Волна 6 — платформы с внешним допуском
 

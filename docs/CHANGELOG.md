@@ -22,6 +22,10 @@ consumer, rather than fifteen times later.
 
 ### Added
 
+- **Bluesky/AT Protocol publishing:** `@bozonx/social-posting-bluesky` builds post records and
+  UTF-8 byte-indexed facets, counts body limits in grapheme clusters, uploads image blobs, polls
+  asynchronous video processing with secret-free handles, publishes reply threads, and refreshes
+  rotating ATProto sessions without using the OAuth2 abstraction.
 - **Federated publishing wave:** `@bozonx/social-posting-mastodon` exports Mastodon and a
   descriptor-derived Pixelfed module over one protocol implementation. It supports arbitrary
   instance hosts, runtime instance limits, media alt text, polls, replies, explicit threads and

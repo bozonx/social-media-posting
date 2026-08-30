@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@bozonx/social-posting": "workspace:*",
+    "@bozonx/social-posting-bluesky": "workspace:*",
     "@bozonx/social-posting-dailymotion": "workspace:*",
     "@bozonx/social-posting-discord": "workspace:*",
     "@bozonx/social-posting-facebook": "workspace:*",

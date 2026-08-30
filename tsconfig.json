@@ -16,6 +16,7 @@
       "@bozonx/social-posting-vimeo": ["./packages/platform-vimeo/src/index.ts"],
       "@bozonx/social-posting-dailymotion": ["./packages/platform-dailymotion/src/index.ts"],
       "@bozonx/social-posting-mastodon": ["./packages/platform-mastodon/src/index.ts"],
+      "@bozonx/social-posting-bluesky": ["./packages/platform-bluesky/src/index.ts"],
       "@bozonx/social-posting-conformance": ["./packages/conformance/src/index.ts"]
     }
   },

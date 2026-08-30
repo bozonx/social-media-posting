@@ -10,6 +10,7 @@ import {
 } from '@bozonx/social-posting/platform';
 import type { PostServiceDeps } from '@bozonx/social-posting/platform';
 import { dailymotion } from '@bozonx/social-posting-dailymotion';
+import { bluesky } from '@bozonx/social-posting-bluesky';
 import { discord } from '@bozonx/social-posting-discord';
 import { facebook } from '@bozonx/social-posting-facebook';
 import { instagram } from '@bozonx/social-posting-instagram';
@@ -34,6 +35,7 @@ import type { ServerConfig } from './config/schema.js';
  */
 export const PLATFORMS: PlatformModule[] = [
   telegram,
+  bluesky,
   discord,
   youtube,
   vimeo,

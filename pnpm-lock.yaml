@@ -68,6 +68,9 @@ importers:
       '@bozonx/social-posting':
         specifier: workspace:*
         version: link:../../packages/core
+      '@bozonx/social-posting-bluesky':
+        specifier: workspace:*
+        version: link:../../packages/platform-bluesky
       '@bozonx/social-posting-dailymotion':
         specifier: workspace:*
         version: link:../../packages/platform-dailymotion
@@ -140,6 +143,15 @@ importers:
         version: 4.1.11(@types/node@26.4.0)(@vitest/coverage-v8@4.1.11)(vite@8.2.1(@types/node@26.4.0)(esbuild@0.28.1)(terser@5.46.0)(yaml@2.9.0))
 
   packages/core: {}
+
+  packages/platform-bluesky:
+    devDependencies:
+      '@bozonx/social-posting':
+        specifier: workspace:*
+        version: link:../core
+      '@bozonx/social-posting-conformance':
+        specifier: workspace:*
+        version: link:../conformance
 
   packages/platform-catalog:
     devDependencies:

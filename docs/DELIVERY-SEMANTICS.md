@@ -124,6 +124,7 @@ because polling requires a scheduler and a scheduler requires durable state.
 | Threads | none | the final `threads_publish` call after the container becomes ready | container and child IDs are resumable; a transient final-publish response becomes `UNKNOWN_OUTCOME` and is never repeated automatically |
 | Instagram | none | the final `media_publish` call after the container becomes ready | container and carousel-child IDs are resumable; an unconfirmed final publish becomes `UNKNOWN_OUTCOME` |
 | Facebook | none | direct feed/photo/video creates, gallery feed creation, and Reel finish | gallery handles retain unpublished photo IDs so upload resumes without duplicating them; an unconfirmed Reel finish becomes `UNKNOWN_OUTCOME` |
+| Bluesky | none | the final `com.atproto.repo.createRecord` call | image blobs are harmless before the record exists and video job IDs are resumable; an unconfirmed record create becomes `UNKNOWN_OUTCOME` and is not repeated |
 
 This table grows one row per network as networks land, and each row is filled in from that
 network's documented behaviour rather than from assumption. A network is not "done" until its row
