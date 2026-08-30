@@ -22,6 +22,10 @@ consumer, rather than fifteen times later.
 
 ### Added
 
+- **Access-gated publishing wave:** LinkedIn Posts API publishing for member and organization
+  URNs (including image, video, and document asset references), TikTok direct video/photo posting
+  with uncached Creator Info and status polling, X posts with weighted URL length, media references,
+  polls/replies/quotes, and Pinterest image/video Pins with composite board/section targets.
 - **Bluesky/AT Protocol publishing:** `@bozonx/social-posting-bluesky` builds post records and
   UTF-8 byte-indexed facets, counts body limits in grapheme clusters, uploads image blobs, polls
   asynchronous video processing with secret-free handles, publishes reply threads, and refreshes

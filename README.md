@@ -101,6 +101,10 @@ mutates no global state and never touches an ambient logger.
 | Instagram   | `@bozonx/social-posting-instagram`   | yes²         | no          | yes              |
 | Facebook    | `@bozonx/social-posting-facebook`    | yes²         | no          | Reels only       |
 | Bluesky     | `@bozonx/social-posting-bluesky`     | yes¹         | yes         | Video only       |
+| LinkedIn    | `@bozonx/social-posting-linkedin`    | no           | asset refs  | no               |
+| TikTok      | `@bozonx/social-posting-tiktok`      | yes²         | no          | yes              |
+| X           | `@bozonx/social-posting-x`           | no           | asset refs  | no               |
+| Pinterest   | `@bozonx/social-posting-pinterest`   | images²      | asset refs  | no               |
 
 ¹ Discord never fetches a URL: the adapter downloads it and uploads the bytes, so the URL must be
 reachable from your process rather than from Discord.

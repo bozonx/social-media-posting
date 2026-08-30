@@ -926,16 +926,16 @@ app, Page и Instagram professional account.
 Волна 3 остаётся заблокированной не кодом: её гейт входа (волна C) закрыт, но Meta app, Page и
 Instagram professional account ещё не получены.
 
-| Волна | Состав                               | Статус                                 | Обязательная зависимость                     |
-| ----- | ------------------------------------ | -------------------------------------- | -------------------------------------------- |
-| 0     | ядро и каталог                       | ✅ Завершена                           | —                                            |
-| 1     | Discord                              | ✅ Завершена                           | волна A в BloggerDog ✅                      |
-| 2     | YouTube → Vimeo → Dailymotion        | ✅ Завершена                           | волна B в BloggerDog ✅                      |
-| 3     | Threads → Instagram → Facebook       | Код завершён; live smoke заблокирован  | волна C в BloggerDog ✅, Meta app и аккаунты |
-| 4     | Mastodon → Pixelfed → Truth Social   | Код завершён; Truth Social restricted  | ToS-гейт для Truth Social                    |
-| 5     | Bluesky                              | Код завершён; live smoke ожидает PDS   | тестовый PDS/account                         |
-| 6     | LinkedIn, TikTok, X, Pinterest       | Заблокирована доступами по каждой сети | app review/tier/scopes                       |
-| 7     | консолидация библиотеки и BloggerDog | Запланирована                          | завершённые целевые адаптеры                 |
+| Волна | Состав                               | Статус                                   | Обязательная зависимость                     |
+| ----- | ------------------------------------ | ---------------------------------------- | -------------------------------------------- |
+| 0     | ядро и каталог                       | ✅ Завершена                             | —                                            |
+| 1     | Discord                              | ✅ Завершена                             | волна A в BloggerDog ✅                      |
+| 2     | YouTube → Vimeo → Dailymotion        | ✅ Завершена                             | волна B в BloggerDog ✅                      |
+| 3     | Threads → Instagram → Facebook       | Код завершён; live smoke заблокирован    | волна C в BloggerDog ✅, Meta app и аккаунты |
+| 4     | Mastodon → Pixelfed → Truth Social   | Код завершён; Truth Social restricted    | ToS-гейт для Truth Social                    |
+| 5     | Bluesky                              | Код завершён; live smoke ожидает PDS     | тестовый PDS/account                         |
+| 6     | LinkedIn, TikTok, X, Pinterest       | Код завершён; live smoke ожидает доступы | app review/tier/scopes                       |
+| 7     | консолидация библиотеки и BloggerDog | Запланирована                            | завершённые целевые адаптеры                 |
 
 Обратная совместимость со старым публичным API **не сохраняется**: легаси, фолбэки и алиасы не
 оставляются, потребитель `../bloggerdog` переписывается под новый контракт после доработки
@@ -1106,7 +1106,7 @@ OAuth2. Построение facets — отдельный тестируемы�
 `accessJwt`/`refreshJwt` реализована напрямую через ATProto session endpoints и требует callback
 хоста для сохранения новых credentials. Live smoke остаётся гейтом тестового PDS/account.
 
-### Волна 6 — платформы с внешним допуском
+### ✅Волна 6 — платформы с внешним допуском
 
 **Порядок:** только среди платформ с уже полученным доступом: `linkedin` → `tiktok` → `x` →
 `pinterest`. Отсутствие допуска к одной сети не задерживает остальные.
@@ -1118,6 +1118,13 @@ LinkedIn, аудит приложения TikTok, платный tier X. Зая�
 Info перед каждым постом с `cacheableForSecs: 0`; X — weighted character count через
 `bodyLengthRule.urlWeight`; Pinterest — составной target (board + section) и обязательный cover
 для video Pin.
+
+**Результат реализации.** Добавлены четыре самостоятельных пакета и зарегистрированы в HTTP
+shell. Внешние approvals не использовались как гейт кода: они остаются только условием live
+smoke. LinkedIn публикует Posts API с member/organization URN и готовыми asset URN; TikTok
+получает Creator Info перед каждой публикацией и возвращает secret-free status handle; X
+создаёт posts с media references, poll/reply/quote; Pinterest поддерживает image URL и готовый
+video media id, board + optional section и обязательную обложку video Pin.
 
 **Критерий выхода:** каждая доступная сеть выпущена и прошла ручной smoke test; недоступные сети
 остаются явно заблокированными с записанной причиной, а не считаются частично реализованными.

@@ -83,18 +83,30 @@ importers:
       '@bozonx/social-posting-instagram':
         specifier: workspace:*
         version: link:../../packages/platform-instagram
+      '@bozonx/social-posting-linkedin':
+        specifier: workspace:*
+        version: link:../../packages/platform-linkedin
       '@bozonx/social-posting-mastodon':
         specifier: workspace:*
         version: link:../../packages/platform-mastodon
+      '@bozonx/social-posting-pinterest':
+        specifier: workspace:*
+        version: link:../../packages/platform-pinterest
       '@bozonx/social-posting-telegram':
         specifier: workspace:*
         version: link:../../packages/platform-telegram
       '@bozonx/social-posting-threads':
         specifier: workspace:*
         version: link:../../packages/platform-threads
+      '@bozonx/social-posting-tiktok':
+        specifier: workspace:*
+        version: link:../../packages/platform-tiktok
       '@bozonx/social-posting-vimeo':
         specifier: workspace:*
         version: link:../../packages/platform-vimeo
+      '@bozonx/social-posting-x':
+        specifier: workspace:*
+        version: link:../../packages/platform-x
       '@bozonx/social-posting-youtube':
         specifier: workspace:*
         version: link:../../packages/platform-youtube
@@ -195,7 +207,25 @@ importers:
         specifier: workspace:*
         version: link:../conformance
 
+  packages/platform-linkedin:
+    devDependencies:
+      '@bozonx/social-posting':
+        specifier: workspace:*
+        version: link:../core
+      '@bozonx/social-posting-conformance':
+        specifier: workspace:*
+        version: link:../conformance
+
   packages/platform-mastodon:
+    devDependencies:
+      '@bozonx/social-posting':
+        specifier: workspace:*
+        version: link:../core
+      '@bozonx/social-posting-conformance':
+        specifier: workspace:*
+        version: link:../conformance
+
+  packages/platform-pinterest:
     devDependencies:
       '@bozonx/social-posting':
         specifier: workspace:*
@@ -222,7 +252,25 @@ importers:
         specifier: workspace:*
         version: link:../conformance
 
+  packages/platform-tiktok:
+    devDependencies:
+      '@bozonx/social-posting':
+        specifier: workspace:*
+        version: link:../core
+      '@bozonx/social-posting-conformance':
+        specifier: workspace:*
+        version: link:../conformance
+
   packages/platform-vimeo:
+    devDependencies:
+      '@bozonx/social-posting':
+        specifier: workspace:*
+        version: link:../core
+      '@bozonx/social-posting-conformance':
+        specifier: workspace:*
+        version: link:../conformance
+
+  packages/platform-x:
     devDependencies:
       '@bozonx/social-posting':
         specifier: workspace:*

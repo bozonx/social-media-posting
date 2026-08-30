@@ -125,6 +125,10 @@ because polling requires a scheduler and a scheduler requires durable state.
 | Instagram | none | the final `media_publish` call after the container becomes ready | container and carousel-child IDs are resumable; an unconfirmed final publish becomes `UNKNOWN_OUTCOME` |
 | Facebook | none | direct feed/photo/video creates, gallery feed creation, and Reel finish | gallery handles retain unpublished photo IDs so upload resumes without duplicating them; an unconfirmed Reel finish becomes `UNKNOWN_OUTCOME` |
 | Bluesky | none | the final `com.atproto.repo.createRecord` call | image blobs are harmless before the record exists and video job IDs are resumable; an unconfirmed record create becomes `UNKNOWN_OUTCOME` and is not repeated |
+| LinkedIn | none | the final Posts API create after assets exist | no reconciliation endpoint is used; an unconfirmed create is surfaced as `UNKNOWN_OUTCOME` and must not be repeated blindly |
+| TikTok | publish id | Direct Post initialization | the publish id is stored in a secret-free handle and `status/fetch` is used until TikTok reports completion or rejection |
+| X | none | the `POST /2/tweets` create call | no reconciliation is claimed; an unconfirmed create becomes `UNKNOWN_OUTCOME` |
+| Pinterest | none | the `POST /v5/pins` create call | uploaded video media ids are reusable inputs, but Pin creation itself is not repeated after an ambiguous outcome |
 
 This table grows one row per network as networks land, and each row is filled in from that
 network's documented behaviour rather than from assumption. A network is not "done" until its row

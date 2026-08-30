@@ -14,11 +14,15 @@ import { bluesky } from '@bozonx/social-posting-bluesky';
 import { discord } from '@bozonx/social-posting-discord';
 import { facebook } from '@bozonx/social-posting-facebook';
 import { instagram } from '@bozonx/social-posting-instagram';
+import { linkedin } from '@bozonx/social-posting-linkedin';
 import { mastodon, pixelfed } from '@bozonx/social-posting-mastodon';
+import { pinterest } from '@bozonx/social-posting-pinterest';
 import { telegram } from '@bozonx/social-posting-telegram';
 import { threads } from '@bozonx/social-posting-threads';
+import { tiktok } from '@bozonx/social-posting-tiktok';
 import { vimeo } from '@bozonx/social-posting-vimeo';
 import { youtube } from '@bozonx/social-posting-youtube';
+import { x } from '@bozonx/social-posting-x';
 import { JsonLogger } from './logger.js';
 import { DrainTracker } from './middleware/drain.js';
 import { bearerAuth } from './middleware/auth.js';
@@ -45,6 +49,10 @@ export const PLATFORMS: PlatformModule[] = [
   facebook,
   mastodon,
   pixelfed,
+  linkedin,
+  tiktok,
+  x,
+  pinterest,
 ];
 
 /** Everything needed to build the HTTP app. */
