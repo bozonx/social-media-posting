@@ -1,6 +1,6 @@
 {
   "name": "@bozonx/social-posting-pinterest",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Pinterest platform for @bozonx/social-posting",
   "keywords": [
     "social-media",
@@ -31,7 +31,7 @@
   },
   "dependencies": {},
   "peerDependencies": {
-    "@bozonx/social-posting": "^0.7.0"
+    "@bozonx/social-posting": "^0.8.0"
   },
   "devDependencies": {
     "@bozonx/social-posting": "workspace:*",

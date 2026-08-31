@@ -1,5 +1,15 @@
 # @bozonx/social-posting
 
+## 0.8.0
+
+### Minor Changes
+
+- cb08cbc: add new social media
+
+### Patch Changes
+
+- 78c45ab: fix
+
 ## 0.7.0
 
 ### Minor Changes
