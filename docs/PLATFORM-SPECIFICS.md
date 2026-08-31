@@ -1,5 +1,11 @@
 # What every network makes you deal with
 
+This is the operational cross-platform guide for the adapters currently implemented in this
+repository. Exact request fields and numeric limits remain authoritative in each adapter's
+capability descriptor; use `getCapabilities()` or `resolveCapabilities()` in application code.
+See [the documentation map](README.md) for source precedence and the adapter package README for
+copyable setup examples.
+
 This document is for someone **using** this library. It is not a capability table — the machine
 readable version of that is `platform.capabilities`, and it is the only thing you should branch on
 in code. This page explains the parts that a capability descriptor cannot state: the assumptions a
@@ -166,7 +172,7 @@ The easy one, and the reason it is a bad mental model for the rest.
 
 Do not generalize any of this. Telegram is the exception on nearly every axis.
 
-### Facebook Pages
+### Facebook Pages — _implemented_
 
 - **Pages only.** Not personal profiles, not Groups.
 - You need a Page access token, which is not a user access token — obtaining one is an extra
@@ -181,7 +187,7 @@ Do not generalize any of this. Telegram is the exception on nearly every axis.
 - The Graph API version is pinned to one constant. Upgrading it is a deliberate, reviewed change,
   not something that drifts.
 
-### Threads
+### Threads — _implemented_
 
 - Two-step: create a container, then publish it. **A container ID is not a post.** If you store
   the container ID as your published post reference, you have stored nothing useful.
@@ -191,7 +197,7 @@ Do not generalize any of this. Telegram is the exception on nearly every axis.
 - There is no separate "short video" format — a vertical video is simply a video post. There are
   no Stories.
 
-### Instagram
+### Instagram — _implemented_
 
 - **Professional accounts only** (Business/Creator). A personal account cannot publish through the
   API, and there is nothing the library can do about it. Validate account eligibility during
@@ -233,7 +239,7 @@ Do not generalize any of this. Telegram is the exception on nearly every axis.
 - Uploads are expensive in daily quota units. A handful of videos can exhaust a default project.
 - Maximum file size and duration also depend on whether the _channel_ is verified.
 
-### TikTok
+### TikTok — _implemented; external approval required_
 
 The most constrained integration in this list, and the one most likely to be refused at review.
 
@@ -251,7 +257,7 @@ The most constrained integration in this list, and the one most likely to be ref
 - Daily posting caps are dynamic. Watermarks from other platforms are prohibited content.
 - No Stories. No text-only posts.
 
-### X
+### X — _implemented; product tier required_
 
 - Publishing requires a **user-context** token. An app-only bearer token cannot create a post, no
   matter what scopes it has.
@@ -267,7 +273,7 @@ The most constrained integration in this list, and the one most likely to be ref
 - Video duration and size limits depend on account access level.
 - Short and long video are the same thing here — one video post. No Stories.
 
-### Pinterest
+### Pinterest — _implemented; app access required_
 
 - **A board is mandatory.** There is no such thing as posting to Pinterest generally; a Pin
   without a board target is not a valid request.
@@ -280,10 +286,10 @@ The most constrained integration in this list, and the one most likely to be ref
 - A video Pin requires a publicly reachable **cover image URL**. It is not optional and it is not
   generated for you.
 
-## Planned networks
+## Additional implemented networks
 
-These are the planned adapters. Each is described here rather than in a table because each one
-changes an assumption the networks above let you keep.
+These adapters are implemented too. Some still have external access or live-smoke release gates;
+that does not make their local code a plan or make an unavailable catalog entry publishable.
 
 ### Discord — _shipping_
 
@@ -311,7 +317,7 @@ The cheapest integration in the set, and the one most likely to be misunderstood
 Present it to your users as an _announcement channel_, not as a social network. There are no reach
 or engagement semantics behind a Discord message, and a UI that implies otherwise will disappoint.
 
-### LinkedIn
+### LinkedIn — _implemented; product approval required_
 
 - **Access is the risk, not the code.** Publishing as a member and publishing as an organization
   are different approved products with different scopes. Apply before you plan the work; without
@@ -326,7 +332,7 @@ or engagement semantics behind a Discord message, and a UI that implies otherwis
   asynchronous, and publishing before it finishes fails.
 - The API version is pinned by a header and rotates on a schedule.
 
-### Mastodon
+### Mastodon — _implemented_
 
 - **There is no single API host.** Every instance is a separate server. An account's configuration
   must carry the instance URL, not just a token.
@@ -341,7 +347,7 @@ or engagement semantics behind a Discord message, and a UI that implies otherwis
 - Media upload can be asynchronous: an accepted upload may still be processing, and publishing
   before it is ready fails.
 
-### Pixelfed and Truth Social
+### Pixelfed and Truth Social — _Pixelfed implemented; Truth Social restricted_
 
 Both speak the Mastodon API, so both are the Mastodon adapter under a different name with a
 different capability descriptor — not separate integrations. Everything in the Mastodon section
@@ -351,7 +357,7 @@ What differs is stated as data: **Pixelfed has no text-only post** — media is 
 Social additionally depends on confirmation that automated publishing is permitted by its terms
 and that API access was obtained legitimately; until that exists, it stays a catalog entry.
 
-### Bluesky
+### Bluesky — _implemented_
 
 - Multi-host again: the account's PDS is the endpoint.
 - Authentication is not OAuth2 in the classic sense, so the OAuth refresh machinery does not

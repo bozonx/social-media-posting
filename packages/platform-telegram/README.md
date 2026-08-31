@@ -90,10 +90,20 @@ rather than after a round trip. Read them at runtime with `client.getCapabilitie
 
 ## Media
 
-`src` can be a URL string, raw bytes (`Uint8Array`), `Blob`, `ReadableStream`, or a `file_id` for media Telegram already stores.
+Telegram accepts a public URL or a `platformRef` containing a `file_id` it already stores. This
+adapter deliberately does not upload byte, Blob, or stream sources; inspect
+`capabilities.media[type].acceptedSources` when selecting transport.
 
 ```json
-{ "media": [{ "src": "https://example.com/image.jpg", "sensitive": true }] }
+{
+  "media": [
+    {
+      "type": "image",
+      "source": { "kind": "url", "url": "https://example.com/image.jpg" },
+      "sensitive": true
+    }
+  ]
+}
 ```
 
 ## Extra fields

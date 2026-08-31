@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Documentation
+
+- Reorganized the guides around a documentation map and an end-to-end host integration guide,
+  clarified which runtime source is authoritative, marked implemented adapters accurately, and
+  corrected stale core request examples.
+
 ### Breaking: the core's type model
 
 These land as one piece. Compatibility with the previous shapes is deliberately not kept — the

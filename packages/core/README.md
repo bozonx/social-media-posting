@@ -47,6 +47,8 @@ client.post(request, { signal?, resume?, includeRaw? }); // publish once
 client.delete(request, ref, { signal?, resume?, includeRaw? }); // delete a post
 client.preview(request);                      // validate without publishing
 client.checkStatus(request, handle, signal?); // follow up a 'processing' publication
+client.resolveCapabilities(request, signal?); // account-specific limits; never cached here
+client.getQuota(request, signal?);             // remaining allowance where supported
 client.registerPlatform(platformModule);      // add a network at runtime
 client.getRegisteredPlatforms();              // string[]
 client.getCapabilities(platform);             // PlatformCapabilities
@@ -59,13 +61,15 @@ interface PostRequest {
   platform: string; // 'telegram'
   account?: string; // a named account …
   auth?: Record<string, unknown>; // … or inline credentials
-  target?: string | number; // chat ID, channel username, board, etc.
+  target?: string | number | { id: string; [key: string]: unknown };
 
   body?: string;
   bodyFormat?: BodyFormat; // 'text' | 'html' | 'md' | 'MarkdownV2'
   type?: PostType; // omit for auto-detection
   title?: string;
   description?: string;
+  article?: ArticleDocument;
+  thread?: PostSegment[];
 
   media?: MediaInput[]; // array of MediaInput items
   thumbnail?: ThumbnailInput; // dedicated preview asset
@@ -76,16 +80,18 @@ interface PostRequest {
   mode?: 'publish' | 'draft'; // rejected where the network has no drafts
   silent?: boolean;
   visibility?: Visibility; // 'public' | 'unlisted' | 'private' | 'direct'
-  replyTo?: PlatformObjectRef;
+  inReplyTo?: PlatformObjectRef;
   repostOf?: PlatformObjectRef;
-  quoteOf?: PlatformObjectRef;
   poll?: PollInput;
   location?: LocationInput;
   extra?: Record<string, unknown>; // platform-specific extra payload
 }
 ```
 
-`media.src` can be a URL string, raw bytes (`Uint8Array`), `Blob`, `ReadableStream`, or a platform reference (a Telegram `file_id`, for instance).
+`media[].source` is a discriminated union: `{ kind: 'url', url }`, `{ kind: 'bytes', bytes }`,
+`{ kind: 'blob', blob }`, `{ kind: 'stream', open, sizeBytes? }`, or
+`{ kind: 'platformRef', ref }`. A platform reference is native to that network (a Telegram
+`file_id`, for instance), not a generic URL.
 
 A field a network cannot honour is **rejected**, not silently dropped. A field it accepts and
 ignores comes back as a preview warning naming it.

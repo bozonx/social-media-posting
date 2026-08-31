@@ -2,8 +2,8 @@
 
 Most networks worth adding — X, LinkedIn, TikTok, YouTube, Meta, Threads, Pinterest, Reddit — sit
 behind OAuth2 with expiring tokens. This document draws the line between what this library does
-with those tokens and what the host application must do, and it is drawn deliberately before the
-first OAuth network lands rather than after.
+with those tokens and what the host application must do. The same boundary applies to every
+OAuth adapter in this repository.
 
 ## The line
 

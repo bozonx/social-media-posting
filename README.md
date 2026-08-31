@@ -96,20 +96,20 @@ mutates no global state and never touches an ambient logger.
 | Discord     | `@bozonx/social-posting-discord`     | yes¹         | yes         | no               |
 | YouTube     | `@bozonx/social-posting-youtube`     | yes¹         | yes         | yes              |
 | Vimeo       | `@bozonx/social-posting-vimeo`       | yes          | yes         | yes              |
-| Dailymotion | `@bozonx/social-posting-dailymotion` | no           | yes         | yes              |
+| Dailymotion | `@bozonx/social-posting-dailymotion` | yes¹         | yes         | yes              |
 | Threads     | `@bozonx/social-posting-threads`     | yes²         | no          | yes              |
 | Instagram   | `@bozonx/social-posting-instagram`   | yes²         | no          | yes              |
 | Facebook    | `@bozonx/social-posting-facebook`    | yes²         | no          | Reels only       |
 | Bluesky     | `@bozonx/social-posting-bluesky`     | yes¹         | yes         | Video only       |
 | LinkedIn    | `@bozonx/social-posting-linkedin`    | no           | asset refs  | no               |
 | TikTok      | `@bozonx/social-posting-tiktok`      | yes²         | no          | yes              |
-| X           | `@bozonx/social-posting-x`           | no           | asset refs  | no               |
+| X           | `@bozonx/social-posting-x`           | yes¹         | yes         | Video only       |
 | Pinterest   | `@bozonx/social-posting-pinterest`   | images²      | asset refs  | no               |
 
-¹ Discord never fetches a URL: the adapter downloads it and uploads the bytes, so the URL must be
-reachable from your process rather than from Discord.
+¹ The adapter fetches the URL and uploads the bytes; the URL must be reachable from your process.
+For Vimeo the exact behaviour depends on `extra.uploadApproach`.
 
-² Meta fetches the URL itself; it must be public and remain available through container processing.
+² The platform fetches the URL itself; it must be public and remain available through processing.
 
 Adding the next one: [`CONTRIBUTING-PLATFORMS.md`](CONTRIBUTING-PLATFORMS.md).
 
@@ -167,21 +167,32 @@ See [`apps/server/README.md`](apps/server/README.md) for the API, and
 
 ## Documentation
 
-|                                                                                  |                                              |
-| -------------------------------------------------------------------------------- | -------------------------------------------- |
-| [`packages/core/README.md`](packages/core/README.md)                             | The library API                              |
-| [`packages/platform-telegram/README.md`](packages/platform-telegram/README.md)   | Telegram reference                           |
-| [`packages/platform-discord/README.md`](packages/platform-discord/README.md)     | Discord reference                            |
-| [`packages/platform-threads/README.md`](packages/platform-threads/README.md)     | Threads reference                            |
-| [`packages/platform-instagram/README.md`](packages/platform-instagram/README.md) | Instagram reference                          |
-| [`packages/platform-facebook/README.md`](packages/platform-facebook/README.md)   | Facebook Pages reference                     |
-| [`apps/server/README.md`](apps/server/README.md)                                 | The HTTP API                                 |
-| [`CONTRIBUTING-PLATFORMS.md`](CONTRIBUTING-PLATFORMS.md)                         | Adding a network                             |
-| [`docs/DELIVERY-SEMANTICS.md`](docs/DELIVERY-SEMANTICS.md)                       | Duplicate risk, and who owns it              |
-| [`docs/PLATFORM-SPECIFICS.md`](docs/PLATFORM-SPECIFICS.md)                       | What each network demands of your app        |
-| [`docs/OAUTH.md`](docs/OAUTH.md)                                                 | Credentials, token refresh, re-authorization |
-| [`docs/RUNTIMES.md`](docs/RUNTIMES.md)                                           | Node, Workers, Deno, Bun                     |
-| [`docs/CHANGELOG.md`](docs/CHANGELOG.md)                                         | What changed, and why                        |
+|                                                                                      |                                              |
+| ------------------------------------------------------------------------------------ | -------------------------------------------- |
+| [`docs/README.md`](docs/README.md)                                                   | Documentation map and source-of-truth order  |
+| [`docs/USING-THE-LIBRARY.md`](docs/USING-THE-LIBRARY.md)                             | End-to-end host integration                  |
+| [`packages/core/README.md`](packages/core/README.md)                                 | The library API                              |
+| [`packages/platform-telegram/README.md`](packages/platform-telegram/README.md)       | Telegram reference                           |
+| [`packages/platform-discord/README.md`](packages/platform-discord/README.md)         | Discord reference                            |
+| [`packages/platform-threads/README.md`](packages/platform-threads/README.md)         | Threads reference                            |
+| [`packages/platform-instagram/README.md`](packages/platform-instagram/README.md)     | Instagram reference                          |
+| [`packages/platform-facebook/README.md`](packages/platform-facebook/README.md)       | Facebook Pages reference                     |
+| [`packages/platform-youtube/README.md`](packages/platform-youtube/README.md)         | YouTube reference                            |
+| [`packages/platform-tiktok/README.md`](packages/platform-tiktok/README.md)           | TikTok reference                             |
+| [`packages/platform-x/README.md`](packages/platform-x/README.md)                     | X reference                                  |
+| [`packages/platform-pinterest/README.md`](packages/platform-pinterest/README.md)     | Pinterest reference                          |
+| [`packages/platform-mastodon/README.md`](packages/platform-mastodon/README.md)       | Mastodon and Pixelfed reference              |
+| [`packages/platform-bluesky/README.md`](packages/platform-bluesky/README.md)         | Bluesky reference                            |
+| [`packages/platform-vimeo/README.md`](packages/platform-vimeo/README.md)             | Vimeo reference                              |
+| [`packages/platform-dailymotion/README.md`](packages/platform-dailymotion/README.md) | Dailymotion reference                        |
+| [`packages/platform-linkedin/README.md`](packages/platform-linkedin/README.md)       | LinkedIn reference                           |
+| [`apps/server/README.md`](apps/server/README.md)                                     | The HTTP API                                 |
+| [`CONTRIBUTING-PLATFORMS.md`](CONTRIBUTING-PLATFORMS.md)                             | Adding a network                             |
+| [`docs/DELIVERY-SEMANTICS.md`](docs/DELIVERY-SEMANTICS.md)                           | Duplicate risk, and who owns it              |
+| [`docs/PLATFORM-SPECIFICS.md`](docs/PLATFORM-SPECIFICS.md)                           | What each network demands of your app        |
+| [`docs/OAUTH.md`](docs/OAUTH.md)                                                     | Credentials, token refresh, re-authorization |
+| [`docs/RUNTIMES.md`](docs/RUNTIMES.md)                                               | Node, Workers, Deno, Bun                     |
+| [`docs/CHANGELOG.md`](docs/CHANGELOG.md)                                             | What changed, and why                        |
 
 ## Development
 
