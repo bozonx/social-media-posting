@@ -86,6 +86,12 @@ describePlatformContract({
     [PostType.POST]: { platform: 'mastodon', type: PostType.POST, body: 'hello' },
     [PostType.IMAGE]: { platform: 'mastodon', type: PostType.IMAGE, body: 'image', media: [image] },
     [PostType.VIDEO]: { platform: 'mastodon', type: PostType.VIDEO, body: 'video', media: [video] },
+    [PostType.SHORT_VIDEO]: {
+      platform: 'mastodon',
+      type: PostType.SHORT_VIDEO,
+      body: 'short video',
+      media: [video],
+    },
     [PostType.AUDIO]: { platform: 'mastodon', type: PostType.AUDIO, body: 'audio', media: [audio] },
     [PostType.ALBUM]: {
       platform: 'mastodon',

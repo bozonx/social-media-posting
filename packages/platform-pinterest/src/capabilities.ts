@@ -32,12 +32,24 @@ export const pinterestCapabilities: PlatformCapabilities = {
       maxTitleLength: 100,
       maxDescriptionLength: 800,
     },
+    [PostType.SHORT_VIDEO]: {
+      requiredFields: ['media', 'title', 'thumbnail'],
+      minMediaCount: 1,
+      maxMediaCount: 1,
+      mediaCounts: { video: { min: 1, max: 1 } },
+      maxTitleLength: 100,
+      maxDescriptionLength: 800,
+    },
   },
   supportedBodyFormats: ['text'],
   targetBodyFormat: 'text',
   media: {
     image: { ...pull },
-    video: { acceptedSources: ['platformRef'], transport: 'push', requiresCover: true },
+    video: {
+      acceptedSources: ['url', 'bytes', 'blob', 'stream', 'platformRef'],
+      transport: 'push',
+      requiresCover: true,
+    },
   },
   thumbnail: { supported: true },
   supportedVisibility: ['public'],
@@ -59,7 +71,11 @@ export const pinterestCapabilities: PlatformCapabilities = {
   supportsDraft: false,
   supportsDeletion: false,
   supportsEdit: false,
-  asyncProcessing: { supported: false },
+  asyncProcessing: {
+    supported: true,
+    pollIntervalSecs: 5,
+    maxWaitSecs: 30 * 60,
+  },
   ignoredFields: [
     'tags',
     'language',

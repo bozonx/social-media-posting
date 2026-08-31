@@ -67,6 +67,17 @@ export const dailymotionCapabilities: PlatformCapabilities = {
       maxTags: MAX_TAGS,
       maxTagLength: MAX_TAG_LENGTH,
     },
+    [PostType.SHORT_VIDEO]: {
+      requiredFields: ['media', 'title'],
+      forbiddenFields: ['poll'],
+      minMediaCount: 1,
+      maxMediaCount: 1,
+      mediaCounts: { video: { min: 1, max: 1 } },
+      maxTitleLength: MAX_TITLE_LENGTH,
+      maxDescriptionLength: MAX_DESCRIPTION_LENGTH,
+      maxTags: MAX_TAGS,
+      maxTagLength: MAX_TAG_LENGTH,
+    },
   },
 
   maxBodyLength: MAX_DESCRIPTION_LENGTH,

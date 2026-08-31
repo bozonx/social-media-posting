@@ -53,6 +53,10 @@ function createHarness(): ContractHarness {
       globalThis.fetch = ((_input: RequestInfo | URL, init?: RequestInit) => {
         calls += 1;
         return new Promise<Response>((_resolve, reject) => {
+          if (init?.signal?.aborted) {
+            reject(new DOMException('The operation was aborted.', 'AbortError'));
+            return;
+          }
           init?.signal?.addEventListener('abort', () => {
             reject(new DOMException('The operation was aborted.', 'AbortError'));
           });
@@ -83,6 +87,11 @@ describePlatformContract({
     [PostType.VIDEO]: {
       platform: 'x',
       type: PostType.VIDEO,
+      media: [{ type: 'video', source: { kind: 'platformRef', ref: '2' } }],
+    },
+    [PostType.SHORT_VIDEO]: {
+      platform: 'x',
+      type: PostType.SHORT_VIDEO,
       media: [{ type: 'video', source: { kind: 'platformRef', ref: '2' } }],
     },
     [PostType.POLL]: {

@@ -32,6 +32,13 @@ export const linkedinCapabilities: PlatformCapabilities = {
       mediaCounts: { video: { min: 1, max: 1 } },
       maxBodyLength: 3000,
     },
+    [PostType.SHORT_VIDEO]: {
+      requiredFields: ['media'],
+      minMediaCount: 1,
+      maxMediaCount: 1,
+      mediaCounts: { video: { min: 1, max: 1 } },
+      maxBodyLength: 3000,
+    },
     [PostType.DOCUMENT]: {
       requiredFields: ['media'],
       minMediaCount: 1,

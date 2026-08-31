@@ -1,6 +1,9 @@
 import { PostType } from '@bozonx/social-posting';
 import type { MediaConstraints, PlatformCapabilities } from '@bozonx/social-posting';
-const ref: MediaConstraints = { acceptedSources: ['platformRef'], transport: 'push' };
+const ref: MediaConstraints = {
+  acceptedSources: ['url', 'bytes', 'blob', 'stream', 'platformRef'],
+  transport: 'push',
+};
 export const xCapabilities: PlatformCapabilities = {
   name: 'x',
   displayName: 'X',
@@ -25,6 +28,13 @@ export const xCapabilities: PlatformCapabilities = {
       maxBodyLength: 280,
     },
     [PostType.VIDEO]: {
+      requiredFields: ['media'],
+      minMediaCount: 1,
+      maxMediaCount: 1,
+      mediaCounts: { video: { min: 1, max: 1 } },
+      maxBodyLength: 280,
+    },
+    [PostType.SHORT_VIDEO]: {
       requiredFields: ['media'],
       minMediaCount: 1,
       maxMediaCount: 1,

@@ -96,6 +96,20 @@ describePlatformContract({
         },
       ],
     },
+    [PostType.SHORT_VIDEO]: {
+      platform: 'pinterest',
+      target: { id: 'board-1' },
+      title: 'Short video',
+      type: PostType.SHORT_VIDEO,
+      thumbnail: { source: { kind: 'url', url: 'https://example.com/cover.jpg' } },
+      media: [
+        {
+          type: 'video',
+          source: { kind: 'platformRef', ref: 'media-1' },
+          thumbnail: { source: { kind: 'url', url: 'https://example.com/cover.jpg' } },
+        },
+      ],
+    },
   },
 
   overLimitRequest: {

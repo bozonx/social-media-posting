@@ -101,6 +101,7 @@ describePlatformContract({
 
   requests: {
     [PostType.VIDEO]: { ...base, type: PostType.VIDEO, media },
+    [PostType.SHORT_VIDEO]: { ...base, type: PostType.SHORT_VIDEO, media },
   },
 
   overLimitRequest: {

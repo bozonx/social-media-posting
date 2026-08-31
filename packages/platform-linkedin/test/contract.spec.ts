@@ -93,6 +93,12 @@ describePlatformContract({
       type: PostType.VIDEO,
       media: [{ type: 'video', source: { kind: 'platformRef', ref: 'urn:li:video:1' } }],
     },
+    [PostType.SHORT_VIDEO]: {
+      platform: 'linkedin',
+      target: { id: 'urn:li:person:test' },
+      type: PostType.SHORT_VIDEO,
+      media: [{ type: 'video', source: { kind: 'platformRef', ref: 'urn:li:video:1' } }],
+    },
     [PostType.DOCUMENT]: {
       platform: 'linkedin',
       target: { id: 'urn:li:person:test' },

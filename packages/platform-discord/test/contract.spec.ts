@@ -117,6 +117,17 @@ describePlatformContract({
         },
       ],
     },
+    [PostType.SHORT_VIDEO]: {
+      ...base,
+      type: PostType.SHORT_VIDEO,
+      media: [
+        {
+          type: 'video' as const,
+          mimeType: 'video/mp4',
+          source: { kind: 'bytes' as const, bytes: new Uint8Array([0, 0, 0, 24]) },
+        },
+      ],
+    },
     [PostType.AUDIO]: {
       ...base,
       type: PostType.AUDIO,

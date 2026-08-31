@@ -32,6 +32,12 @@ export const blueskyCapabilities: PlatformCapabilities = {
       maxMediaCount: 1,
       mediaCounts: { video: { min: 1, max: 1 } },
     },
+    [PostType.SHORT_VIDEO]: {
+      requiredFields: ['media'],
+      minMediaCount: 1,
+      maxMediaCount: 1,
+      mediaCounts: { video: { min: 1, max: 1 } },
+    },
   },
   maxBodyLength: 300,
   bodyLengthRule: { countUnit: 'graphemes' },

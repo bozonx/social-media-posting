@@ -133,6 +133,17 @@ describePlatformContract({
         },
       ],
     },
+    [PostType.SHORT_VIDEO]: {
+      platform: 'bluesky',
+      type: PostType.SHORT_VIDEO,
+      media: [
+        {
+          type: 'video',
+          mimeType: 'video/mp4',
+          source: { kind: 'bytes', bytes: new Uint8Array([1]) },
+        },
+      ],
+    },
   },
   overLimitRequest: {
     request: { platform: 'bluesky', type: PostType.POST, body: 'x'.repeat(301) },
